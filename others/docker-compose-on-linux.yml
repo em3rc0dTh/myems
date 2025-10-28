@@ -1,5 +1,22 @@
 version: '3.8'
 services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: '!MyEMS1'
+      MYSQL_USER: root
+      MYSQL_PASSWORD: '!MyEMS1'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p!MyEMS1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build: ../myems-api
     command: gunicorn app:api -b 0.0.0.0:8000 --timeout 600 --workers=4
@@ -8,26 +25,36 @@ services:
     restart: always
     ports:
       - "8000:8000"
+    depends_on:
+      - mysql
 
   aggregation:
     build: ../myems-aggregation
     command: python main.py
     restart: always
+    depends_on:
+      - api
 
   cleaning:
     build: ../myems-cleaning
     command: python main.py
     restart: always
+    depends_on:
+      - api
 
   modbus_tcp:
     build: ../myems-modbus-tcp
     command: python main.py
     restart: always
+    depends_on:
+      - api
 
   normalization:
     build: ../myems-normalization
     command: python main.py
     restart: always
+    depends_on:
+      - api
 
   admin:
     build: ../myems-admin
@@ -39,6 +66,8 @@ services:
     restart: always
     ports:
       - "8001:8001"
+    depends_on:
+    - api
   web:
     build: ../myems-web
     command: nginx -c /etc/nginx/nginx.conf -g "daemon off;"
@@ -47,3 +76,8 @@ services:
     restart: always
     ports:
       - "80:80"
+    depends_on:
+    - api
+
+volumes:
+  mysql-data:
