@@ -21,6 +21,9 @@ FROM nginx:latest AS production-stage
 # remove the default config
 RUN rm /etc/nginx/conf.d/default.conf && rm /etc/nginx/nginx.conf
 
+# Copy custom nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
+
 # create new root folder
 RUN mkdir -p /var/www/myems-web
 
