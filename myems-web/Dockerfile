@@ -27,7 +27,6 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # create new root folder
 RUN mkdir -p /var/www/myems-web
 
-COPY nginx.conf /etc/nginx/
 COPY --from=build-stage /opt/build/ /var/www/myems-web
 EXPOSE 80
 CMD ["nginx", "-c", "/etc/nginx/nginx.conf", "-g", "daemon off;"]

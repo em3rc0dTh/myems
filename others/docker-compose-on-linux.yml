@@ -4,8 +4,6 @@ services:
     image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: '!MyEMS1'
-      MYSQL_USER: root
-      MYSQL_PASSWORD: '!MyEMS1'
     volumes:
       - mysql-data:/var/lib/mysql
     restart: always
@@ -16,8 +14,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  networks:
-      - myems-net
+    networks:
+        - myems-net
 
   api:
     build: ../myems-api
