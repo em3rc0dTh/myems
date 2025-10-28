@@ -16,6 +16,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  networks:
+      - myems-net
 
   api:
     build: ../myems-api
@@ -29,6 +31,8 @@ services:
       - "8000:8000"
     depends_on:
       - mysql
+    networks:
+      - myems-net
 
   aggregation:
     build: ../myems-aggregation
@@ -38,6 +42,8 @@ services:
     restart: always
     depends_on:
       - api
+    networks:
+      - myems-net
 
   cleaning:
     build: ../myems-cleaning
@@ -47,6 +53,8 @@ services:
     restart: always
     depends_on:
       - api
+    networks:
+      - myems-net
 
   modbus_tcp:
     build: ../myems-modbus-tcp
@@ -56,6 +64,8 @@ services:
     restart: always
     depends_on:
       - api
+    networks:
+      - myems-net
 
   normalization:
     build: ../myems-normalization
@@ -65,6 +75,8 @@ services:
     restart: always
     depends_on:
       - api
+    networks:
+      - myems-net
 
   admin:
     build: ../myems-admin
@@ -78,6 +90,9 @@ services:
       - "8001:8001"
     depends_on:
     - api
+    networks:
+      - myems-net
+
   web:
     build: ../myems-web
     command: nginx -c /etc/nginx/nginx.conf -g "daemon off;"
@@ -88,6 +103,12 @@ services:
       - "80:80"
     depends_on:
     - api
+    networks:
+      - myems-net
 
+networks:
+  myems-net:
+    driver: bridge
+    
 volumes:
   mysql-data:
