@@ -13,36 +13,39 @@ Configuration includes:
 """
 
 from decouple import config
-
+MYEMS_HOST = config("MYEMS_HOST", default="127.0.0.1")
+MYEMS_PORT = config("MYEMS_PORT", default=3306, cast=int)
+MYEMS_USER = config("MYEMS_USER", default="root")
+MYEMS_PASSWORD = config("MYEMS_PASSWORD", default="!MyEMS1")
 
 # Database connection configuration for MyEMS System Database
 # This database contains system configuration, meter definitions, and virtual meter equations
 myems_system_db = {
-    'host': config('MYEMS_SYSTEM_DB_HOST', default='127.0.0.1'),
-    'port': config('MYEMS_SYSTEM_DB_PORT', default=3306, cast=int),
-    'database': config('MYEMS_SYSTEM_DB_DATABASE', default='myems_system_db'),
-    'user': config('MYEMS_SYSTEM_DB_USER', default='root'),
-    'password': config('MYEMS_SYSTEM_DB_PASSWORD', default='!MyEMS1'),
+    "host": config("MYEMS_SYSTEM_DB_HOST", default=MYEMS_HOST),
+    "port": config("MYEMS_SYSTEM_DB_PORT", default=MYEMS_PORT, cast=int),
+    "database": config("MYEMS_SYSTEM_DB_DATABASE", default="myems_system_db"),
+    "user": config("MYEMS_SYSTEM_DB_USER", default=MYEMS_USER),
+    "password": config("MYEMS_SYSTEM_DB_PASSWORD", default=MYEMS_PASSWORD),
 }
 
 # Database connection configuration for MyEMS Energy Database
 # This database contains normalized energy consumption data (hourly aggregations)
 myems_energy_db = {
-    'host': config('MYEMS_ENERGY_DB_HOST', default='127.0.0.1'),
-    'port': config('MYEMS_ENERGY_DB_PORT', default=3306, cast=int),
-    'database': config('MYEMS_ENERGY_DB_DATABASE', default='myems_energy_db'),
-    'user': config('MYEMS_ENERGY_DB_USER', default='root'),
-    'password': config('MYEMS_ENERGY_DB_PASSWORD', default='!MyEMS1'),
+    "host": config("MYEMS_ENERGY_DB_HOST", default=MYEMS_HOST),
+    "port": config("MYEMS_ENERGY_DB_PORT", default=MYEMS_PORT, cast=int),
+    "database": config("MYEMS_ENERGY_DB_DATABASE", default="myems_energy_db"),
+    "user": config("MYEMS_ENERGY_DB_USER", default=MYEMS_USER),
+    "password": config("MYEMS_ENERGY_DB_PASSWORD", default=MYEMS_PASSWORD),
 }
 
 # Database connection configuration for MyEMS Historical Database
 # This database contains raw time-series data from meters and uploaded files
 myems_historical_db = {
-    'host': config('MYEMS_HISTORICAL_DB_HOST', default='127.0.0.1'),
-    'port': config('MYEMS_HISTORICAL_DB_PORT', default=3306, cast=int),
-    'database': config('MYEMS_HISTORICAL_DB_DATABASE', default='myems_historical_db'),
-    'user': config('MYEMS_HISTORICAL_DB_USER', default='root'),
-    'password': config('MYEMS_HISTORICAL_DB_PASSWORD', default='!MyEMS1'),
+    "host": config("MYEMS_HISTORICAL_DB_HOST", default=MYEMS_HOST),
+    "port": config("MYEMS_HISTORICAL_DB_PORT", default=MYEMS_PORT, cast=int),
+    "database": config("MYEMS_HISTORICAL_DB_DATABASE", default="myems_historical_db"),
+    "user": config("MYEMS_HISTORICAL_DB_USER", default=MYEMS_USER),
+    "password": config("MYEMS_HISTORICAL_DB_PASSWORD", default=MYEMS_PASSWORD),
 }
 
 # Data processing interval: indicates in how many minutes to normalize energy consumption
