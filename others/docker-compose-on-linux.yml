@@ -20,7 +20,7 @@ services:
   api:
     build: ../myems-api
     env_file:
-      - .env
+      - ../myems-api/.env
     command: gunicorn app:api -b 0.0.0.0:8000 --timeout 600 --workers=4
     volumes:
       - /myems-upload:/var/www/myems-admin/upload
@@ -33,7 +33,7 @@ services:
   aggregation:
     build: ../myems-aggregation
     env_file:
-      - .env
+      - ../myems-aggregation/.env
     command: python main.py
     restart: always
     depends_on:
@@ -42,7 +42,7 @@ services:
   cleaning:
     build: ../myems-cleaning
     env_file:
-      - .env
+      - ../myems-cleaning/.env
     command: python main.py
     restart: always
     depends_on:
@@ -51,7 +51,7 @@ services:
   modbus_tcp:
     build: ../myems-modbus-tcp
     env_file:
-      - .env
+      - ../myems-modbus-tcp/.env
     command: python main.py
     restart: always
     depends_on:
@@ -60,7 +60,7 @@ services:
   normalization:
     build: ../myems-normalization
     env_file:
-      - .env
+      - ../myems-normalization/.env
     command: python main.py
     restart: always
     depends_on:
