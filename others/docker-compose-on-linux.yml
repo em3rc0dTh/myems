@@ -65,6 +65,17 @@ services:
     networks:
       - myems-net
 
+  mqtt:
+    build: ../myems-mqtt
+    env_file:
+      - ../myems-mqtt/.env
+    command: python main.py
+    restart: always
+    depends_on:
+      - api
+    networks:
+      - myems-net
+      
   normalization:
     build: ../myems-normalization
     env_file:
