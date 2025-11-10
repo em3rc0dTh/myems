@@ -1,16 +1,16 @@
 """
-MyEMS Modbus TCP Gateway Service - Gateway Monitoring Module
+Servicio MyEMS Modbus TCP Gateway - Módulo de Monitoreo del Gateway
 
-This module handles gateway status monitoring and reporting to the MyEMS system.
-It periodically verifies gateway authentication and updates the gateway's last seen
-timestamp to indicate that the gateway is active and operational.
+Este módulo se encarga de monitorear el estado del gateway y reportarlo al sistema MyEMS.
+Verifica periódicamente la autenticación del gateway y actualiza la marca de tiempo
+de la última conexión para indicar que el gateway está activo y operativo.
 
-The gateway monitoring process performs the following functions:
-1. Verifies gateway token authentication with the system
-2. Collects gateway status information (currently just timestamp)
-3. Updates the gateway's last seen datetime in the system database
+El proceso de monitoreo del gateway realiza las siguientes funciones:
+1. Verifica la autenticación del token del gateway con el sistema
+2. Recopila información de estado del gateway (actualmente solo la marca de tiempo)
+3. Actualiza en la base de datos del sistema la última fecha y hora de actividad del gateway
 
-This allows the MyEMS system to track which gateways are online and operational.
+Esto permite al sistema MyEMS rastrear qué gateways están en línea y operativos.
 """
 
 import time
@@ -23,44 +23,44 @@ import config
 
 
 ########################################################################################################################
-# Gateway Job Procedures
-# Step 1: Verify Gateway Token - Authenticate gateway with system
-# Step 2: Collect Gateway Information - Gather status and performance data
-# Step 3: Update Gateway Information - Report status to system database
+# Procedimientos del trabajo del Gateway
+# Paso 1: Verificar Token del Gateway - Autenticar el gateway con el sistema
+# Paso 2: Recopilar Información del Gateway - Obtener datos de estado y rendimiento
+# Paso 3: Actualizar Información del Gateway - Reportar el estado a la base de datos del sistema
 ########################################################################################################################
 
 
 def job(logger):
     """
-    Execute the gateway monitoring job.
+    Ejecuta la tarea de monitoreo del gateway.
 
-    This function performs gateway authentication verification and status reporting
-    to the MyEMS system database.
+    Esta función realiza la verificación de autenticación del gateway y el reporte de estado
+    a la base de datos del sistema MyEMS.
 
     Args:
-        logger: Logger instance for recording gateway activities and errors
+        logger: instancia del logger para registrar actividades y errores del gateway
     """
     ################################################################################################################
-    # Step 1: Verify Gateway Token - Authenticate gateway with system
+    # Paso 1: Verificar Token del Gateway - Autenticar el gateway con el sistema
     ################################################################################################################
     cnx_system_db = None
     cursor_system_db = None
 
-    # Connect to system database
+    # Conectarse a la base de datos del sistema
     try:
         cnx_system_db = mysql.connector.connect(**config.myems_system_db)
         cursor_system_db = cnx_system_db.cursor()
     except Exception as e:
-        logger.error("Error in step 1.1 of Gateway process " + str(e))
-        # Clean up database connections in case of error
+        logger.error("Error en el paso 1.1 del proceso del Gateway " + str(e))
+        # Limpiar conexiones a la base de datos en caso de error
         if cursor_system_db:
             cursor_system_db.close()
         if cnx_system_db:
             cnx_system_db.close()
         return
 
-    # TODO: Choose a more secure method to verify gateway token
-    # Verify gateway authentication using ID and token
+    # TODO: Elegir un método más seguro para verificar el token del gateway
+    # Verificar la autenticación del gateway usando ID y token
     try:
         query = (" SELECT name "
                  " FROM tbl_gateways "
@@ -68,18 +68,18 @@ def job(logger):
         cursor_system_db.execute(query, (config.gateway['id'], config.gateway['token']))
         row = cursor_system_db.fetchone()
     except Exception as e:
-        logger.error("Error in step 1.2 of gateway process: " + str(e))
-        # Clean up database connections in case of error
+        logger.error("Error en el paso 1.2 del proceso del Gateway: " + str(e))
+        # Limpiar conexiones a la base de datos en caso de error
         if cursor_system_db:
             cursor_system_db.close()
         if cnx_system_db:
             cnx_system_db.close()
         return
 
-    # Check if gateway authentication was successful
+    # Verificar si la autenticación del gateway fue exitosa
     if row is None:
-        logger.error("Error in step 1.3 of gateway process: Not Found ")
-        # Clean up database connections
+        logger.error("Error en el paso 1.3 del proceso del Gateway: No encontrado ")
+        # Limpiar conexiones a la base de datos
         if cursor_system_db:
             cursor_system_db.close()
         if cnx_system_db:
@@ -87,16 +87,16 @@ def job(logger):
         return
 
     ############################################################################################################
-    # Step 2: Collect Gateway Information - Gather status and performance data
+    # Paso 2: Recopilar Información del Gateway - Obtener datos de estado y rendimiento
     ############################################################################################################
-    # TODO: Get more information, such as CPU/MEMORY/DISK usage, network status, etc.
-    # Currently only collecting current timestamp as basic status information
+    # TODO: Obtener más información, como uso de CPU/MEMORIA/DISCO, estado de red, etc.
+    # Actualmente solo se obtiene la marca de tiempo actual como información básica de estado
     current_datetime_utc = datetime.utcnow()
 
     ############################################################################################################
-    # Step 3: Update Gateway Information - Report status to system database
+    # Paso 3: Actualizar Información del Gateway - Reportar estado a la base de datos del sistema
     ############################################################################################################
-    # Update the gateway's last seen timestamp to indicate it's active
+    # Actualizar la marca de tiempo de "última conexión" para indicar que el gateway está activo
     update_row = (" UPDATE tbl_gateways "
                   " SET last_seen_datetime_utc = '" + current_datetime_utc.isoformat() + "' "
                   " WHERE id = %s ")
@@ -104,10 +104,10 @@ def job(logger):
         cursor_system_db.execute(update_row, (config.gateway['id'], ))
         cnx_system_db.commit()
     except Exception as e:
-        logger.error("Error in step 3.1 of gateway process " + str(e))
+        logger.error("Error en el paso 3.1 del proceso del Gateway " + str(e))
         return
     finally:
-        # Always clean up database connections
+        # Siempre cerrar las conexiones a la base de datos
         if cursor_system_db:
             cursor_system_db.close()
         if cnx_system_db:
@@ -116,19 +116,19 @@ def job(logger):
 
 def process(logger):
     """
-    Main process function for gateway monitoring.
+    Función principal del proceso de monitoreo del gateway.
 
-    This function schedules and manages the gateway monitoring job execution.
-    It runs the monitoring job at regular intervals to keep the system informed
-    of the gateway's operational status.
+    Esta función programa y gestiona la ejecución periódica de la tarea de monitoreo del gateway.
+    Se ejecuta en intervalos regulares para mantener informado al sistema
+    sobre el estado operativo del gateway.
 
     Args:
-        logger: Logger instance for recording process activities and errors
+        logger: instancia del logger para registrar actividades y errores del proceso
     """
-    # Schedule the gateway monitoring job to run at the configured interval
+    # Programar la tarea de monitoreo del gateway para que se ejecute en el intervalo configurado
     schedule.every(config.interval_in_seconds).seconds.do(job, logger)
 
-    # Main loop to check and execute scheduled jobs
+    # Bucle principal para revisar y ejecutar tareas programadas
     while True:
         schedule.run_pending()
-        time.sleep(60)  # Check every minute for pending scheduled jobs
+        time.sleep(60)  # Revisar cada minuto si hay tareas pendientes

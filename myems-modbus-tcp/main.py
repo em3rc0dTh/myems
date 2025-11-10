@@ -1,19 +1,19 @@
 """
-MyEMS Modbus TCP Gateway Service - Main Module
+Servicio MyEMS Modbus TCP Gateway - Módulo Principal
 
-This module is the main entry point for the MyEMS Modbus TCP gateway service.
-It initializes logging, starts the gateway monitoring process, and manages data source
-acquisition processes for Modbus TCP communication.
+Este módulo es el punto de entrada principal para el servicio de gateway MyEMS Modbus TCP.
+Inicializa el registro de logs, inicia el proceso de monitoreo del gateway y gestiona
+los procesos de adquisición de fuentes de datos para la comunicación Modbus TCP.
 
-The service performs the following functions:
-1. Sets up logging and error handling
-2. Starts the gateway monitoring process to report gateway status
-3. Discovers and validates Modbus TCP data sources from the system database
-4. Spawns separate acquisition processes for each data source
-5. Manages process lifecycle and error recovery
+El servicio realiza las siguientes funciones:
+1. Configura el registro de logs y el manejo de errores
+2. Inicia el proceso de monitoreo del gateway para reportar el estado del gateway
+3. Descubre y valida las fuentes de datos Modbus TCP desde la base de datos del sistema
+4. Crea procesos de adquisición separados para cada fuente de datos
+5. Gestiona el ciclo de vida de los procesos y la recuperación de errores
 
-Each data source represents a Modbus TCP server (slave device) that the gateway
-will connect to and read data from at regular intervals.
+Cada fuente de datos representa un servidor Modbus TCP (dispositivo esclavo) al cual el gateway
+se conectará y del que leerá datos en intervalos regulares.
 """
 
 import json
@@ -29,65 +29,65 @@ import gateway
 
 def main():
     """
-    Main function to initialize the MyEMS Modbus TCP gateway service.
+    Función principal para inicializar el servicio MyEMS Modbus TCP Gateway.
 
-    Sets up logging, starts the gateway monitoring process, discovers data sources,
-    and spawns acquisition processes for each Modbus TCP data source.
+    Configura el registro de logs, inicia el proceso de monitoreo del gateway, descubre las fuentes de datos
+    y lanza procesos de adquisición para cada fuente de datos Modbus TCP.
     """
-    # Create logger for the Modbus TCP gateway service
+    # Crear el logger para el servicio Modbus TCP Gateway
     logger = logging.getLogger('myems-modbus-tcp')
 
-    # Set logging level to ERROR to capture only error messages and above
-    # This specifies the lowest-severity log message a logger will handle,
-    # where debug is the lowest built-in severity level and critical is the highest built-in severity.
-    # For example, if the severity level is INFO, the logger will handle only INFO, WARNING, ERROR, and CRITICAL
-    # messages and will ignore DEBUG messages.
+    # Establecer el nivel de logging en ERROR para capturar solo mensajes de error y superiores
+    # Esto especifica el nivel mínimo de severidad que manejará el logger,
+    # donde DEBUG es el nivel más bajo y CRITICAL el más alto.
+    # Por ejemplo, si el nivel de severidad es INFO, el logger manejará solo INFO, WARNING, ERROR y CRITICAL,
+    # ignorando los mensajes DEBUG.
     logger.setLevel(logging.ERROR)
 
-    # Create rotating file handler which logs messages to a file
-    # maxBytes=1024*1024 means 1MB, backupCount=1 means keep 1 backup file
+    # Crear un manejador de archivo rotativo que registra mensajes en un archivo
+    # maxBytes=1024*1024 significa 1MB, backupCount=1 indica mantener 1 archivo de respaldo
     fh = RotatingFileHandler('myems-modbus-tcp.log', maxBytes=1024*1024, backupCount=1)
 
-    # Create formatter for log messages and add it to the file handler
+    # Crear un formateador para los mensajes de log y añadirlo al manejador de archivos
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
 
-    # Add the file handler to logger
+    # Agregar el manejador de archivo al logger
     logger.addHandler(fh)
 
-    # Add console handler to send logging output to sys.stderr
+    # Agregar un manejador de consola para enviar la salida de logs a sys.stderr
     logger.addHandler(logging.StreamHandler())
 
     ####################################################################################################################
-    # Create Gateway Process - Monitor gateway status and report to system
+    # Crear Proceso del Gateway - Monitorear el estado del gateway y reportarlo al sistema
     ####################################################################################################################
     Process(target=gateway.process, args=(logger,)).start()
 
-    # Get Data Sources from system database
+    # Obtener las fuentes de datos desde la base de datos del sistema
     data_source_list = list()
     while True:
-        # TODO: This service has to RESTART to reload latest data sources and this should be fixed
-        # Connect to system database to discover available data sources
+        # TODO: Este servicio debe REINICIARSE para recargar las últimas fuentes de datos, esto debe corregirse
+        # Conectarse a la base de datos del sistema para descubrir las fuentes de datos disponibles
         cnx_system_db = None
         cursor_system_db = None
         try:
             cnx_system_db = mysql.connector.connect(**config.myems_system_db)
             cursor_system_db = cnx_system_db.cursor()
         except Exception as e:
-            logger.error("Error in main process " + str(e))
-            # Clean up database connections in case of error
+            logger.error("Error en el proceso principal " + str(e))
+            # Cerrar conexiones de base de datos en caso de error
             if cursor_system_db:
                 cursor_system_db.close()
             if cnx_system_db:
                 cnx_system_db.close()
-            # Sleep several minutes and continue the outer loop to reload points
+            # Dormir varios minutos y continuar el bucle externo para recargar los puntos
             time.sleep(60)
             continue
 
-        # Get data sources by gateway and protocol
+        # Obtener fuentes de datos por gateway y protocolo
         rows_data_source = None
         try:
-            # Query all Modbus TCP data sources associated with this gateway
+            # Consultar todas las fuentes de datos Modbus TCP asociadas a este gateway
             query = (" SELECT ds.id, ds.name, ds.connection "
                      " FROM tbl_data_sources ds, tbl_gateways g "
                      " WHERE ds.protocol = 'modbus-tcp' AND ds.gateway_id = g.id AND g.id = %s AND g.token = %s "
@@ -95,7 +95,7 @@ def main():
             cursor_system_db.execute(query, (config.gateway['id'], config.gateway['token'],))
             rows_data_source = cursor_system_db.fetchall()
 
-            # Reset data sources' process_id to NULL to clear any stale process references
+            # Restablecer process_id de las fuentes de datos a NULL para limpiar referencias antiguas
             query = (" UPDATE tbl_data_sources ds, tbl_gateways g "
                      " SET ds.process_id = NULL "
                      " WHERE ds.protocol = 'modbus-tcp' AND ds.gateway_id = g.id AND g.id = %s AND g.token = %s ")
@@ -103,45 +103,45 @@ def main():
             cnx_system_db.commit()
 
         except Exception as e:
-            logger.error("Error in main process " + str(e))
-            # Sleep several minutes and continue the outer loop to reload points
+            logger.error("Error en el proceso principal " + str(e))
+            # Dormir varios minutos y continuar el bucle externo para recargar los puntos
             time.sleep(60)
         finally:
-            # Always clean up database connections
+            # Siempre cerrar las conexiones de base de datos
             if cursor_system_db:
                 cursor_system_db.close()
             if cnx_system_db:
                 cnx_system_db.close()
 
-        # Check if data sources were found
+        # Verificar si se encontraron fuentes de datos
         if rows_data_source is None or len(rows_data_source) == 0:
-            logger.error("Data Source Not Found, Wait for minutes to retry.")
-            # Wait for a while and retry
+            logger.error("No se encontró ninguna fuente de datos. Esperando unos minutos para reintentar.")
+            # Esperar un tiempo antes de volver a intentar
             time.sleep(60)
             continue
         else:
-            # Stop the while loop to connect these data sources
+            # Detener el bucle while para conectar estas fuentes de datos
             data_source_list = rows_data_source
             break
 
-    # Process each discovered data source
+    # Procesar cada fuente de datos descubierta
     for data_source in data_source_list:
-        print("Data Source: ID=%s, Name=%s, Connection=%s " %
+        print("Fuente de Datos: ID=%s, Nombre=%s, Conexión=%s " %
               (data_source[0], data_source[1], data_source[2]))
 
-        # Validate data source connection configuration
+        # Validar la configuración de conexión de la fuente de datos
         if data_source[2] is None or len(data_source[2]) == 0:
-            logger.error("Data Source Connection Not Found.")
+            logger.error("Conexión de la fuente de datos no encontrada.")
             continue
 
-        # Parse connection JSON configuration
+        # Analizar la configuración JSON de la conexión
         try:
             server = json.loads(data_source[2])
         except Exception as e:
-            logger.error("Data Source Connection JSON error " + str(e))
+            logger.error("Error en el JSON de la conexión de la fuente de datos " + str(e))
             continue
 
-        # Validate required connection parameters
+        # Validar los parámetros requeridos de la conexión
         if 'host' not in server.keys() \
                 or 'port' not in server.keys() \
                 or server['host'] is None \
@@ -150,23 +150,23 @@ def main():
                 or not isinstance(server['port'], int) \
                 or server['port'] < 1 \
                 or server['port'] > 65535:
-            logger.error("Data Source Connection Invalid.")
+            logger.error("Conexión de la fuente de datos inválida.")
             continue
 
-        # Validate or set default interval for data acquisition
+        # Validar o establecer el intervalo por defecto para la adquisición de datos
         if 'interval_in_seconds' not in server.keys() \
             or (not isinstance(server['interval_in_seconds'], int)
                 and not isinstance(server['interval_in_seconds'], float)) \
             or server['interval_in_seconds'] < 0 \
                 or server['interval_in_seconds'] > 3600:
-            # Use default interval from configuration
+            # Usar el intervalo por defecto de la configuración
             interval_in_seconds = config.interval_in_seconds
         else:
-            # Use configured interval from data source
+            # Usar el intervalo configurado en la fuente de datos
             interval_in_seconds = server['interval_in_seconds']
 
-        # Fork worker process for each data source
-        # TODO: How to restart the process if the process terminated unexpectedly
+        # Crear un proceso de trabajo para cada fuente de datos
+        # TODO: Cómo reiniciar el proceso si termina inesperadamente
         Process(target=acquisition.process,
                 args=(logger, data_source[0], server['host'], server['port'], interval_in_seconds)).start()
 
