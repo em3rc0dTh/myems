@@ -47,3 +47,20 @@ services:
     restart: always
     ports:
       - "80:80"
+
+  mqtt_broker:
+    image: eclipse-mosquitto
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+
+  myems_mqtt:
+    build: ../myems-mqtt
+    command: python main.py
+    restart: always
+    environment:
+      - MYEMS_MQTT_BROKER_HOST=mqtt_broker
+      - MYEMS_MQTT_BROKER_PORT=1883
+    depends_on:
+      - mqtt_broker

@@ -6,10 +6,10 @@ import paho.mqtt.client as mqtt
 
 BROKER = "127.0.0.1"
 PORT = 1883
-TOPIC_PUBLISH = "myems/device1/data"
+TOPIC_PUBLISH = "70B3D5100995"
 TOPIC_SUBSCRIBE = "myems/device1/command"
-USERNAME = "admin"
-PASSWORD = "!MyEMS123"
+USERNAME = "myems"
+PASSWORD = "!MyEMS1"
 
 # MQTT connection callbacks
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -45,7 +45,7 @@ try:
             "utc_date_time": datetime.utcnow().isoformat(),
             "value": round(random.uniform(20, 30), 2)  # fake temperature
         }
-        client.publish(TOPIC_PUBLISH, json.dumps(payload), qos=0, retain=False)
+        client.publish(TOPIC_PUBLISH, json.dumps(payload), qos=2, retain=False)
         print(f"📤 Published → {TOPIC_PUBLISH}: {payload}")
         time.sleep(3)
 except KeyboardInterrupt:
