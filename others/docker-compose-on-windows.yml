@@ -48,19 +48,25 @@ services:
     ports:
       - "80:80"
 
-  mqtt_broker:
-    image: eclipse-mosquitto
-    restart: always
+  broker:
+    build: ../myems-mqtt-broker
+    container_name: myems-mqtt-broker
+    env_file:
+      - ../myems-mqtt/.env
+    environment:
+      - MQTT_USER=${MYEMS_MQTT_BROKER_USERNAME}
+      - MQTT_PASSWORD=${MYEMS_MQTT_BROKER_PASSWORD}
+    volumes:
+      - ../myems-mqtt-broker/config:/mosquitto/config
+      - ../myems-mqtt-broker/data:/mosquitto/data
+      - ../myems-mqtt-broker/log:/mosquitto/log
     ports:
-      - "1883:1883"
-      - "9001:9001"
+      - "8883:8883"
+    restart: always
 
   myems_mqtt:
     build: ../myems-mqtt
     command: python main.py
     restart: always
-    environment:
-      - MYEMS_MQTT_BROKER_HOST=mqtt_broker
-      - MYEMS_MQTT_BROKER_PORT=1883
     depends_on:
-      - mqtt_broker
+      - broker

@@ -73,9 +73,28 @@ services:
     restart: always
     depends_on:
       - api
+      - broker
     networks:
       - myems-net
-      
+
+  broker:
+    build: ../myems-mqtt-broker
+    container_name: myems-mqtt-broker
+    env_file:
+      - ../myems-mqtt/.env
+    environment:
+      - MQTT_USER=${MYEMS_MQTT_BROKER_USERNAME}
+      - MQTT_PASSWORD=${MYEMS_MQTT_BROKER_PASSWORD}
+    volumes:
+      - ../myems-mqtt-broker/config:/mosquitto/config
+      - ../myems-mqtt-broker/data:/mosquitto/data
+      - ../myems-mqtt-broker/log:/mosquitto/log
+    ports:
+      - "8883:8883"
+    restart: always
+    networks:
+      - myems-net
+
   normalization:
     build: ../myems-normalization
     env_file:
