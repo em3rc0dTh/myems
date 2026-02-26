@@ -90,7 +90,7 @@ services:
       - ../myems-mqtt-broker/data:/mosquitto/data
       - ../myems-mqtt-broker/log:/mosquitto/log
     ports:
-      - "8883:8883"
+      - "1883:1883"
     restart: always
     networks:
       - myems-net
