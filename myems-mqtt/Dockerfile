@@ -1,6 +1,6 @@
 FROM python:3.10-slim
 
-RUN apt update 
+RUN apt update && apt install -y ca-certificates
 
 WORKDIR /app
 COPY . /app

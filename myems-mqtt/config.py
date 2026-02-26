@@ -24,5 +24,5 @@ mqtt_topics = {
     "ack": "myems/+/ack",  # device acknowledgments
 }
 
-# Interval (if needed)
-interval_in_seconds = 10
+# Interval (how long to wait between readings/checks)
+interval_in_seconds = config("INTERVAL_IN_SECONDS", default=10, cast=int)
