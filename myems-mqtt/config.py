@@ -18,11 +18,14 @@ myems_system_db = {
     "raise_on_warnings": True,
 }
 
-# Topic patterns
-mqtt_topics = {
-    "data": "myems/+/data",  # incoming sensor data
-    "ack": "myems/+/ack",  # device acknowledgments
-}
+# Topic patterns to subscribe to (comma separated in .env)
+mqtt_subscribe_topics = [
+    t.strip()
+    for t in config(
+        "MQTT_SUBSCRIBE_TOPICS", default="myems/+/data,myems/+/ack,myems/#"
+    ).split(",")
+    if t.strip()
+]
 
 # Interval (how long to wait between readings/checks)
 interval_in_seconds = config("INTERVAL_IN_SECONDS", default=10, cast=int)

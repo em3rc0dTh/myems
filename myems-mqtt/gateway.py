@@ -17,9 +17,9 @@ def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
         connected_flag = True
         logger.info("[MQTT] Connected to broker successfully")
-        client.subscribe(config.mqtt_topics["data"])
-        client.subscribe(config.mqtt_topics["ack"])
-        logger.info(f"[MQTT] Subscribed to topics: {list(config.mqtt_topics.values())}")
+        for topic in config.mqtt_subscribe_topics:
+            client.subscribe(topic)
+        logger.info(f"[MQTT] Subscribed to topics: {config.mqtt_subscribe_topics}")
     else:
         connected_flag = False
         logger.error(f"[MQTT] Connection failed with reason code: {rc}")
