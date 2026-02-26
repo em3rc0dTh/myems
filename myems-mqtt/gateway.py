@@ -92,11 +92,15 @@ def process(external_logger):
 
     client.loop_start()
 
+    # Wait for the connection to be established before checking its status in the loop.
+    # This prevents a false "Currently disconnected" log message during the initial handshake.
+    timeout = 10
+    start_time = time.time()
+    while not connected_flag and (time.time() - start_time) < timeout:
+        time.sleep(1)
+
     while True:
         if not connected_flag:
-            # We don't sleep too long here if we are disconnected,
-            # as paho-mqtt handles the actual reconnection in the background.
-            # We just log the status periodically.
             logger.warning(
                 "[MQTT] Currently disconnected. Waiting for auto-reconnect..."
             )
