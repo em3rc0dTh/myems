@@ -6,6 +6,14 @@ import { Server, ArrowLeft, Thermometer, Droplets } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import mqtt from 'mqtt';
 
+interface PortReport {
+    P1?: string;
+    I1?: string;
+    U1?: string;
+    state?: string;
+    [key: string]: string | number | undefined;
+}
+
 interface RackModule {
     id: string;
     label: string;
@@ -13,7 +21,7 @@ interface RackModule {
     temp: number;
     hum: number;
     fans: string;
-    ports: Record<string, any>;
+    ports: Record<string, PortReport>;
 }
 
 export default function InfrastructureControl() {
@@ -31,8 +39,8 @@ export default function InfrastructureControl() {
                 const meters = JSON.parse(savedMeters);
                 
                 const newRack: Record<string, RackModule> = {};
-                qdfs.forEach((qdf: any) => {
-                    const meter = meters.find((m: any) => m.qdfId === qdf.id);
+                qdfs.forEach((qdf: { id: string, name: string, room: string, feeds: string }) => {
+                    const meter = meters.find((m: { qdfId: string, serial: string }) => m.qdfId === qdf.id);
                     newRack[qdf.name] = {
                         id: qdf.name,
                         label: qdf.room + ' (Feed ' + qdf.feeds + ')',
@@ -77,7 +85,9 @@ export default function InfrastructureControl() {
                         return { ...next };
                     });
                 }
-            } catch (e) { }
+            } catch {
+                // Captura silenciosa sin variable e
+            }
         });
         return () => { client.end(); };
     }, [rack]);
@@ -94,9 +104,9 @@ export default function InfrastructureControl() {
 
             <main className="flex-1 grid grid-cols-2 gap-6 min-h-0">
                 {Object.entries(rack).map(([key, mod]) => {
-                    const portList = Object.values(mod.ports) as any[];
-                    const totalKW = portList.reduce((acc: number, p: any) => acc + (parseFloat(p.P1) || 0), 0) / 1000;
-                    const activeCount = portList.filter((p: any) => p.state === 'ONLINE' || (parseFloat(p.P1) > 0)).length;
+                    const portList = Object.values(mod.ports);
+                    const totalKW = portList.reduce((acc: number, p) => acc + (parseFloat(p.P1 || "0") || 0), 0) / 1000;
+                    const activeCount = portList.filter((p) => p.state === 'ONLINE' || (parseFloat(p.P1 || "0") > 0)).length;
 
                     return (
                         <motion.div

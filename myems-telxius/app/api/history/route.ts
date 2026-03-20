@@ -1,4 +1,4 @@
-import { InfluxDB } from '@influxdata/influxdb-client';
+import { InfluxDB, FluxTableMetaData } from '@influxdata/influxdb-client';
 import { NextResponse } from 'next/server';
 
 const url = process.env.NEXT_PUBLIC_INFLUX_URL || 'http://localhost:8086';
@@ -38,7 +38,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         const data: { time: string, field: string, value: number, sn: string }[] = [];
         return new Promise<NextResponse>((resolve) => {
             queryApi.queryRows(fluxQuery, {
-                next(row: any, tableMeta: any) {
+                next(row: string[], tableMeta: FluxTableMetaData) {
                     const obj = tableMeta.toObject(row);
                     data.push({
                         time: obj._time,
