@@ -7,8 +7,6 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     restart: always
-    ports:
-      - "3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p!MyEMS1"]
       interval: 10s
@@ -25,8 +23,6 @@ services:
     volumes:
       - /myems-upload:/var/www/myems-admin/upload
     restart: always
-    ports:
-      - "8000:8000"
     depends_on:
       - mysql
     networks:
@@ -89,8 +85,7 @@ services:
       - ../myems-mqtt-broker/config:/mosquitto/config
       - ../myems-mqtt-broker/data:/mosquitto/data
       - ../myems-mqtt-broker/log:/mosquitto/log
-    ports:
-      - "1883:1883"
+    # Solo se expone vía Nginx (Puerto 80) para el Dashboard
     restart: always
     networks:
       - myems-net
@@ -114,8 +109,6 @@ services:
     volumes:
       - /myems-upload:/var/www/myems-admin/upload
     restart: always
-    ports:
-      - "8001:8001"
     depends_on:
     - api
     networks:
@@ -160,8 +153,6 @@ services:
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
     volumes:
       - influxdb-data:/var/lib/influxdb2
-    ports:
-      - "8086:8086"
     networks:
       - myems-net
 

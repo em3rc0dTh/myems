@@ -247,7 +247,8 @@ export default function Home() {
       setNow(new Date().toLocaleTimeString());
     }, 0);
     
-    const client = mqtt.connect('ws://165.1.124.248:9001', {
+    const url = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const client = mqtt.connect(`${url}${window.location.host}/mqtt/`, {
       username: 'th-testing-2w',
       password: 'Aa12345678@@',
       clientId: 'telxius_rack_' + Math.random().toString(16).substring(2, 8),
