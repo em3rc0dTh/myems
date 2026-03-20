@@ -1,10 +1,10 @@
 import { InfluxDB, FluxTableMetaData } from '@influxdata/influxdb-client';
 import { NextResponse } from 'next/server';
 
-const url = process.env.NEXT_PUBLIC_INFLUX_URL || 'http://localhost:8086';
-const token = process.env.NEXT_PUBLIC_INFLUX_TOKEN || '';
-const org = process.env.NEXT_PUBLIC_INFLUX_ORG || 'myems';
-const bucket = process.env.NEXT_PUBLIC_INFLUX_BUCKET || 'energy';
+const url = process.env.INFLUX_URL || 'http://localhost:8086';
+const token = process.env.INFLUX_TOKEN || '';
+const org = process.env.INFLUX_ORG || 'myems';
+const bucket = process.env.INFLUX_BUCKET || 'energy';
 
 export async function GET(request: Request): Promise<NextResponse> {
     console.log('--- API History Call Received ---');
@@ -12,6 +12,22 @@ export async function GET(request: Request): Promise<NextResponse> {
     const sn = searchParams.get('sn');
     const range = searchParams.get('range') || '24h';
     const fieldType = searchParams.get('field') || 'P'; // P for Power, U1 for Voltage, A1 for Amps
+
+    // -- VALIDACIÓN DE SEGURIDAD (Evitar Flux Injection) --
+    const snRegex = /^[a-zA-Z0-9_-]+$/;
+    if (sn && !snRegex.test(sn)) {
+        return NextResponse.json({ error: 'Invalid Serial Number (SN)' }, { status: 400 });
+    }
+
+    const rangeRegex = /^\d+[hmdws]$/; // Ej: 24h, 30m, 1h
+    if (!rangeRegex.test(range)) {
+        return NextResponse.json({ error: 'Invalid Range format (e.g. 24h, 1h)' }, { status: 400 });
+    }
+
+    const fieldTypeRegex = /^[a-zA-Z0-9]+$/;
+    if (!fieldTypeRegex.test(fieldType)) {
+        return NextResponse.json({ error: 'Invalid Field Type' }, { status: 400 });
+    }
 
     if (!token) {
         return NextResponse.json({ error: 'InfluxDB Token not configured' }, { status: 500 });

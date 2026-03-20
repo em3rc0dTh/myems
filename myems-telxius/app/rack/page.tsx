@@ -58,38 +58,52 @@ export default function InfrastructureControl() {
     }, []);
 
     useEffect(() => {
-        const url = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const client = mqtt.connect(`${url}${window.location.host}/mqtt/`, {
-            username: 'th-testing-2w', password: 'Aa12345678@@',
-            clientId: 'telxius_rack_mgr_' + Math.random().toString(16).substring(2, 6),
-        });
-
-        client.on('connect', () => client.subscribe('data/dev/#'));
-        client.on('message', (_, msg) => {
+        let client: mqtt.MqttClient | null = null;
+        
+        async function startMQTT() {
             try {
-                const data = JSON.parse(msg.toString());
-                if (data.sn && data.reported) {
-                    setRack(prev => {
-                        const key = Object.keys(prev).find(k => prev[k].sn === data.sn);
-                        if (!key) return prev;
+                const configRes = await fetch('/telxius/api/config/mqtt/');
+                const config = await configRes.json();
+                
+                const url = config.url || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/mqtt/';
+                client = mqtt.connect(url, {
+                    username: config.username,
+                    password: config.password,
+                    clientId: 'telxius_rack_mgr_' + Math.random().toString(16).substring(2, 6),
+                });
 
-                        const next = { ...prev };
-                        // Solo actualizamos con data real de MQTT
-                        next[key] = {
-                            ...next[key],
-                            // Actualizamos temp y hum solo si vienen en el payload (ajusta según tu sensor real)
-                            temp: parseFloat(data.reported.TEMP) || next[key].temp,
-                            hum: parseFloat(data.reported.HUM) || next[key].hum,
-                            ports: { ...next[key].ports, ...data.reported }
-                        };
-                        return { ...next };
-                    });
-                }
-            } catch {
-                // Captura silenciosa sin variable e
+                client.on('connect', () => client?.subscribe('data/dev/#'));
+                client.on('message', (_, msg) => {
+                    try {
+                        const data = JSON.parse(msg.toString());
+                        if (data.sn && data.reported) {
+                            setRack(prev => {
+                                const key = Object.keys(prev).find(k => prev[k].sn === data.sn);
+                                if (!key) return prev;
+
+                                const next = { ...prev };
+                                // Solo actualizamos con data real de MQTT
+                                next[key] = {
+                                    ...next[key],
+                                    // Actualizamos temp y hum solo si vienen en el payload (ajusta según tu sensor real)
+                                    temp: parseFloat(data.reported.TEMP) || next[key].temp,
+                                    hum: parseFloat(data.reported.HUM) || next[key].hum,
+                                    ports: { ...next[key].ports, ...data.reported }
+                                };
+                                return { ...next };
+                            });
+                        }
+                    } catch {
+                        // Captura silenciosa
+                    }
+                });
+            } catch (err) {
+                console.error("MQTT Rack Guard Failure", err);
             }
-        });
-        return () => { client.end(); };
+        }
+
+        startMQTT();
+        return () => { if (client) client.end(); };
     }, [rack]);
 
     return (

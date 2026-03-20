@@ -17,6 +17,80 @@ const MiniGauge = ({ val, label, color }: { val: number, label: string, color: s
   </div>
 );
 
+// Componente de Gráfico de Tendencia Moderno
+const ModernTrendChart = ({ data }: { data: number[] }) => {
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const padding = 10; // Margen superior/inferior en %
+
+  // Puntos para el path (X de 0-100, Y de 0-100 inverso)
+  const points = data.length > 1 
+    ? data.map((val, i) => {
+        const x = (i / (data.length - 1)) * 100;
+        const y = 100 - padding - ((val - min) / range) * (100 - padding * 2);
+        return `${x},${y}`;
+      }).join(' ')
+    : "0,50 100,50";
+
+  return (
+    <div className="flex-1 w-full relative min-h-0 mt-8 mb-4">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+        <defs>
+          <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        
+        {/* Guías de fondo */}
+        {[0, 25, 50, 75, 100].map(v => (
+          <line key={v} x1="0" y1={v} x2="100" y2={v} stroke="white" strokeOpacity="0.02" strokeWidth="0.1" />
+        ))}
+
+        {/* Área rellenada */}
+        <motion.polyline
+          points={`${points} 100,100 0,100`}
+          fill="url(#chartGradient)"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1 }}
+        />
+
+        {/* Línea de tendencia */}
+        <motion.polyline
+          points={points}
+          fill="none"
+          stroke="#06b6d4"
+          strokeWidth="0.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={{ duration: 1.5, ease: "easeInOut" }}
+        />
+
+        {/* Círculo en el punto actual */}
+        {data.length > 0 && (
+          <motion.circle
+            cx="100"
+            cy={100 - padding - ((data[data.length - 1] - min) / range) * (100 - padding * 2)}
+            r="1"
+            fill="#06b6d4"
+            initial={{ scale: 0 }}
+            animate={{ scale: [1, 1.5, 1] }}
+            transition={{ repeat: Infinity, duration: 2 }}
+          />
+        )}
+      </svg>
+      
+      {/* Etiquetas de Ejes */}
+      <div className="absolute left-0 top-0 text-[7px] font-mono text-slate-800 uppercase tracking-widest">{max.toFixed(2)} kW</div>
+      <div className="absolute left-0 bottom-0 text-[7px] font-mono text-slate-800 uppercase tracking-widest">{min.toFixed(2)} kW</div>
+    </div>
+  );
+};
+
 export default function UltraIntelligenceDashboard() {
   const [totalPower, setTotalPower] = useState(0);
   const [, setDevicePowers] = useState<Record<string, number>>({});
@@ -69,59 +143,72 @@ export default function UltraIntelligenceDashboard() {
 
   // 3. MQTT RAW Listener & Real-time Summation
   useEffect(() => {
-    const url = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    const client = mqtt.connect(`${url}${window.location.host}/mqtt/`, {
-      username: 'th-testing-2w', password: 'Aa12345678@@',
-      clientId: 'telxius_dashboard_' + Math.random().toString(16).substring(2, 6),
-    });
-
-    client.on('connect', () => client.subscribe('data/dev/#'));
-    client.on('message', (topic, msg) => {
+    let client: mqtt.MqttClient | null = null;
+    
+    async function startMQTT() {
       try {
-        const data = JSON.parse(msg.toString());
-        setRawLogs(prev => [`[${topic}] ${msg.toString()}`, ...prev].slice(0, 25));
+        const configRes = await fetch('/telxius/api/config/mqtt/');
+        const config = await configRes.json();
+        
+        const url = config.url || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/mqtt/';
+        client = mqtt.connect(url, {
+          username: config.username,
+          password: config.password,
+          clientId: 'telxius_dashboard_' + Math.random().toString(16).substring(2, 6),
+        });
 
-        if (data.sn && data.reported) {
-          // Sumamos toda la potencia de este dispositivo (campos P1, P2... o logicalIds)
-          let deviceSum = 0;
-          Object.values(data.reported as Record<string, unknown>).forEach((val) => {
-            if (val && typeof val === 'object') {
-              const portValue = val as { P1?: string };
-              if (portValue.P1) {
-                deviceSum += (parseFloat(portValue.P1) || 0);
+        client.on('connect', () => client?.subscribe('data/dev/#'));
+        client.on('message', (topic, msg) => {
+          try {
+            const data = JSON.parse(msg.toString());
+            setRawLogs(prev => [`[${topic}] ${msg.toString()}`, ...prev].slice(0, 25));
+
+            if (data.sn && data.reported) {
+              // Sumamos toda la potencia de este dispositivo (campos P1, P2... o logicalIds)
+              let deviceSum = 0;
+              Object.values(data.reported as Record<string, unknown>).forEach((val) => {
+                if (val && typeof val === 'object') {
+                  const portValue = val as { P1?: string };
+                  if (portValue.P1) {
+                    deviceSum += (parseFloat(portValue.P1) || 0);
+                  }
+                }
+              });
+
+              if (deviceSum > 0) {
+                setDevicePowers((prev: Record<string, number>) => {
+                  const next = { ...prev, [data.sn]: deviceSum / 1000 };
+                  const values = Object.values(next) as number[];
+                  const total = values.reduce((a: number, b: number) => a + b, 0);
+                  setTotalPower(total);
+                  
+                  setHistory((hPrev: number[]) => [...hPrev.slice(-29), total]);
+                  
+                  return next;
+                });
+
+                // Generar log si hay carga significativa
+                if (deviceSum > 5000) {
+                  setLogs((prev) => [{
+                    id: Math.random().toString(),
+                    msg: `High Load detected on ${data.sn}: ${(deviceSum/1000).toFixed(2)}kW`,
+                    time: new Date().toLocaleTimeString(),
+                    level: 'WARN'
+                  }, ...prev].slice(0, 10));
+                }
               }
             }
-          });
-
-          if (deviceSum > 0) {
-            setDevicePowers((prev: Record<string, number>) => {
-              const next = { ...prev, [data.sn]: deviceSum / 1000 };
-              const values = Object.values(next) as number[];
-              const total = values.reduce((a: number, b: number) => a + b, 0);
-              setTotalPower(total);
-              
-              setHistory((hPrev: number[]) => [...hPrev.slice(-29), total]);
-              
-              return next;
-            });
-
-            // Generar log si hay carga significativa
-            if (deviceSum > 5000) {
-              setLogs(prev => [{
-                id: Math.random().toString(),
-                msg: `High Load detected on ${data.sn}: ${(deviceSum/1000).toFixed(2)}kW`,
-                time: new Date().toLocaleTimeString(),
-                level: 'WARN'
-              }, ...prev].slice(0, 10));
-            }
+          } catch {
+            // Silencioso
           }
-        }
-      } catch {
-        // Silencioso
+        });
+      } catch (err) {
+        console.error("MQTT Initialization Lock Failure", err);
       }
-    });
-
-    return () => { client.end(); };
+    }
+    
+    startMQTT();
+    return () => { if (client) client.end(); };
   }, []);
 
   return (
@@ -192,23 +279,7 @@ export default function UltraIntelligenceDashboard() {
             </div>
           </div>
 
-          <div className="flex-1 flex items-end gap-1.5 min-h-0 relative">
-            <div className="absolute inset-0 flex flex-col justify-between opacity-[0.02]">
-              {[...Array(6)].map((_, i) => <div key={i} className="w-full h-px bg-white" />)}
-            </div>
-            {history.map((h, i) => (
-              <motion.div
-                key={i}
-                initial={false}
-                animate={{
-                  height: `${Math.max(5, ((h - 3500) / 3000) * 100)}%`,
-                  backgroundColor: i > 25 ? '#06b6d4' : '#1e293b'
-                }}
-                className="flex-1 rounded-t-lg transition-colors cursor-pointer"
-                whileHover={{ scaleY: 1.1, backgroundColor: '#06b6d4' }}
-              />
-            ))}
-          </div>
+          <ModernTrendChart data={history.length > 0 ? history : [0, 0, 0]} />
         </section>
 
         {/* RIGHT: OPERATIONS & SYSTEM HEALTH */}

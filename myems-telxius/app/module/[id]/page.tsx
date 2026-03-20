@@ -83,58 +83,71 @@ export default function ModuleDetail() {
     }, [sn]);
 
     useEffect(() => {
-        const url = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const client = mqtt.connect(`${url}${window.location.host}/mqtt/`, {
-            username: 'th-testing-2w', password: 'Aa12345678@@',
-            clientId: `telxius_detail_${id}_` + Math.random().toString(16).substring(2, 8),
-        });
-
-        client.on('connect', () => { client.subscribe('data/dev/#'); });
+        let client: mqtt.MqttClient | null = null;
         
-        client.on('message', (_, msg) => {
+        async function startMQTT() {
             try {
-                const data = JSON.parse(msg.toString());
-                if (data.sn === sn && data.reported) {
-                    setPorts(prev => {
-                        const newPorts = prev.map(p => {
-                            const r = data.reported[p.logicalId];
-                            if (!r) return p;
+                const configRes = await fetch('/telxius/api/config/mqtt/');
+                const config = await configRes.json();
+                
+                const url = config.url || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/mqtt/';
+                client = mqtt.connect(url, {
+                    username: config.username,
+                    password: config.password,
+                    clientId: `telxius_detail_${id}_` + Math.random().toString(16).substring(2, 8),
+                });
 
-                            const curr = parseFloat(r.I1) || 0;
-                            const limit = p.limit;
-                            
-                            // Lógica de Semáforo según Documento Técnico
-                            let status: PortData['status'] = 'VACANT';
-                            if (curr >= limit) status = 'CRITICAL';
-                            else if (curr >= limit * 0.8) status = 'WARNING';
-                            else if (curr > 0.02) status = 'NORMAL';
+                client.on('connect', () => { client?.subscribe('data/dev/#'); });
+                
+                client.on('message', (_, msg) => {
+                    try {
+                        const data = JSON.parse(msg.toString());
+                        if (data.sn === sn && data.reported) {
+                            setPorts(prev => {
+                                const newPorts = prev.map(p => {
+                                    const r = data.reported[p.logicalId];
+                                    if (!r) return p;
 
-                            return {
-                                ...p,
-                                status,
-                                power: parseFloat(r.P1) || 0,
-                                voltage: parseFloat(r.U1) || 0,
-                                current: curr,
-                                pf: parseFloat(r.PF1) || 0.99,
-                                energy: parseFloat(r.EP1) || 0
-                            };
-                        });
+                                    const curr = parseFloat(r.I1) || 0;
+                                    const limit = p.limit;
+                                    
+                                    // Lógica de Semáforo según Documento Técnico
+                                    let status: PortData['status'] = 'VACANT';
+                                    if (curr >= limit) status = 'CRITICAL';
+                                    else if (curr >= limit * 0.8) status = 'WARNING';
+                                    else if (curr > 0.02) status = 'NORMAL';
 
-                        // Cálculo de estadísticas globales
-                        const active = newPorts.filter(p => p.status !== 'VACANT');
-                        setGlobalStats({
-                            totalPower: newPorts.reduce((acc, p) => acc + p.power, 0),
-                            avgVoltage: active.length > 0 ? active.reduce((acc, p) => acc + p.voltage, 0) / active.length : 0,
-                            activeCount: active.length
-                        });
+                                    return {
+                                        ...p,
+                                        status,
+                                        power: parseFloat(r.P1) || 0,
+                                        voltage: parseFloat(r.U1) || 0,
+                                        current: curr,
+                                        pf: parseFloat(r.PF1) || 0.99,
+                                        energy: parseFloat(r.EP1) || 0
+                                    };
+                                });
 
-                        return newPorts;
-                    });
-                }
-            } catch (e) { console.error("MQTT Parse Error", e); }
-        });
+                                // Cálculo de estadísticas globales
+                                const active = newPorts.filter(p => p.status !== 'VACANT');
+                                setGlobalStats({
+                                    totalPower: newPorts.reduce((acc, p) => acc + p.power, 0),
+                                    avgVoltage: active.length > 0 ? active.reduce((acc, p) => acc + p.voltage, 0) / active.length : 0,
+                                    activeCount: active.length
+                                });
 
-        return () => { client.end(); };
+                                return newPorts;
+                            });
+                        }
+                    } catch (e) { console.error("MQTT Parse Error", e); }
+                });
+            } catch (err) {
+                console.error("MQTT Detail Lock Error", err);
+            }
+        }
+
+        startMQTT();
+        return () => { if (client) client.end(); };
     }, [id, sn]);
 
     // Función de ayuda para colores
