@@ -1,13 +1,16 @@
 # Build Stage
-FROM node:18-alpine AS builder
+FROM node:20 AS builder
 WORKDIR /app
-COPY package*.json ./
-RUN npm install
+
+# Borramos cualquier rastro previo para evitar conflictos de arquitectura
+COPY package.json ./
+RUN npm install --include=optional
+
 COPY . .
 RUN npm run build
 
 # Runtime Stage
-FROM node:18-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/next.config.ts ./

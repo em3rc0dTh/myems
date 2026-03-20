@@ -137,8 +137,6 @@ services:
   telxius:
     build: ../myems-telxius
     restart: always
-    ports:
-      - "3000:3000"
     environment:
       - NEXT_PUBLIC_INFLUX_URL=http://influxdb:8086
       - INFLUX_TOKEN=${INFLUX_TOKEN}
