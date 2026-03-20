@@ -9,8 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "lucide-react": "^0.577.0",
+    "@influxdata/influxdb-client": "^1.35.0",
     "framer-motion": "^11.15.0",
+    "lucide-react": "^0.577.0",
     "mqtt": "^5.15.0",
     "next": "15.1.0",
     "react": "19.0.0",
