@@ -6,7 +6,7 @@ const token = process.env.NEXT_PUBLIC_INFLUX_TOKEN || '';
 const org = process.env.NEXT_PUBLIC_INFLUX_ORG || 'myems';
 const bucket = process.env.NEXT_PUBLIC_INFLUX_BUCKET || 'energy';
 
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<NextResponse> {
     console.log('--- API History Call Received ---');
     const { searchParams } = new URL(request.url);
     const sn = searchParams.get('sn');
@@ -36,9 +36,9 @@ export async function GET(request: Request) {
 
     try {
         const data: { time: string, field: string, value: number, sn: string }[] = [];
-        return new Promise((resolve) => {
+        return new Promise<NextResponse>((resolve) => {
             queryApi.queryRows(fluxQuery, {
-                next(row, tableMeta) {
+                next(row: any, tableMeta: any) {
                     const obj = tableMeta.toObject(row);
                     data.push({
                         time: obj._time,
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
                         sn: obj.sn
                     });
                 },
-                error(err) {
+                error(err: Error) {
                     console.error('InfluxQuery Error:', err);
                     resolve(NextResponse.json({ error: (err as Error).message }, { status: 500 }));
                 },
