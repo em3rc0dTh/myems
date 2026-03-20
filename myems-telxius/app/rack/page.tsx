@@ -106,7 +106,12 @@ export default function InfrastructureControl() {
                 {Object.entries(rack).map(([key, mod]) => {
                     const portList = Object.values(mod.ports);
                     const totalKW = portList.reduce((acc: number, p) => acc + (parseFloat(p.P1 || "0") || 0), 0) / 1000;
-                    const activeCount = portList.filter((p) => p.state === 'ONLINE' || (parseFloat(p.P1 || "0") > 0)).length;
+                    const activeCount = portList.filter((p) => {
+                        const power = parseFloat(p.P1 || "0") || 0;
+                        const state = p.state || "";
+                        // Un puerto es "Active" si reporta potencia > 0 y su estado no es OFFLINE
+                        return power > 0.1 && state !== 'OFFLINE';
+                    }).length;
 
                     return (
                         <motion.div

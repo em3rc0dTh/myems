@@ -19,9 +19,10 @@ const MiniGauge = ({ val, label, color }: { val: number, label: string, color: s
 
 export default function UltraIntelligenceDashboard() {
   const [totalPower, setTotalPower] = useState(0);
+  const [, setDevicePowers] = useState<Record<string, number>>({});
   const [efficiency] = useState(98.2); // Estático para prod por ahora
   const [history, setHistory] = useState<number[]>([]);
-  const [logs] = useState<{ id: string, msg: string, time: string, level: string }[]>([]);
+  const [logs, setLogs] = useState<{ id: string, msg: string, time: string, level: string }[]>([]);
   const [systemTime, setSystemTime] = useState("");
   const [debugMode, setDebugMode] = useState(false);
   const [rawLogs, setRawLogs] = useState<string[]>([]);
@@ -51,42 +52,73 @@ export default function UltraIntelligenceDashboard() {
     async function fetchHistory() {
       try {
         const res = await fetch('/telxius/api/history/?field=P&range=24h');
-        
         if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-        const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-           throw new Error("API returned non-JSON. Possible 404/basePath issue.");
-        }
-
         const data = await res.json();
         
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           const powerPoints = data.map((d: { value: number }) => d.value).slice(-30);
-          if (powerPoints.length > 0) {
-            setHistory(powerPoints);
-            // Tomamos el último punto como potencia actual real
-            setTotalPower(powerPoints[powerPoints.length - 1]);
-          }
+          setHistory(powerPoints);
+          // Omitimos setTotalPower aquí para dejar que MQTT tome el control si hay flujo
         }
-      } catch (e) {
-        console.warn("History fetch failed, no dummy data will be shown", e);
-        setHistory([]);
+      } catch {
+        console.warn("History fetch failed, using defaults");
       }
     }
     fetchHistory();
   }, []);
 
-  // 3. MQTT RAW Listener for Debug Mode
+  // 3. MQTT RAW Listener & Real-time Summation
   useEffect(() => {
     const url = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     const client = mqtt.connect(`${url}${window.location.host}/mqtt/`, {
       username: 'th-testing-2w', password: 'Aa12345678@@',
-      clientId: 'telxius_debug_global_' + Math.random().toString(16).substring(2, 6),
+      clientId: 'telxius_dashboard_' + Math.random().toString(16).substring(2, 6),
     });
 
     client.on('connect', () => client.subscribe('data/dev/#'));
-    client.on('message', (topic: string, msg: Buffer) => {
-      setRawLogs(prev => [`[${topic}] ${msg.toString()}`, ...prev].slice(0, 25));
+    client.on('message', (topic, msg) => {
+      try {
+        const data = JSON.parse(msg.toString());
+        setRawLogs(prev => [`[${topic}] ${msg.toString()}`, ...prev].slice(0, 25));
+
+        if (data.sn && data.reported) {
+          // Sumamos toda la potencia de este dispositivo (campos P1, P2... o logicalIds)
+          let deviceSum = 0;
+          Object.values(data.reported as Record<string, unknown>).forEach((val) => {
+            if (val && typeof val === 'object') {
+              const portValue = val as { P1?: string };
+              if (portValue.P1) {
+                deviceSum += (parseFloat(portValue.P1) || 0);
+              }
+            }
+          });
+
+          if (deviceSum > 0) {
+            setDevicePowers((prev: Record<string, number>) => {
+              const next = { ...prev, [data.sn]: deviceSum / 1000 };
+              const values = Object.values(next) as number[];
+              const total = values.reduce((a: number, b: number) => a + b, 0);
+              setTotalPower(total);
+              
+              setHistory((hPrev: number[]) => [...hPrev.slice(-29), total]);
+              
+              return next;
+            });
+
+            // Generar log si hay carga significativa
+            if (deviceSum > 5000) {
+              setLogs(prev => [{
+                id: Math.random().toString(),
+                msg: `High Load detected on ${data.sn}: ${(deviceSum/1000).toFixed(2)}kW`,
+                time: new Date().toLocaleTimeString(),
+                level: 'WARN'
+              }, ...prev].slice(0, 10));
+            }
+          }
+        }
+      } catch {
+        // Silencioso
+      }
     });
 
     return () => { client.end(); };
