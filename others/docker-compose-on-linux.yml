@@ -11,9 +11,9 @@ services:
       - "3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p!MyEMS1"]
-    interval: 10s
-    timeout: 5s
-    retries: 5
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
         - myems-net
 
@@ -141,9 +141,9 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_INFLUX_URL=http://influxdb:8086
-      - INFLUX_TOKEN=${INFLUX_TOKEN:-my-super-secret-admin-token}
-      - INFLUX_ORG=${INFLUX_ORG:-myems}
-      - INFLUX_BUCKET=${INFLUX_BUCKET:-energy}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_ORG=${INFLUX_ORG}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
     depends_on:
       - influxdb
     networks:
@@ -155,11 +155,11 @@ services:
     restart: always
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUX_USER:-admin}
-      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUX_PASSWORD:-Aa12345678@@}
-      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_ORG:-myems}
-      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET:-energy}
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN:-my-super-secret-admin-token}
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUX_USER}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUX_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
     volumes:
       - influxdb-data:/var/lib/influxdb2
     ports:
@@ -174,9 +174,9 @@ services:
     volumes:
       - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
     environment:
-      - INFLUX_TOKEN=${INFLUX_TOKEN:-my-super-secret-admin-token}
-      - INFLUX_ORG=${INFLUX_ORG:-myems}
-      - INFLUX_BUCKET=${INFLUX_BUCKET:-energy}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_ORG=${INFLUX_ORG}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
     depends_on:
       - influxdb
       - broker
