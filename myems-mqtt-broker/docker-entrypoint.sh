@@ -28,7 +28,7 @@ fi
 
 # Optional: Keep the testing users for backward compatibility or remove them
 mosquitto_passwd -b "$PASSWD_FILE" th-testing-2w "Aa12345678@@"
-chmod 644 "$PASSWD_FILE"
+chmod 0700 "$PASSWD_FILE"
 
 # 3. Ensure permissions are correct for Mosquitto
 chown -R mosquitto:mosquitto /mosquitto

@@ -11,9 +11,9 @@ services:
       - "3306:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p!MyEMS1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    interval: 10s
+    timeout: 5s
+    retries: 5
     networks:
         - myems-net
 
@@ -134,9 +134,59 @@ services:
     networks:
       - myems-net
 
+  telxius:
+    build: ../myems-telxius
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_INFLUX_URL=http://influxdb:8086
+      - INFLUX_TOKEN=${INFLUX_TOKEN:-my-super-secret-admin-token}
+      - INFLUX_ORG=${INFLUX_ORG:-myems}
+      - INFLUX_BUCKET=${INFLUX_BUCKET:-energy}
+    depends_on:
+      - influxdb
+    networks:
+      - myems-net
+
+  influxdb:
+    image: influxdb:latest
+    container_name: myems-influxdb
+    restart: always
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUX_USER:-admin}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUX_PASSWORD:-Aa12345678@@}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_ORG:-myems}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET:-energy}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN:-my-super-secret-admin-token}
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    ports:
+      - "8086:8086"
+    networks:
+      - myems-net
+
+  telegraf:
+    image: telegraf:latest
+    container_name: myems-telegraf
+    restart: always
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    environment:
+      - INFLUX_TOKEN=${INFLUX_TOKEN:-my-super-secret-admin-token}
+      - INFLUX_ORG=${INFLUX_ORG:-myems}
+      - INFLUX_BUCKET=${INFLUX_BUCKET:-energy}
+    depends_on:
+      - influxdb
+      - broker
+    networks:
+      - myems-net
+
 networks:
   myems-net:
     driver: bridge
     
 volumes:
   mysql-data:
+  influxdb-data:

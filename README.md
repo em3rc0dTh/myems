@@ -163,6 +163,10 @@ See [myems-aggregation](./myems-aggregation/README.md) Introduction
 
 See [myems-web](myems-web/README.md) Introduction
 
+### MyEMS Telxius Dashboard (Next.js)
+
+Advanced Rack Monitoring and MQTT Real-time Data Visualization. See [myems-telxius](myems-telxius/README.md)
+
 ### Default Ports
 
 MyEMS Web UI: 80
