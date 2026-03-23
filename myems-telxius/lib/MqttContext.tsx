@@ -20,9 +20,37 @@ const MqttContext = createContext<MqttContextType>({
 export const useMqtt = () => useContext(MqttContext);
 
 export const MqttProvider = ({ children }: { children: React.ReactNode }) => {
-    const [latestData, setLatestData] = useState<Record<string, Record<string, unknown>>>({});
-    const [rawLogs, setRawLogs] = useState<string[]>([]);
+    const [latestData, setLatestData] = useState<Record<string, Record<string, unknown>>>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const saved = localStorage.getItem('telxius_latest_data');
+                return saved ? JSON.parse(saved) : {};
+            } catch { return {}; }
+        }
+        return {};
+    });
+
+    const [rawLogs, setRawLogs] = useState<string[]>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const saved = localStorage.getItem('telxius_raw_logs');
+                return saved ? JSON.parse(saved) : [];
+            } catch { return []; }
+        }
+        return [];
+    });
+
     const [isConnected, setIsConnected] = useState(false);
+
+    // Backup to LocalStorage whenever data changes
+    useEffect(() => {
+        if (Object.keys(latestData).length > 0) {
+            localStorage.setItem('telxius_latest_data', JSON.stringify(latestData));
+        }
+        if (rawLogs.length > 0) {
+            localStorage.setItem('telxius_raw_logs', JSON.stringify(rawLogs));
+        }
+    }, [latestData, rawLogs]);
 
     useEffect(() => {
         let client: mqtt.MqttClient | null = null;
