@@ -5,7 +5,7 @@ export async function GET() {
     // Aunque se devuelven al cliente para la conexión MQTT, no están hardcodeadas
     // en el bundle de JavaScript, lo que permite rotarlas sin recompilar.
     return NextResponse.json({
-        url: process.env.MQTT_URL || 'ws://localhost:1884/mqtt',
+        url: process.env.MQTT_URL !== undefined ? process.env.MQTT_URL : '',
         username: process.env.MQTT_USER || '',
         password: process.env.MQTT_PASS || '',
     });
