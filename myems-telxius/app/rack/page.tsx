@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Server, ArrowLeft, Thermometer, Droplets } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import mqtt from 'mqtt';
+import { useMqtt } from "@/lib/MqttContext";
 
 interface PortReport {
     P1?: string;
@@ -24,9 +24,44 @@ interface RackModule {
     ports: Record<string, PortReport>;
 }
 
+interface MqttData {
+    sn: string;
+    reported?: {
+        TEMP?: string;
+        HUM?: string;
+    } & Record<string, unknown>;
+}
+
 export default function InfrastructureControl() {
+    const { latestData } = useMqtt();
     const [rack, setRack] = useState<Record<string, RackModule>>({});
     const router = useRouter();
+
+    // Sincronización continua con los datos globales de MQTT
+    useEffect(() => {
+        if (Object.keys(latestData).length === 0) return;
+
+        setRack(prev => {
+            const next = { ...prev };
+            let changed = false;
+
+            (Object.values(latestData) as unknown as MqttData[]).forEach((data) => {
+                const key = Object.keys(next).find(k => next[k].sn === data.sn);
+                if (key && data.reported) {
+                    changed = true;
+                    const reported = data.reported;
+                    next[key] = {
+                        ...next[key],
+                        temp: parseFloat(reported.TEMP || "0") || next[key].temp,
+                        hum: parseFloat(reported.HUM || "0") || next[key].hum,
+                        ports: { ...next[key].ports, ...(reported as unknown as Record<string, PortReport>) }
+                    };
+                }
+            });
+
+            return changed ? { ...next } : prev;
+        });
+    }, [latestData]);
 
     // Carga de configuración real desde LocalStorage (Inicialización Diferida)
     useEffect(() => {
@@ -35,12 +70,12 @@ export default function InfrastructureControl() {
             const savedMeters = localStorage.getItem('telxius_meters');
             
             if (savedQdfs && savedMeters) {
-                const qdfs = JSON.parse(savedQdfs);
-                const meters = JSON.parse(savedMeters);
+                const qdfs = JSON.parse(savedQdfs) as { id: string, name: string, room: string, feeds: string }[];
+                const meters = JSON.parse(savedMeters) as { qdfId: string, serial: string }[];
                 
                 const newRack: Record<string, RackModule> = {};
-                qdfs.forEach((qdf: { id: string, name: string, room: string, feeds: string }) => {
-                    const meter = meters.find((m: { qdfId: string, serial: string }) => m.qdfId === qdf.id);
+                qdfs.forEach((qdf) => {
+                    const meter = meters.find((m) => m.qdfId === qdf.id);
                     newRack[qdf.name] = {
                         id: qdf.name,
                         label: qdf.room + ' (Feed ' + qdf.feeds + ')',
@@ -57,54 +92,6 @@ export default function InfrastructureControl() {
         load();
     }, []);
 
-    useEffect(() => {
-        let client: mqtt.MqttClient | null = null;
-        
-        async function startMQTT() {
-            try {
-                const configRes = await fetch('/telxius/api/config/mqtt/');
-                const config = await configRes.json();
-                
-                const url = config.url || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/mqtt/';
-                client = mqtt.connect(url, {
-                    username: config.username,
-                    password: config.password,
-                    clientId: 'telxius_rack_mgr_' + Math.random().toString(16).substring(2, 6),
-                });
-
-                client.on('connect', () => client?.subscribe('data/dev/#'));
-                client.on('message', (_, msg) => {
-                    try {
-                        const data = JSON.parse(msg.toString());
-                        if (data.sn && data.reported) {
-                            setRack(prev => {
-                                const key = Object.keys(prev).find(k => prev[k].sn === data.sn);
-                                if (!key) return prev;
-
-                                const next = { ...prev };
-                                // Solo actualizamos con data real de MQTT
-                                next[key] = {
-                                    ...next[key],
-                                    // Actualizamos temp y hum solo si vienen en el payload (ajusta según tu sensor real)
-                                    temp: parseFloat(data.reported.TEMP) || next[key].temp,
-                                    hum: parseFloat(data.reported.HUM) || next[key].hum,
-                                    ports: { ...next[key].ports, ...data.reported }
-                                };
-                                return { ...next };
-                            });
-                        }
-                    } catch {
-                        // Captura silenciosa
-                    }
-                });
-            } catch (err) {
-                console.error("MQTT Rack Guard Failure", err);
-            }
-        }
-
-        startMQTT();
-        return () => { if (client) client.end(); };
-    }, [rack]);
 
     return (
         <div className="h-screen w-screen bg-[#020305] text-slate-400 font-sans p-8 overflow-hidden flex flex-col gap-8">

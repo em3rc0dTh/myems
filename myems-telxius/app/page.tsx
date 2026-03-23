@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Terminal, ShieldCheck, ArrowRight, Globe, Waves, TrendingUp, Bell, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import mqtt from 'mqtt';
+import { useMqtt } from "../lib/MqttContext";
 
 // Componente Reutilizable para Mini-Indicadores
 const MiniGauge = ({ val, label, color }: { val: number, label: string, color: string }) => (
@@ -92,15 +92,43 @@ const ModernTrendChart = ({ data }: { data: number[] }) => {
 };
 
 export default function UltraIntelligenceDashboard() {
-  const [totalPower, setTotalPower] = useState(0);
-  const [, setDevicePowers] = useState<Record<string, number>>({});
+  const { latestData, rawLogs, setRawLogs } = useMqtt();
   const [efficiency] = useState(98.2); // Estático para prod por ahora
   const [history, setHistory] = useState<number[]>([]);
   const [logs, setLogs] = useState<{ id: string, msg: string, time: string, level: string }[]>([]);
   const [systemTime, setSystemTime] = useState("");
   const [debugMode, setDebugMode] = useState(false);
-  const [rawLogs, setRawLogs] = useState<string[]>([]);
   const router = useRouter();
+
+  // Calcular totalPower y devicePowers desde el contexto global (Memoizado)
+  const devicePowers = useMemo(() => {
+    const powers: Record<string, number> = {};
+    Object.keys(latestData).forEach(sn => {
+      const data = latestData[sn];
+      if (data.reported) {
+         let deviceSum = 0;
+          const reportedData = data.reported as Record<string, { P1?: string | number }>;
+          Object.values(reportedData).forEach((val) => {
+            if (val && val.P1 !== undefined) {
+              deviceSum += (Number(val.P1) || 0);
+            }
+          });
+         powers[sn] = deviceSum / 1000;
+      }
+    });
+    return powers;
+  }, [latestData]);
+
+  const totalPower = useMemo(() => {
+    return Object.values(devicePowers).reduce((a, b) => a + b, 0);
+  }, [devicePowers]);
+
+  // Sincronizar historial con totalPower si hay cambios
+  useEffect(() => {
+    if (totalPower > 0) {
+      setHistory(prev => [...prev.slice(-29), totalPower]);
+    }
+  }, [totalPower]);
 
   // Escucha de Alt+D para Debug Mode (Puerta Trasera)
   useEffect(() => {
@@ -112,6 +140,26 @@ export default function UltraIntelligenceDashboard() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // 3. Sincronizar Logs Operacionales desde la telemetría MQTT
+  useEffect(() => {
+    if (rawLogs.length > 0) {
+      const lastRaw = rawLogs[0];
+      const topic = lastRaw.split('] ')[0].replace('[', '') || 'unknown';
+      // Generar una entrada "bonita" para la UI principal
+      setLogs(prev => {
+        const newEntry = {
+          id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          msg: `MQTT_TELEMETRY: [${topic}] Status Update Received`,
+          time: new Date().toLocaleTimeString(),
+          level: topic.includes('critical') ? 'WARN' : 'INFO'
+        };
+        // Solo añadimos si es diferente al anterior mensaje crudo para evitar flooding
+        if (prev.length > 0 && prev[0].msg.includes(topic) && prev[0].time === newEntry.time) return prev;
+        return [newEntry, ...prev].slice(0, 15);
+      });
+    }
+  }, [rawLogs]);
 
   // 1. Reloj del Sistema
   useEffect(() => {
@@ -141,75 +189,6 @@ export default function UltraIntelligenceDashboard() {
     fetchHistory();
   }, []);
 
-  // 3. MQTT RAW Listener & Real-time Summation
-  useEffect(() => {
-    let client: mqtt.MqttClient | null = null;
-    
-    async function startMQTT() {
-      try {
-        const configRes = await fetch('/telxius/api/config/mqtt/');
-        const config = await configRes.json();
-        
-        const url = config.url || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/mqtt/';
-        client = mqtt.connect(url, {
-          username: config.username,
-          password: config.password,
-          clientId: 'telxius_dashboard_' + Math.random().toString(16).substring(2, 6),
-        });
-
-        client.on('connect', () => client?.subscribe('data/dev/#'));
-        client.on('message', (topic, msg) => {
-          try {
-            const data = JSON.parse(msg.toString());
-            setRawLogs(prev => [`[${topic}] ${msg.toString()}`, ...prev].slice(0, 25));
-
-            if (data.sn && data.reported) {
-              // Sumamos toda la potencia de este dispositivo (campos P1, P2... o logicalIds)
-              let deviceSum = 0;
-              Object.values(data.reported as Record<string, unknown>).forEach((val) => {
-                if (val && typeof val === 'object') {
-                  const portValue = val as { P1?: string };
-                  if (portValue.P1) {
-                    deviceSum += (parseFloat(portValue.P1) || 0);
-                  }
-                }
-              });
-
-              if (deviceSum > 0) {
-                setDevicePowers((prev: Record<string, number>) => {
-                  const next = { ...prev, [data.sn]: deviceSum / 1000 };
-                  const values = Object.values(next) as number[];
-                  const total = values.reduce((a: number, b: number) => a + b, 0);
-                  setTotalPower(total);
-                  
-                  setHistory((hPrev: number[]) => [...hPrev.slice(-29), total]);
-                  
-                  return next;
-                });
-
-                // Generar log si hay carga significativa
-                if (deviceSum > 5000) {
-                  setLogs((prev) => [{
-                    id: Math.random().toString(),
-                    msg: `High Load detected on ${data.sn}: ${(deviceSum/1000).toFixed(2)}kW`,
-                    time: new Date().toLocaleTimeString(),
-                    level: 'WARN'
-                  }, ...prev].slice(0, 10));
-                }
-              }
-            }
-          } catch {
-            // Silencioso
-          }
-        });
-      } catch (err) {
-        console.error("MQTT Initialization Lock Failure", err);
-      }
-    }
-    
-    startMQTT();
-    return () => { if (client) client.end(); };
-  }, []);
 
   return (
     <div className="h-screen w-screen bg-[#020305] text-slate-500 font-sans p-6 overflow-hidden flex flex-col gap-6 selection:bg-cyan-500/30">

@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useMqtt } from "@/lib/MqttContext";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ShieldCheck, Zap, AlertTriangle } from 'lucide-react';
-import mqtt from 'mqtt';
 
 // Tipos de datos para telemetría y configuración
 interface PortData { 
@@ -20,13 +20,72 @@ interface PortData {
     limit: number;
 }
 
+interface ReportedPortData {
+    I1?: string;
+    P1?: string;
+    U1?: string;
+    PF1?: string;
+    EP1?: string;
+}
+
+interface TelemetryMessage {
+    sn: string;
+    reported: Record<string, ReportedPortData>;
+}
+
 const AMPS_THRESHOLD_DEFAULT = 30.0; // Umbral de alarma por defecto
 
 export default function ModuleDetail() {
+    const { latestData } = useMqtt();
     const { id } = useParams();
     const searchParams = useSearchParams();
     const sn = searchParams.get('sn');
     const router = useRouter();
+
+    // Sincronización continua de Puertos desde Datos Globales (Sin Latencia)
+    useEffect(() => {
+        if (!sn || !latestData[sn]) return;
+        const data = latestData[sn] as unknown as TelemetryMessage;
+        if (!data.reported) return;
+
+        setPorts(prev => {
+            let changed = false;
+            const newPorts = prev.map(p => {
+                const r = data.reported[p.logicalId];
+                if (!r) return p;
+
+                changed = true;
+                const curr = parseFloat(r.I1 || '0') || 0;
+                const limit = p.limit;
+                
+                let status: PortData['status'] = 'VACANT';
+                if (curr >= limit) status = 'CRITICAL';
+                else if (curr >= limit * 0.8) status = 'WARNING';
+                else if (curr > 0.02) status = 'NORMAL';
+
+                return {
+                    ...p,
+                    status,
+                    power: parseFloat(r.P1 || '0') || 0,
+                    voltage: parseFloat(r.U1 || '0') || 0,
+                    current: curr,
+                    pf: parseFloat(r.PF1 || '0.99') || 0.99,
+                    energy: parseFloat(r.EP1 || '0') || 0
+                };
+            });
+
+            if (!changed) return prev;
+
+            const active = newPorts.filter(p => p.status !== 'VACANT');
+            setGlobalStats({
+                totalPower: newPorts.reduce((acc, p) => acc + p.power, 0),
+                avgVoltage: active.length > 0 ? active.reduce((acc, p) => acc + p.voltage, 0) / active.length : 0,
+                activeCount: active.length
+            });
+
+            return newPorts;
+        });
+    }, [latestData, sn]);
     
     // Inicialización de 24 puertos (Estado Limpio para Producción)
     const [ports, setPorts] = useState<PortData[]>(
@@ -82,73 +141,6 @@ export default function ModuleDetail() {
         loadLastState();
     }, [sn]);
 
-    useEffect(() => {
-        let client: mqtt.MqttClient | null = null;
-        
-        async function startMQTT() {
-            try {
-                const configRes = await fetch('/telxius/api/config/mqtt/');
-                const config = await configRes.json();
-                
-                const url = config.url || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/mqtt/';
-                client = mqtt.connect(url, {
-                    username: config.username,
-                    password: config.password,
-                    clientId: `telxius_detail_${id}_` + Math.random().toString(16).substring(2, 8),
-                });
-
-                client.on('connect', () => { client?.subscribe('data/dev/#'); });
-                
-                client.on('message', (_, msg) => {
-                    try {
-                        const data = JSON.parse(msg.toString());
-                        if (data.sn === sn && data.reported) {
-                            setPorts(prev => {
-                                const newPorts = prev.map(p => {
-                                    const r = data.reported[p.logicalId];
-                                    if (!r) return p;
-
-                                    const curr = parseFloat(r.I1) || 0;
-                                    const limit = p.limit;
-                                    
-                                    // Lógica de Semáforo según Documento Técnico
-                                    let status: PortData['status'] = 'VACANT';
-                                    if (curr >= limit) status = 'CRITICAL';
-                                    else if (curr >= limit * 0.8) status = 'WARNING';
-                                    else if (curr > 0.02) status = 'NORMAL';
-
-                                    return {
-                                        ...p,
-                                        status,
-                                        power: parseFloat(r.P1) || 0,
-                                        voltage: parseFloat(r.U1) || 0,
-                                        current: curr,
-                                        pf: parseFloat(r.PF1) || 0.99,
-                                        energy: parseFloat(r.EP1) || 0
-                                    };
-                                });
-
-                                // Cálculo de estadísticas globales
-                                const active = newPorts.filter(p => p.status !== 'VACANT');
-                                setGlobalStats({
-                                    totalPower: newPorts.reduce((acc, p) => acc + p.power, 0),
-                                    avgVoltage: active.length > 0 ? active.reduce((acc, p) => acc + p.voltage, 0) / active.length : 0,
-                                    activeCount: active.length
-                                });
-
-                                return newPorts;
-                            });
-                        }
-                    } catch (e) { console.error("MQTT Parse Error", e); }
-                });
-            } catch (err) {
-                console.error("MQTT Detail Lock Error", err);
-            }
-        }
-
-        startMQTT();
-        return () => { if (client) client.end(); };
-    }, [id, sn]);
 
     // Función de ayuda para colores
     const getColorClass = (status: PortData['status']) => {
