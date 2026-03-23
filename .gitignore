@@ -45,6 +45,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!myems-telxius/lib/
 lib64/
 parts/
 sdist/
