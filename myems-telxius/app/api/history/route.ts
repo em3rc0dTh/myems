@@ -1,7 +1,7 @@
 import { InfluxDB, FluxTableMetaData } from '@influxdata/influxdb-client';
 import { NextResponse } from 'next/server';
 
-const url = process.env.INFLUX_URL || 'http://localhost:8086';
+const url = process.env.INFLUX_URL || 'http://myems-influxdb:8086';
 const token = process.env.INFLUX_TOKEN || '';
 const org = process.env.INFLUX_ORG || 'myems';
 const bucket = process.env.INFLUX_BUCKET || 'energy';
@@ -30,7 +30,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 
     if (!token) {
-        return NextResponse.json({ error: 'InfluxDB Token not configured' }, { status: 500 });
+        console.error('SEC-ERR: Missing InfluxDB Token');
+        return NextResponse.json({ error: 'Configuración: Falta Token de InfluxDB' }, { status: 500 });
     }
 
     const client = new InfluxDB({ url, token });
