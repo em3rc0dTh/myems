@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// --- FASE 1: DOMINIO GEOGRÁFICO (ESTÁTICO) ---
+
+model Country {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  name    String   @unique
+  regions Region[]
+}
+
+model Region {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  countryId String     @db.ObjectId
+  country   Country    @relation(fields: [countryId], references: [id])
+  provinces Province[]
+}
+
+model Province {
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  regionId String   @db.ObjectId
+  region   Region   @relation(fields: [regionId], references: [id])
+  cities   City[]
+}
+
+model City {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  provinceId String     @db.ObjectId
+  province   Province   @relation(fields: [provinceId], references: [id])
+  districts  District[]
+}
+
+model District {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  name   String
+  cityId String @db.ObjectId
+  city   City   @relation(fields: [cityId], references: [id])
+  sites  Site[]
+}
+
+model Site {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  districtId String      @db.ObjectId
+  district   District    @relation(fields: [districtId], references: [id])
+  address    String?     // Atributo derivado en el GUI (Country+City+Distrito+Specific)
+  geoCoords  String?
+  structures Structure[]
+  devices    Device[]    // Patrimonio del sitio
+}
+
+// --- FASE 2: DOMINIO OPERATIVO (DINÁMICO - CRUD) ---
+
+model Structure {
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
+  name   String  // Edificio
+  siteId String  @db.ObjectId
+  site   Site    @relation(fields: [siteId], references: [id])
+  levels Level[]
+}
+
+model Level {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  name        String         // Planta / Piso
+  structureId String         @db.ObjectId
+  structure   Structure      @relation(fields: [structureId], references: [id])
+  rooms       Substructure[]
+}
+
+model Substructure {
+  id      String      @id @default(auto()) @map("_id") @db.ObjectId
+  name    String      // Sala / Room
+  type    String      @default("ROOM")
+  levelId String      @db.ObjectId
+  level   Level       @relation(fields: [levelId], references: [id])
+  gridRows String[]   // ["A", "B", "C"]
+  gridCols Int[]      // [1, 2, 3]
+  racks   Container[]
+}
+
+model Container {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  name           String       // Nombre del Rack
+  substructureId String       @db.ObjectId
+  substructure   Substructure @relation(fields: [substructureId], references: [id])
+  row            String       // Fila F
+  position       Int          // Posición 12
+  slots          CAS[]
+}
+
+model CAS {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  label       String    // U1, U2, Slot-01
+  containerId String    @db.ObjectId
+  container   Container @relation(fields: [containerId], references: [id])
+  ne          NE?       @relation(fields: [neId], references: [id])
+  neId        String?   @db.ObjectId
+}
+
+// --- FASE 3: CONTEXTO FÍSICO (EQUIPMENT & WRAPPERS) ---
+
+model Device {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  name       String      // BDFB-01, Cisco-Core
+  category   String      @default("NETWORKING") // BDFB, NE, METER
+  siteId     String      @db.ObjectId
+  site       Site        @relation(fields: [siteId], references: [id])
+  equipments Equipment[] // Colección de fierros que componen este dispositivo
+  ports      Port[]      // Puertos maestros del dispositivo
+  ne         NE?         // Si el dispositivo aloja una IA/Conciencia lógica
+}
+
+model Equipment {
+  id                String      @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  category          String      // RACK, SUBRACK, BOARD, MODULE (MAGNITUD)
+  deviceId          String      @db.ObjectId
+  device            Device      @relation(fields: [deviceId], references: [id])
+  parentEquipmentId String?     @db.ObjectId
+  parent            Equipment?  @relation("Composition", fields: [parentEquipmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children          Equipment[] @relation("Composition")
+  ports             Port[]
+}
+
+model Port {
+  id                String      @id @default(auto()) @map("_id") @db.ObjectId
+  name              String      // Breaker 1, Gi0/0
+  type              String      @default("DATA") // POWER, DATA
+  equipmentId       String?     @db.ObjectId
+  equipment         Equipment?  @relation(fields: [equipmentId], references: [id])
+  deviceId          String      @db.ObjectId
+  device            Device      @relation(fields: [deviceId], references: [id])
+  sourceConnections Connection[] @relation("SourceConnection")
+  targetConnections Connection[] @relation("TargetConnection")
+}
+
+// --- FASE 4: CAPA LÓGICA (THE CONSCIOUSNESS - NE) ---
+
+model NE {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  name     String // Network Element Logic Name
+  deviceId String @unique @db.ObjectId
+  device   Device @relation(fields: [deviceId], references: [id])
+  slots    CAS[]  // Dónde está anclado físicamente
+}
+
+model Connection {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  label        String @default("FEED")
+  sourcePortId String @db.ObjectId
+  sourcePort   Port   @relation("SourceConnection", fields: [sourcePortId], references: [id])
+  targetPortId String @db.ObjectId
+  targetPort   Port   @relation("TargetConnection", fields: [targetPortId], references: [id])
+}
