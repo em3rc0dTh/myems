@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 
@@ -85,8 +86,8 @@ function RoomGrid({ room, containers }: { room: Substructure; containers: Contai
           <div key={col} className="grid-cell header-cell">{col}</div>
         ))}
         {room.gridRows.map(row => (
-          <>
-            <div key={`row-${row}`} className="grid-cell header-cell row-header">{row}</div>
+          <React.Fragment key={`row-${row}`}>
+            <div className="grid-cell header-cell row-header">{row}</div>
             {room.gridCols.map(col => {
               const rack = occupied.get(`${row}-${col}`);
               return (
@@ -95,7 +96,7 @@ function RoomGrid({ room, containers }: { room: Substructure; containers: Contai
                 </div>
               );
             })}
-          </>
+          </React.Fragment>
         ))}
       </div>
     </div>
@@ -323,7 +324,8 @@ export default function InfrastructurePage() {
         {/* Header */}
         <div className="header">
           <div className="header-top">
-            <Link href="/telxius/sites/" className="back-btn">← Sitios</Link>
+            <Link href="/sites/" className="back-btn">← Sitios</Link>
+            <Link href="/infrastructure/3d/" className="back-btn" style={{ background: "rgba(139,92,246,.15)", borderColor: "rgba(139,92,246,.4)", color: "#c4b5fd" }}>🎮 Vista 3D</Link>
           </div>
           <h1 className="page-title">🏢 Infraestructura Operativa</h1>
           <p className="page-sub">Fase 2 — Edificios · Pisos · Salas · Racks</p>
@@ -339,12 +341,12 @@ export default function InfrastructurePage() {
               <div className="section-title">📍 Selecciona un Sitio</div>
             </div>
             {sites.length === 0
-              ? <div className="empty-state"><div className="em-icon">🌐</div><p>No hay sitios registrados. Ve a <Link href="/telxius/sites/" style={{color:"#a5b4fc"}}>Dominio Geográfico</Link></p></div>
+              ? <div className="empty-state"><div className="em-icon">🌐</div><p>No hay sitios registrados. Ve a <Link href="/sites/" style={{ color: "#a5b4fc" }}>Dominio Geográfico</Link></p></div>
               : <div className="sites-list">
-                  {sites.map(s => (
-                    <ItemCard key={s.id} icon="🏗️" label={s.name} sublabel={s.address ?? undefined} onClick={() => selectSite(s)} />
-                  ))}
-                </div>
+                {sites.map(s => (
+                  <ItemCard key={s.id} icon="🏗️" label={s.name} sublabel={s.address ?? undefined} onClick={() => selectSite(s)} />
+                ))}
+              </div>
             }
           </div>
         )}
@@ -361,13 +363,13 @@ export default function InfrastructurePage() {
               : structures.length === 0
                 ? <div className="empty-state"><div className="em-icon">🏢</div><p>Sin edificios. Agrega uno para comenzar.</p></div>
                 : <div className="cards-grid">
-                    {structures.map(s => (
-                      <ItemCard key={s.id} icon="🏢" label={s.name}
-                        sublabel={`${s._count?.levels ?? 0} piso(s)`}
-                        badge="Edificio"
-                        onClick={() => selectStructure(s)} />
-                    ))}
-                  </div>
+                  {structures.map(s => (
+                    <ItemCard key={s.id} icon="🏢" label={s.name}
+                      sublabel={`${s._count?.levels ?? 0} piso(s)`}
+                      badge="Edificio"
+                      onClick={() => selectStructure(s)} />
+                  ))}
+                </div>
             }
           </div>
         )}
@@ -384,13 +386,13 @@ export default function InfrastructurePage() {
               : levels.length === 0
                 ? <div className="empty-state"><div className="em-icon">🏬</div><p>Sin pisos. Agrega uno para comenzar.</p></div>
                 : <div className="cards-grid">
-                    {levels.map(l => (
-                      <ItemCard key={l.id} icon="🏬" label={l.name}
-                        sublabel={`${l._count?.rooms ?? 0} sala(s)`}
-                        badge="Piso"
-                        onClick={() => selectLevel(l)} />
-                    ))}
-                  </div>
+                  {levels.map(l => (
+                    <ItemCard key={l.id} icon="🏬" label={l.name}
+                      sublabel={`${l._count?.rooms ?? 0} sala(s)`}
+                      badge="Piso"
+                      onClick={() => selectLevel(l)} />
+                  ))}
+                </div>
             }
           </div>
         )}
@@ -407,13 +409,13 @@ export default function InfrastructurePage() {
               : rooms.length === 0
                 ? <div className="empty-state"><div className="em-icon">🚪</div><p>Sin salas. Agrega una para comenzar.</p></div>
                 : <div className="cards-grid">
-                    {rooms.map(r => (
-                      <ItemCard key={r.id} icon="🚪" label={r.name}
-                        sublabel={`Grid: ${r.gridRows.join(",")} × ${r.gridCols.join(",")}`}
-                        badge={`${r._count?.racks ?? 0} rack(s)`}
-                        onClick={() => selectRoom(r)} />
-                    ))}
-                  </div>
+                  {rooms.map(r => (
+                    <ItemCard key={r.id} icon="🚪" label={r.name}
+                      sublabel={`Grid: ${r.gridRows.join(",")} × ${r.gridCols.join(",")}`}
+                      badge={`${r._count?.racks ?? 0} rack(s)`}
+                      onClick={() => selectRoom(r)} />
+                  ))}
+                </div>
             }
           </div>
         )}
@@ -436,14 +438,14 @@ export default function InfrastructurePage() {
               : containers.length === 0
                 ? <div className="empty-state"><div className="em-icon">🖥️</div><p>Sin racks. Agrega uno para comenzar.</p></div>
                 : <div className="containers-list">
-                    {containers.map(c => (
-                      <div key={c.id} className="container-row">
-                        <div className="card-icon">🖥️</div>
-                        <div className="container-pos">Fila {c.row} · Pos {c.position}</div>
-                        <div className="container-name">{c.name}</div>
-                      </div>
-                    ))}
-                  </div>
+                  {containers.map(c => (
+                    <div key={c.id} className="container-row">
+                      <div className="card-icon">🖥️</div>
+                      <div className="container-pos">Fila {c.row} · Pos {c.position}</div>
+                      <div className="container-name">{c.name}</div>
+                    </div>
+                  ))}
+                </div>
             }
           </div>
         )}
