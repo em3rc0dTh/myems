@@ -77,14 +77,15 @@ model Level {
 }
 
 model Substructure {
-  id      String      @id @default(auto()) @map("_id") @db.ObjectId
-  name    String      // Sala / Room
-  type    String      @default("ROOM")
-  levelId String      @db.ObjectId
-  level   Level       @relation(fields: [levelId], references: [id])
-  gridRows String[]   // ["A", "B", "C"]
-  gridCols Int[]      // [1, 2, 3]
-  racks   Container[]
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  name      String     // Sala / Room
+  type      String     @default("ROOM")
+  levelId   String     @db.ObjectId
+  level     Level      @relation(fields: [levelId], references: [id])
+  gridRows  String[]   // ["A", "B", "C"]
+  gridCols  Int[]      // [1, 2, 3]
+  racks     Container[]
+  positions Position[] // Fase 3a: posiciones reales (tile 60x60)
 }
 
 model Container {
@@ -106,7 +107,37 @@ model CAS {
   neId        String?   @db.ObjectId
 }
 
-// --- FASE 3: CONTEXTO FÍSICO (EQUIPMENT & WRAPPERS) ---
+// --- FASE 3a: POSICIÓN FÍSICA (TILE 60x60cm) ---
+
+/// Una posición es la unidad mínima de una sala.
+/// Existe aunque esté vacía. Un Device puede ocupar varias posiciones.
+model Position {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  substructureId String       @db.ObjectId
+  substructure   Substructure @relation(fields: [substructureId], references: [id])
+
+  row            String       // "A", "B", "C" — identificador de fila
+  col            Int          // 1, 2, 3 — identificador de columna
+
+  // ── Ocupación en la cuadrícula (tiles de referencia 60×60) ──
+  widthUnits     Int          @default(1) // cuántos tiles ocupa en columna (eje X)
+  depthUnits     Int          @default(1) // cuántos tiles ocupa en fila   (eje Z)
+
+  // ── Dimensiones físicas reales del device (puede ser no múltiplo de 60) ──
+  physWidthCm    Float        @default(60)  // ancho real: 50, 60, 90, 120...
+  physDepthCm    Float        @default(60)  // profundidad real: 30, 60, 90...
+
+  status         String       @default("EMPTY")  // EMPTY | OCCUPIED | RESERVED
+  label          String?      // etiqueta libre: "BDFB-01", "Rack-Norte"
+
+  deviceId       String?      @db.ObjectId // device que ocupa esta posición
+  device         Device?      @relation(fields: [deviceId], references: [id])
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// --- FASE 3b: CONTEXTO FÍSICO (EQUIPMENT & WRAPPERS) ---
 
 model Device {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
@@ -114,6 +145,7 @@ model Device {
   category   String      @default("NETWORKING") // BDFB, NE, METER
   siteId     String      @db.ObjectId
   site       Site        @relation(fields: [siteId], references: [id])
+  positions  Position[]  // Relación inversa: posiciones que ocupa
   equipments Equipment[] // Colección de fierros que componen este dispositivo
   ports      Port[]      // Puertos maestros del dispositivo
   ne         NE?         // Si el dispositivo aloja una IA/Conciencia lógica
@@ -121,8 +153,14 @@ model Device {
 
 model Equipment {
   id                String      @id @default(auto()) @map("_id") @db.ObjectId
-  name              String
-  category          String      // RACK, SUBRACK, BOARD, MODULE (MAGNITUD)
+  name              String      // Ej: "Panel-A", "Subrack-1"
+  category          String      // RACK, SUBRACK, CIRCUIT_PACK, CIRCUIT_BREAKER
+  slotLabel         String?     // Ej: "Slot-01", "Bay-A"
+  
+  // -- Posicionamiento Vertical (Fase 3c) --
+  unitPosition      Int?        // Posición inicial en el rack (U1, U2...)
+  unitHeight        Int?        @default(1) // Altura en Unidades de Rack (U)
+
   deviceId          String      @db.ObjectId
   device            Device      @relation(fields: [deviceId], references: [id])
   parentEquipmentId String?     @db.ObjectId
@@ -134,7 +172,8 @@ model Equipment {
 model Port {
   id                String      @id @default(auto()) @map("_id") @db.ObjectId
   name              String      // Breaker 1, Gi0/0
-  type              String      @default("DATA") // POWER, DATA
+  type              String      @default("POWER_OUT") // POWER_IN, POWER_OUT, DATA, SENSOR
+  sensorTopic       String?     // Tópico MQTT: "telxius/dc01/posA1/p1"
   equipmentId       String?     @db.ObjectId
   equipment         Equipment?  @relation(fields: [equipmentId], references: [id])
   deviceId          String      @db.ObjectId
