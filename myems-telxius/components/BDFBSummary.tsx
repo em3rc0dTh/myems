@@ -10,16 +10,16 @@ interface BDFBSummaryProps {
 const BDFBSummary: React.FC<BDFBSummaryProps> = ({ bdfb }) => {
   // Mock summary calculation based on panels
   const summary = {
-      installed: bdfb.panels.reduce((acc, p) => acc + p.installedCapacity, 0),
-      consumed: bdfb.panels.reduce((acc, p) => acc + p.consumedCapacity, 0),
-      reserved: bdfb.panels.reduce((acc, p) => acc + p.reservedCapacity, 0),
-      vacant: bdfb.panels.reduce((acc, p) => acc + (p.installedCapacity - p.consumedCapacity - p.reservedCapacity), 0),
+    installed: bdfb.panels.reduce((acc, p) => acc + p.installedCapacity, 0),
+    consumed: bdfb.panels.reduce((acc, p) => acc + p.consumedCapacity, 0),
+    reserved: bdfb.panels.reduce((acc, p) => acc + p.reservedCapacity, 0),
+    vacant: bdfb.panels.reduce((acc, p) => acc + (p.installedCapacity - p.consumedCapacity - p.reservedCapacity), 0),
   };
 
   return (
     <Link href={`/bdfb/${bdfb.id}`} className="block h-full group">
       <div className="glass-panel p-6 rounded-3xl bg-slate-950/40 border border-white/5 hover:border-fuchsia-500/30 hover:shadow-[0_0_40px_rgba(232,121,249,0.1)] transition-all duration-500 cursor-pointer h-full flex flex-col relative overflow-hidden">
-        
+
         {/* Background Glow */}
         <div className="absolute -top-20 -right-20 w-40 h-40 bg-fuchsia-500/5 blur-[80px] rounded-full pointer-events-none group-hover:bg-fuchsia-500/10 transition-colors" />
 
@@ -36,25 +36,29 @@ const BDFBSummary: React.FC<BDFBSummaryProps> = ({ bdfb }) => {
 
         {/* MANDATORY CHASSIS REPRESENTATION (Miniature) */}
         <div className="flex-1 flex flex-col items-center justify-center py-4 relative z-10">
-            <div className="relative w-24 flex flex-col items-center">
-                {/* U-Frame Shell */}
-                <div className="w-full aspect-[3/4] border-t border-x border-fuchsia-500/60 rounded-t-lg bg-black/40 shadow-inner group-hover:border-fuchsia-400 transition-colors">
-                    {/* Panel Status Matrix (2x2) */}
-                    <div className="absolute inset-x-2 inset-y-3 grid grid-cols-2 grid-rows-2 gap-2">
-                        {['A2', 'B2', 'A1', 'B1'].map(p => (
-                            <div key={p} className="flex flex-col items-center justify-center bg-white/[0.03] border border-white/5 rounded-sm">
-                                <span className="text-[8px] font-black text-slate-500 group-hover:text-slate-300 transition-colors">{p}</span>
-                                <div className="w-1.5 h-0.5 bg-fuchsia-500/40 rounded-full mt-0.5" />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                {/* Base Wings */}
-                <div className="w-[140%] h-[1px] bg-fuchsia-500/60 shadow-[0_0_10px_#f0abfc] relative">
-                    <div className="absolute -top-0.5 left-0 w-1 h-1 rounded-full bg-fuchsia-500" />
-                    <div className="absolute -top-0.5 right-0 w-1 h-1 rounded-full bg-fuchsia-500" />
-                </div>
+          <div className="relative w-24 flex flex-col items-center">
+            {/* U-Frame Shell */}
+            <div className="w-full aspect-[3/4] border-t border-x border-fuchsia-500/60 rounded-t-lg bg-black/40 shadow-inner group-hover:border-fuchsia-400 transition-colors">
+              {/* Panel Status Matrix (2x2) */}
+              <div className="absolute inset-x-2 top-3 bottom-6 grid grid-cols-2 grid-rows-2 gap-2">
+                {['A1', 'B1', 'A2', 'B2'].map(p => (
+                  <div key={p} className="flex flex-col items-center justify-center bg-white/[0.03] border border-white/5 rounded-sm">
+                    <span className="text-[8px] font-black text-slate-500 group-hover:text-slate-300 transition-colors">{p}</span>
+                    <div className="w-1.5 h-0.5 bg-fuchsia-500/40 rounded-full mt-0.5" />
+                  </div>
+                ))}
+              </div>
+              {/* Space label */}
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
+                <span className="text-[6px] text-slate-700 font-mono uppercase tracking-widest"></span>
+              </div>
             </div>
+            {/* Base Wings */}
+            <div className="w-[140%] h-[1px] bg-fuchsia-500/60 shadow-[0_0_10px_#f0abfc] relative">
+              <div className="absolute -top-0.5 left-0 w-1 h-1 rounded-full bg-fuchsia-500" />
+              <div className="absolute -top-0.5 right-0 w-1 h-1 rounded-full bg-fuchsia-500" />
+            </div>
+          </div>
         </div>
 
         {/* Capacity Metrics List */}
@@ -74,8 +78,8 @@ const CapacityMetric: React.FC<{ label: string; value: number; color: string }> 
   <div className="bg-black/40 px-3 py-2 rounded-xl border border-white/5 flex flex-col items-center">
     <span className="text-[7px] uppercase tracking-[0.2em] text-slate-600 font-black block mb-1">{label}</span>
     <div className="flex items-baseline gap-1">
-        <span className={`text-xs font-mono font-bold ${color} tracking-widest`}>{value}</span>
-        <span className="text-[7px] text-slate-700 font-mono">A</span>
+      <span className={`text-xs font-mono font-bold ${color} tracking-widest`}>{value}</span>
+      <span className="text-[7px] text-slate-700 font-mono">A</span>
     </div>
   </div>
 );

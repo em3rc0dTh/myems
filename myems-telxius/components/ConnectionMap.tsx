@@ -43,15 +43,33 @@ const ConnectionMap: React.FC = () => {
           {/* BDFB Target */}
           <g transform="translate(600, 100)">
             <rect x="0" y="0" width="120" height="200" rx="16" fill="#020617" stroke="#0ea5e9" strokeWidth="4" />
-            <text x="60" y="30" textAnchor="middle" fill="#fff" fontSize="16" fontWeight="900">BDFB-2</text>
+            <text x="60" y="25" textAnchor="middle" fill="#fff" fontSize="14" fontWeight="900" className="uppercase italic">BDFB-2</text>
             
-            <rect x="20" y="60" width="80" height="40" rx="4" fill="#0f172a" stroke="#1e293b" />
-            <text x="30" y="85" fill="#0ea5e9" fontSize="12" fontWeight="bold">A</text>
-            <text x="45" y="82" fill="#475569" fontSize="8">Port M</text>
-            
-            <rect x="20" y="120" width="80" height="40" rx="4" fill="#0f172a" stroke="#1e293b" />
-            <text x="30" y="145" fill="#0ea5e9" fontSize="12" fontWeight="bold">B</text>
-            <text x="45" y="142" fill="#475569" fontSize="8">Port N</text>
+            {/* 2x2 Panel Grid */}
+            <g transform="translate(15, 45)">
+                {/* A1 */}
+                <rect x="0" y="0" width="40" height="35" rx="4" fill="#0f172a" stroke="#0ea5e9" strokeOpacity="0.5" />
+                <text x="20" y="22" textAnchor="middle" fill="#0ea5e9" fontSize="10" fontWeight="bold">A1</text>
+                
+                {/* B1 */}
+                <rect x="50" y="0" width="40" height="35" rx="4" fill="#0f172a" stroke="#1e293b" strokeOpacity="0.5" />
+                <text x="70" y="22" textAnchor="middle" fill="#475569" fontSize="10" fontWeight="bold">B1</text>
+                
+                {/* A2 */}
+                <rect x="0" y="45" width="40" height="35" rx="4" fill="#0f172a" stroke="#1e293b" strokeOpacity="0.5" />
+                <text x="20" y="67" textAnchor="middle" fill="#475569" fontSize="10" fontWeight="bold">A2</text>
+                
+                {/* B2 */}
+                <rect x="50" y="45" width="40" height="35" rx="4" fill="#0f172a" stroke="#1e293b" strokeOpacity="0.5" />
+                <text x="70" y="67" textAnchor="middle" fill="#475569" fontSize="10" fontWeight="bold">B2</text>
+
+                {/* Port Labels */}
+                <text x="20" y="38" textAnchor="middle" fill="#475569" fontSize="6">Port M</text>
+                <text x="70" y="38" textAnchor="middle" fill="#475569" fontSize="6">Spare</text>
+            </g>
+
+            {/* Space label */}
+            <text x="60" y="185" textAnchor="middle" fill="#1e293b" fontSize="8" fontWeight="bold" className="uppercase tracking-[0.3em]">space</text>
           </g>
 
           {/* Connections (Pathways) */}
