@@ -61,14 +61,35 @@ const RoomView: React.FC<RoomViewProps> = ({ substructure, positions, onSelectBD
           <h2 className="text-xl font-black text-white tracking-widest uppercase italic leading-none">{substructure.name}</h2>
         </div>
 
-        <div className="flex gap-6">
+        <div className="flex gap-4 flex-wrap max-w-2xl justify-end">
           <LegendItem
-            icon={<div className="w-3 h-3 border-t-2 border-x-2 border-fuchsia-500 rounded-t-sm" />}
-            label="Equipos (BDFB/Rack)"
+            icon={<div className="w-3 h-3 border border-slate-500 bg-slate-500/40 rounded-sm" />}
+            label="Disponible"
           />
           <LegendItem
-            icon={<div className="w-3 h-3 border border-white/10 bg-white/5" />}
-            label="Tiles Referencia (60x60)"
+            icon={<div className="w-3 h-3 bg-emerald-500/40 border border-emerald-500 rounded-sm" />}
+            label="Funcional"
+          />
+          <LegendItem
+            icon={<div className="w-3 h-3 bg-orange-500/40 border border-orange-500 rounded-sm" />}
+            label="Alerta"
+          />
+          <LegendItem
+            icon={<div className="w-3 h-3 bg-red-500/40 border border-red-500 rounded-sm" />}
+            label="Problema"
+          />
+          <div className="w-[1px] h-3 bg-white/10 mx-1" />
+          <LegendItem
+            icon={<div className="w-3 h-3 border-2 border-fuchsia-500 bg-transparent rounded-sm" />}
+            label="BDFB"
+          />
+          <LegendItem
+            icon={<div className="w-3 h-3 border-2 border-cyan-500 bg-transparent rounded-sm" />}
+            label="Mega Tank"
+          />
+          <LegendItem
+            icon={<div className="w-4 h-0.5 border-t-2 border-dashed border-white/30" />}
+            label="Perímetro"
           />
         </div>
       </div>
@@ -179,20 +200,22 @@ const RoomView: React.FC<RoomViewProps> = ({ substructure, positions, onSelectBD
             {referencePoints.map((point: { x: number, y: number, type: string, label: string }, idx: number) => (
               <g key={idx} transform={`translate(${point.x}, ${point.y})`}>
                 {point.type === 'DOOR' && (
-                  <g transform={`rotate(${point.x > 500 ? 0 : 180})`}>
-                    {/* Swing Path */}
+                  <g transform={`scale(1.8) rotate(${point.x > 500 ? 0 : 180})`}>
+                    {/* Swing Path (Ahora mucho más vistoso) */}
                     <path
                       d="M 30 0 A 30 30 0 0 0 0 30"
-                      fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeDasharray="3 2"
+                      fill="rgba(245,158,11,0.1)" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 2"
                     />
-                    {/* Door Leaf */}
-                    <line x1="30" y1="0" x2="30" y2="30" stroke="#475569" strokeWidth="2.5" />
+                    {/* Door Leaf Vistosa */}
+                    <line x1="30" y1="0" x2="30" y2="30" stroke="#f59e0b" strokeWidth="3" className="drop-shadow-[0_0_6px_rgba(245,158,11,0.8)]" />
+                    {/* Bisagra */}
+                    <circle cx="30" cy="30" r="2.5" fill="#fff" />
                   </g>
                 )}
                 <text
-                  y={point.y > 400 ? -15 : 45}
+                  y={point.y > 400 ? -20 : 70}
                   textAnchor="middle"
-                  className="fill-slate-500 text-[10px] font-black tracking-tighter uppercase"
+                  className="fill-amber-500 text-[12px] font-black tracking-widest uppercase drop-shadow-md"
                 >
                   {point.label}
                 </text>
@@ -236,21 +259,20 @@ const RoomView: React.FC<RoomViewProps> = ({ substructure, positions, onSelectBD
                     x={x} y={y}
                     width={w} height={h}
                     fill={
-                      isHighlighted ? (isBDFB ? 'rgba(217, 70, 239, 0.6)' : 'rgba(217, 70, 239, 0.2)') : /* Zonas de influencia Highlight */
-                        isBDFB ? 'rgba(217, 70, 239, 0.25)' :
-                          pos.label?.startsWith('MEGA') ? 'rgba(6, 182, 212, 0.25)' :
-                            pos.status === 'OCCUPIED' ? 'rgba(71, 85, 105, 0.6)' :
-                              'rgba(255,255,255,0.02)'
+                      pos.status === 'ERROR' ? 'rgba(239, 68, 68, 0.4)' : // Rojo: Problema
+                      pos.status === 'WARNING' ? 'rgba(249, 115, 22, 0.4)' : // Naranja: Alerta
+                      (pos.status === 'OCCUPIED' || pos.status === 'RESERVED') ? 'rgba(16, 185, 129, 0.4)' : // Verde: Funcional
+                      'rgba(100, 116, 139, 0.2)' // Gris: Disponible
                     }
                     stroke={
                       isHighlighted ? '#d946ef' : /* Glow border when in active zone */
                         isBDFB ? '#d946ef' :
                           pos.label?.startsWith('MEGA') ? '#06b6d4' :
-                            pos.status === 'OCCUPIED' ? '#94a3b8' :
+                            pos.status !== 'EMPTY' ? '#cbd5e1' :
                               'rgba(255,255,255,0.1)'
                     }
-                    strokeWidth={pos.status === 'OCCUPIED' || isHighlighted ? "2" : "1"}
-                    className={`transition-all duration-300 ${isHighlighted ? 'drop-shadow-[0_0_15px_rgba(217,70,239,0.5)]' : 'group-hover:brightness-125'}`}
+                    strokeWidth={pos.status !== 'EMPTY' || isHighlighted ? "2" : "1"}
+                    className={`transition-all duration-300 ${isHighlighted ? 'brightness-125 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'group-hover:brightness-125'}`}
                   />
 
                   {/* 3. Icons / Internal Details */}
