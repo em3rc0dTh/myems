@@ -23,12 +23,12 @@ export async function GET(req: NextRequest) {
 // POST /api/substructures
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, levelId, type = "ROOM", gridRows = [], gridCols = [] } = body;
+  const { name, levelId, type = "ROOM", gridRows = [], gridCols = [], perimeter = null, referencePoints = null } = body;
   if (!name || !levelId)
     return NextResponse.json({ ok: false, error: "name y levelId son requeridos" }, { status: 400 });
   try {
-    const room = await prisma.substructure.create({
-      data: { name, levelId, type, gridRows, gridCols },
+    const room = await (prisma.substructure as any).create({
+      data: { name, levelId, type, gridRows, gridCols, perimeter, referencePoints },
     });
     return NextResponse.json({ ok: true, data: room }, { status: 201 });
   } catch (e) {

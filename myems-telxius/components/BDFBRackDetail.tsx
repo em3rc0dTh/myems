@@ -11,15 +11,17 @@ interface Breaker {
   online?: boolean;
   power?: string;
   energy?: string;
+  isMapped?: boolean;
 }
 
 interface BDFBRackDetailProps {
   panelName: string;
   breakers: Breaker[];
+  mappedPositions?: number[];
   onPositionClick?: (panelName: string, breaker: Breaker) => void;
 }
 
-const BDFBRackDetail: React.FC<BDFBRackDetailProps> = ({ panelName, breakers, onPositionClick }) => {
+const BDFBRackDetail: React.FC<BDFBRackDetailProps> = ({ panelName, breakers, mappedPositions = [], onPositionClick }) => {
   // Assume a 2x6 or similar matrix for the physical rack representation
   const matrix = Array.from({ length: 24 }, (_, i) => {
     const breaker = breakers.find(b => b.position === i + 1);
@@ -31,7 +33,7 @@ const BDFBRackDetail: React.FC<BDFBRackDetailProps> = ({ panelName, breakers, on
       <div className="flex items-center justify-between mb-6">
         <h4 className="text-lg font-bold text-white flex items-center gap-2">
           <span className="w-1 h-1 bg-accent-primary rounded-full" />
-          Vista Rack: Panel {panelName}
+          Vista: Panel {panelName}
         </h4>
         <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest bg-white/5 px-2 py-1 rounded">
           Posiciones 1-24
@@ -68,9 +70,14 @@ const BDFBRackDetail: React.FC<BDFBRackDetailProps> = ({ panelName, breakers, on
                   </span>
 
                   {/* Label */}
-                  <span className="text-slate-300 font-mono truncate overflow-hidden whitespace-nowrap text-center">
-                    {b.label || 'Occupied'}
-                  </span>
+                  <div className="flex items-center justify-center gap-1 min-w-0">
+                    <span className="text-slate-300 font-mono truncate overflow-hidden whitespace-nowrap">
+                      {b.label || 'Occupied'}
+                    </span>
+                    {mappedPositions.includes(b.position) && (
+                      <span className="w-1 h-1 bg-accent-primary rounded-full shadow-[0_0_5px_#38bdf8] flex-shrink-0 animate-pulse" title="Mapeado" />
+                    )}
+                  </div>
 
                   {/* Métricas */}
                   <span className="text-right font-mono whitespace-nowrap">

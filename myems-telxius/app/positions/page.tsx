@@ -27,6 +27,7 @@ interface Position {
 interface Equipment {
   id: string; name: string; category: string; slotLabel: string | null;
   unitPosition: number | null; unitHeight: number | null;
+  logicalPrefix: string | null;
   deviceId: string; parentEquipmentId: string | null; children: Equipment[];
 }
 
@@ -47,12 +48,13 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 // ─── Componentes ──────────────────────────────────────────────────────────────
 
-function EquipmentItem({ item, deviceId, onReload, telemetry, parentRU }: { 
+function EquipmentItem({ item, deviceId, onReload, telemetry, parentRU, parentPrefix }: { 
   item: Equipment; 
   deviceId: string; 
   onReload: () => void; 
   telemetry?: Record<string, { v?: number; a?: number; w?: number }>; 
   parentRU?: { pos: number; h: number }; 
+  parentPrefix?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
@@ -66,8 +68,8 @@ function EquipmentItem({ item, deviceId, onReload, telemetry, parentRU }: {
     return "SUBRACK";
   };
 
-  const [form, setForm] = useState({ name: "", category: getNextCategory(item.category), slotLabel: "" });
-  const [editForm, setEditForm] = useState({ name: item.name, category: item.category, slotLabel: item.slotLabel || "" });
+  const [form, setForm] = useState({ name: "", category: getNextCategory(item.category), slotLabel: "", logicalPrefix: "" });
+  const [editForm, setEditForm] = useState({ name: item.name, category: item.category, slotLabel: item.slotLabel || "", logicalPrefix: item.logicalPrefix || "" });
 
   const addChild = async () => {
     if (!form.name) return;
@@ -116,9 +118,14 @@ function EquipmentItem({ item, deviceId, onReload, telemetry, parentRU }: {
 
   const addPort = async () => {
     const name = prompt("Nombre Puerto:"); if(!name) return;
+    let defaultTopic = "";
+    if (parentPrefix) {
+        defaultTopic = `${parentPrefix}${item.slotLabel || ""}`;
+    }
+    const topic = prompt("Tópico MQTT / ID Lógico:", defaultTopic);
     await api("/api/ports", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, deviceId, equipmentId: item.id, type: "POWER_OUT" })
+      body: JSON.stringify({ name, deviceId, equipmentId: item.id, type: "POWER_OUT", sensorTopic: topic })
     });
     loadPorts();
   };
@@ -175,6 +182,9 @@ function EquipmentItem({ item, deviceId, onReload, telemetry, parentRU }: {
                     {["RACK","SUBRACK","PANEL","BREAKER","CIRCUIT_PACK","NETWORKING"].map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   <input className="edit-input slot" placeholder="Slot" value={editForm.slotLabel} onChange={e => setEditForm({...editForm, slotLabel: e.target.value})} />
+                  {item.category === "PANEL" && (
+                    <input className="edit-input prefix" placeholder="Pfx: 0_1_" value={editForm.logicalPrefix} onChange={e => setEditForm({...editForm, logicalPrefix: e.target.value})} title="Prefijo Lógico (ej: 0_1_)" />
+                  )}
                   <button className="btn-save-mini" onClick={saveEdit}>💾</button>
                   <button className="btn-cancel-mini" onClick={() => setIsEditing(false)}>✕</button>
                 </div>
@@ -183,6 +193,7 @@ function EquipmentItem({ item, deviceId, onReload, telemetry, parentRU }: {
                   <span className="module-name">{item.name}</span>
                   <span className="module-badge">{item.category}</span>
                   {item.slotLabel && <span className="slot-badge">Slot {item.slotLabel}</span>}
+                  {item.logicalPrefix && <span className="prefix-badge" title="Prefijo Lógico">{item.logicalPrefix}</span>}
                 </div>
               )}
             </div>
@@ -262,7 +273,17 @@ function EquipmentItem({ item, deviceId, onReload, telemetry, parentRU }: {
         <div className="module-nested-container">
           <div className="tree-linking-guide" />
           <div className="nested-content">
-            {item.children?.map(c => <EquipmentItem key={c.id} item={c} deviceId={deviceId} onReload={onReload} telemetry={telemetry} parentRU={{ pos: item.unitPosition || 1, h: item.unitHeight || 1 }} />)}
+            {item.children?.map(c => (
+              <EquipmentItem 
+                key={c.id} 
+                item={c} 
+                deviceId={deviceId} 
+                onReload={onReload} 
+                telemetry={telemetry} 
+                parentRU={{ pos: item.unitPosition || 1, h: item.unitHeight || 1 }} 
+                parentPrefix={item.category === "PANEL" ? item.logicalPrefix : parentPrefix}
+              />
+            ))}
             {addingChild && (
               <div className="add-module-form">
                 <input placeholder="Nombre" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
@@ -348,7 +369,13 @@ function HardwareModal({ device, onClose }: { device: any; onClose: () => void }
             ) : (
               <div className="tree-scroll">
                 {equipments.map(eq => (
-                  <EquipmentItem key={eq.id} item={eq} deviceId={device.id} onReload={() => loadEq(device.id)} telemetry={telemetry} />
+                  <EquipmentItem 
+                    key={eq.id} 
+                    item={eq} 
+                    deviceId={device.id} 
+                    onReload={() => loadEq(device.id)} 
+                    telemetry={telemetry} 
+                  />
                 ))}
                 <button className="btn-add-root" onClick={async () => {
                   const name = prompt("Nombre:"); if (!name) return;
@@ -565,6 +592,7 @@ export default function PositionsPage() {
         .edit-input { background: transparent; border: none; color: #fff; font-size: 0.75rem; font-weight: 700; outline: none; }
         .edit-input.name { width: 100px; border-right: 1px solid #333; }
         .edit-input.slot { width: 50px; color: #34d399; }
+        .edit-input.prefix { width: 80px; color: #818cf8; border-right: 1px solid #333; }
         .edit-select { background: #111; border: none; color: #94a3b8; font-size: 0.6rem; font-weight: 800; border-radius: 3px; cursor: pointer; }
         .btn-save-mini { background: none; border: none; cursor: pointer; font-size: 0.8rem; filter: grayscale(1); transition: filter 0.2s; }
         .btn-save-mini:hover { filter: grayscale(0); }
@@ -573,6 +601,7 @@ export default function PositionsPage() {
         .module-name { font-weight: 700; font-size: 0.75rem; color: #f1f5f9; }
         .module-badge { font-size: 0.55rem; color: #94a3b8; background: #1a1a1a; padding: 1px 6px; border-radius: 3px; font-weight: 800; border: 1px solid #222; text-transform: uppercase; }
         .slot-badge { font-size: 0.55rem; color: #34d399; font-weight: 700; background: rgba(52,211,153,0.1); padding: 1px 6px; border-radius: 3px; }
+        .prefix-badge { font-size: 0.55rem; color: #818cf8; font-weight: 700; background: rgba(129,140,248,0.1); padding: 1px 6px; border-radius: 3px; border: 1px solid rgba(129,140,248,0.2); }
 
         .module-ru-controls { display: flex; gap: 6px; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; border: 1px solid #222; }
         .ru-pill { display: flex; align-items: center; gap: 4px; }

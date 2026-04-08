@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 // Body: { substructureId, row, col, widthUnits?, depthUnits?, label?, status? }
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { substructureId, row, col, widthUnits, depthUnits, physWidthCm, physDepthCm, label, status } = body;
+  const { substructureId, row, col, widthUnits, depthUnits, physWidthCm, physDepthCm, physOffsetX, physOffsetY, label, status } = body;
 
   if (!substructureId || !row || col === undefined)
     return err("substructureId, row and col are required");
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   });
   if (existing) return err(`Position ${row}${col} already exists in this room`, 409);
 
-  const position = await prisma.position.create({
+  const position = await (prisma.position as any).create({
     data: {
       substructureId,
       row,
@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
       depthUnits:  Number(depthUnits  ?? 1),
       physWidthCm: Number(physWidthCm ?? 60),
       physDepthCm: Number(physDepthCm ?? 60),
+      physOffsetX: Number(physOffsetX ?? 0),
+      physOffsetY: Number(physOffsetY ?? 0),
       label: label ?? null,
       status: status ?? "EMPTY",
     },
@@ -61,9 +63,9 @@ export async function PATCH(req: NextRequest) {
   if (!id) return err("id required");
 
   const body = await req.json();
-  const { status, label, widthUnits, depthUnits, physWidthCm, physDepthCm, deviceId } = body;
+  const { status, label, widthUnits, depthUnits, physWidthCm, physDepthCm, physOffsetX, physOffsetY, deviceId } = body;
 
-  const updated = await prisma.position.update({
+  const updated = await (prisma.position as any).update({
     where: { id },
     data: {
       ...(status      !== undefined && { status }),
@@ -72,6 +74,8 @@ export async function PATCH(req: NextRequest) {
       ...(depthUnits  !== undefined && { depthUnits:  Number(depthUnits) }),
       ...(physWidthCm !== undefined && { physWidthCm: Number(physWidthCm) }),
       ...(physDepthCm !== undefined && { physDepthCm: Number(physDepthCm) }),
+      ...(physOffsetX !== undefined && { physOffsetX: Number(physOffsetX) }),
+      ...(physOffsetY !== undefined && { physOffsetY: Number(physOffsetY) }),
       ...(deviceId    !== undefined && { deviceId }),
     },
   });

@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 // POST /api/equipments
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, category, slotLabel, deviceId, parentEquipmentId, unitPosition, unitHeight } = body;
+  const { name, category, slotLabel, deviceId, parentEquipmentId, unitPosition, unitHeight, logicalPrefix } = body;
 
   if (!name || !category || !deviceId) return err("name, category and deviceId are required");
 
@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       parentEquipmentId: parentEquipmentId || null,
       unitPosition: unitPosition !== undefined ? Number(unitPosition) : null,
       unitHeight: unitHeight !== undefined ? Number(unitHeight) : 1,
+      logicalPrefix: logicalPrefix || null,
     }
   });
   return ok(equipment);
@@ -64,7 +65,7 @@ export async function PATCH(req: NextRequest) {
   if (!id) return err("id required");
 
   const body = await req.json();
-  const { name, slotLabel, category, unitPosition, unitHeight } = body;
+  const { name, slotLabel, category, unitPosition, unitHeight, logicalPrefix } = body;
 
   const updated = await (prisma.equipment as any).update({
     where: { id },
@@ -74,6 +75,7 @@ export async function PATCH(req: NextRequest) {
       ...(category !== undefined && { category }),
       ...(unitPosition !== undefined && { unitPosition: Number(unitPosition) }),
       ...(unitHeight !== undefined && { unitHeight: Number(unitHeight) }),
+      ...(logicalPrefix !== undefined && { logicalPrefix: logicalPrefix || null }),
     }
   });
   return ok(updated);

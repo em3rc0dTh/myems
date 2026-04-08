@@ -16,7 +16,7 @@ export default function Home() {
                 <aside className="w-full lg:w-[340px] shrink-0 flex flex-col h-full">
                     <div className="glass-panel p-5 rounded-2xl h-full flex flex-col">
                         <h1 className="text-3xl font-extrabold mb-1 tracking-tight shrink-0">
-                            <span className="text-gradient">Telxius EMS</span>
+                            <span className="text-gradient">AppM Energy EMS</span>
                         </h1>
                         <p className="text-slate-400 mb-4 text-sm leading-relaxed shrink-0">
                             Sistema de monitoreo energético y planificación física de infraestructura.

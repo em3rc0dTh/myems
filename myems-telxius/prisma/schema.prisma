@@ -77,15 +77,17 @@ model Level {
 }
 
 model Substructure {
-  id        String     @id @default(auto()) @map("_id") @db.ObjectId
-  name      String     // Sala / Room
-  type      String     @default("ROOM")
-  levelId   String     @db.ObjectId
-  level     Level      @relation(fields: [levelId], references: [id])
-  gridRows  String[]   // ["A", "B", "C"]
-  gridCols  Int[]      // [1, 2, 3]
-  racks     Container[]
-  positions Position[] // Fase 3a: posiciones reales (tile 60x60)
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  name            String      // Sala / Room
+  type            String      @default("ROOM")
+  levelId         String      @db.ObjectId
+  level           Level       @relation(fields: [levelId], references: [id])
+  gridRows        String[]    // ["A", "B", "C"]
+  gridCols        Int[]       // [1, 2, 3]
+  perimeter       String?     // JSON String: perimetro de la sala [[x1,y1], [x2,y2]...]
+  referencePoints String?     // JSON String: puntos de referencia [{x,y,label,type}...]
+  racks           Container[]
+  positions       Position[]  // Fase 3a: posiciones reales (tile 60x60)
 }
 
 model Container {
@@ -126,6 +128,8 @@ model Position {
   // ── Dimensiones físicas reales del device (puede ser no múltiplo de 60) ──
   physWidthCm    Float        @default(60)  // ancho real: 50, 60, 90, 120...
   physDepthCm    Float        @default(60)  // profundidad real: 30, 60, 90...
+  physOffsetX    Float?       @default(0)   // Ajuste fino X en cm
+  physOffsetY    Float?       @default(0)   // Ajuste fino Y en cm
 
   status         String       @default("EMPTY")  // EMPTY | OCCUPIED | RESERVED
   label          String?      // etiqueta libre: "BDFB-01", "Rack-Norte"
@@ -160,6 +164,7 @@ model Equipment {
   // -- Posicionamiento Vertical (Fase 3c) --
   unitPosition      Int?        // Posición inicial en el rack (U1, U2...)
   unitHeight        Int?        @default(1) // Altura en Unidades de Rack (U)
+  logicalPrefix     String?     // Prefijo para IDs lógicos: "0_1_"
 
   deviceId          String      @db.ObjectId
   device            Device      @relation(fields: [deviceId], references: [id])

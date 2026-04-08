@@ -47,29 +47,19 @@ export default function ConfigPanel() {
     const [selectedMeterId, setSelectedMeterId] = useState<string>('');
     
     // Inicializadores perezosos
-    const [qdfs, setQdfs] = useState<QDFConfig[]>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('telxius_qdfs');
-            return saved ? JSON.parse(saved) : [];
-        }
-        return [];
-    });
+    const [qdfs, setQdfs] = useState<QDFConfig[]>([]);
+    const [meters, setMeters] = useState<MeterDeviceConfig[]>([]);
+    const [mappings, setMappings] = useState<PortMapping[]>([]);
 
-    const [meters, setMeters] = useState<MeterDeviceConfig[]>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('telxius_meters');
-            return saved ? JSON.parse(saved) : [];
-        }
-        return [];
-    });
-
-    const [mappings, setMappings] = useState<PortMapping[]>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('telxius_mappings');
-            return saved ? JSON.parse(saved) : [];
-        }
-        return [];
-    });
+    useEffect(() => {
+        const savedQdfs = localStorage.getItem('telxius_qdfs');
+        const savedMeters = localStorage.getItem('telxius_meters');
+        const savedMappings = localStorage.getItem('telxius_mappings');
+        
+        if (savedQdfs) setQdfs(JSON.parse(savedQdfs));
+        if (savedMeters) setMeters(JSON.parse(savedMeters));
+        if (savedMappings) setMappings(JSON.parse(savedMappings));
+    }, []);
 
     const [saved, setSaved] = useState(false);
 
@@ -109,7 +99,7 @@ export default function ConfigPanel() {
 
     const addQDF = () => {
         const newQdf: QDFConfig = {
-            id: Math.random().toString(36).substring(7),
+            id: `qdf-${Date.now()}`,
             name: `QDF-NEW-${qdfs.length + 1}`,
             room: 'Main Hall',
             site: 'Alpha DC',
@@ -123,7 +113,7 @@ export default function ConfigPanel() {
 
     const addMeter = () => {
         const newMeter: MeterDeviceConfig = {
-            id: Math.random().toString(36).substring(7),
+            id: `meter-${Date.now()}`,
             serial: '251107...',
             qdfId: qdfs[0]?.id || '',
             panel: 'A1'
