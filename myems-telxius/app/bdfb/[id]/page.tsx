@@ -248,6 +248,12 @@ const BDFBDetailPage: React.FC = () => {
                                     >
                                         Ver Diagrama
                                     </button>
+                                    <Link 
+                                        href="/architecture"
+                                        className="flex-1 py-2 px-3 rounded-lg text-[9px] font-black tracking-widest uppercase transition-all text-accent-primary hover:text-white bg-accent-primary/10 hover:bg-accent-primary/20 text-center flex items-center justify-center border border-accent-primary/20"
+                                    >
+                                        Arquitectura
+                                    </Link>
                                 </div>
 
                                 {/* LIVE MEASUREMENTS */}
