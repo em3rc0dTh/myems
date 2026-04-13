@@ -20,9 +20,10 @@ export async function GET() {
         const activeBDFBs = devices.map(d => {
             return {
                 id: d.id,
-                sn: d.id, // En DB no hay columna SN aún
+                sn: d.sn || d.id,
                 name: d.name,
-                location: d.positions[0]?.substructure?.name || 'Desconocido',
+                isPinned: (d as any).isPinned || false,
+                location: d.positions[0]?.substructure?.name || 'Sala Desconocida',
                 panels: d.equipments.map(eq => ({
                     id: eq.id,
                     name: eq.name,
@@ -33,11 +34,11 @@ export async function GET() {
                     reservedCapacity: 0,
                     breakers: eq.ports.map(p => ({
                         id: p.id,
-                        position: parseInt(p.name.replace('Port ', '')) || 0,
+                        position: parseInt(p.name.replace(/[^0-9]/g, '')) || 0,
                         status: p.sensorTopic ? 'occupied' : 'empty',
-                        label: p.sensorTopic ? `Map: ${p.sensorTopic}` : undefined,
+                        label: p.sensorTopic,
                         online: true
-                    }))
+                    })).sort((a,b) => a.position - b.position)
                 }))
             };
         });
