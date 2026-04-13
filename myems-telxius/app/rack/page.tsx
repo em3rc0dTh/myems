@@ -63,33 +63,33 @@ export default function InfrastructureControl() {
         });
     }, [latestData]);
 
-    // Carga de configuración real desde LocalStorage (Inicialización Diferida)
+    // Carga de configuración real desde la base de datos (Ingesta Cascading)
     useEffect(() => {
-        const load = () => {
-            const savedQdfs = localStorage.getItem('telxius_qdfs');
-            const savedMeters = localStorage.getItem('telxius_meters');
-            
-            if (savedQdfs && savedMeters) {
-                const qdfs = JSON.parse(savedQdfs) as { id: string, name: string, room: string, feeds: string }[];
-                const meters = JSON.parse(savedMeters) as { qdfId: string, serial: string }[];
-                
-                const newRack: Record<string, RackModule> = {};
-                qdfs.forEach((qdf) => {
-                    const meter = meters.find((m) => m.qdfId === qdf.id);
-                    newRack[qdf.name] = {
-                        id: qdf.name,
-                        label: qdf.room + ' (Feed ' + qdf.feeds + ')',
-                        sn: meter ? meter.serial : 'NOT_PAIRED',
-                        temp: 0, 
-                        hum: 0, 
-                        fans: 'Auto',
-                        ports: {}
-                    };
-                });
-                setRack(newRack);
+        const fetchInfrastructure = async () => {
+            try {
+                const res = await fetch('/telxius/api/bdfb-dashboard');
+                if (res.ok) {
+                    const data = await res.json();
+                    const newRack: Record<string, RackModule> = {};
+                    
+                    data.forEach((bdfb: any) => {
+                        newRack[bdfb.id] = {
+                            id: bdfb.name,
+                            label: bdfb.location,
+                            sn: bdfb.sn || bdfb.id,
+                            temp: 0,
+                            hum: 0,
+                            fans: 'Auto',
+                            ports: {}
+                        };
+                    });
+                    setRack(newRack);
+                }
+            } catch (error) {
+                console.error("Critical: Failed to sync rack config with DB", error);
             }
         };
-        load();
+        fetchInfrastructure();
     }, []);
 
 

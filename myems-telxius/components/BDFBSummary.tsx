@@ -39,14 +39,29 @@ const BDFBSummary: React.FC<BDFBSummaryProps> = ({ bdfb }) => {
           <div className="relative w-24 flex flex-col items-center">
             {/* U-Frame Shell */}
             <div className="w-full aspect-[3/4] border-t border-x border-fuchsia-500/60 rounded-t-lg bg-black/40 shadow-inner group-hover:border-fuchsia-400 transition-colors">
-              {/* Panel Status Matrix (2x2) */}
-              <div className="absolute inset-x-2 top-3 bottom-6 grid grid-cols-2 grid-rows-2 gap-2">
-                {['A1', 'B1', 'A2', 'B2'].map(p => (
-                  <div key={p} className="flex flex-col items-center justify-center bg-white/[0.03] border border-white/5 rounded-sm">
-                    <span className="text-[8px] font-black text-slate-500 group-hover:text-slate-300 transition-colors">{p}</span>
-                    <div className="w-1.5 h-0.5 bg-fuchsia-500/40 rounded-full mt-0.5" />
-                  </div>
-                ))}
+              {/* Panel Status Matrix (Dynamic based on DB) */}
+              <div className={`absolute inset-x-2 top-3 bottom-6 grid ${bdfb.panels.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-2 overflow-hidden`}>
+                {(() => {
+                  const pinned = bdfb.panels.filter((p: any) => p.isPinned);
+                  const toShow = pinned.length > 0 ? pinned : bdfb.panels;
+
+                  if (toShow.length === 0) {
+                    return (
+                      <div className="col-span-full h-full flex items-center justify-center opacity-20 text-center px-4">
+                        <span className="text-[6px] font-bold uppercase tracking-widest text-slate-500">Chasis Vacío</span>
+                      </div>
+                    );
+                  }
+
+                  return toShow.map(p => (
+                    <div key={p.id} className="flex flex-col items-center justify-center bg-white/[0.03] border border-white/5 rounded-sm p-1">
+                      <span className="text-[7px] font-black text-slate-500 group-hover:text-slate-300 transition-colors truncate w-full text-center uppercase tracking-tighter">
+                        {p.name.replace('Panel ', '')}
+                      </span>
+                      <div className="w-1.5 h-0.5 bg-fuchsia-500/40 rounded-full mt-0.5" />
+                    </div>
+                  ));
+                })()}
               </div>
               {/* Space label */}
               <div className="absolute bottom-1 left-1/2 -translate-x-1/2">

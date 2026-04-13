@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import mqtt from 'mqtt';
 
 interface MqttContextType {
     latestData: Record<string, Record<string, unknown>>;
@@ -53,47 +52,54 @@ export const MqttProvider = ({ children }: { children: React.ReactNode }) => {
     }, [latestData, rawLogs]);
 
     useEffect(() => {
-        let client: mqtt.MqttClient | null = null;
+        let evtSource: EventSource | null = null;
 
         async function initMqtt() {
             try {
-                // Obtenemos los candados de seguridad
-                const configRes = await fetch('/telxius/api/config/mqtt/');
-                const config = await configRes.json();
+                // Iniciar la conexión usando Server-Sent Events (SSE) hacia nuestro túnel API en Next.js
+                // Esto bypassa las bloqueos del navegador hacia servidores MQTT TCP puros (puerto 1883)
+                evtSource = new EventSource('/telxius/api/telemetry/stream');
                 
-                const url = config.url || (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/mqtt/';
-                client = mqtt.connect(url, {
-                    username: config.username,
-                    password: config.password,
-                    clientId: 'telxius_global_' + Math.random().toString(16).substring(2, 6),
-                    clean: true,
-                    reconnectPeriod: 2000,
-                });
-
-                client.on('connect', () => {
+                evtSource.onopen = () => {
                     setIsConnected(true);
-                    client?.subscribe('data/dev/#');
-                    console.log('--- MQTT Persistent Tunnel Established ---');
-                });
+                    console.log('--- SSE Telemetry Tunnel Established ---');
+                };
 
-                client.on('message', (topic, msg) => {
+                evtSource.onmessage = (e) => {
                     try {
-                        const data = JSON.parse(msg.toString());
-                        if (data.sn) {
-                            setLatestData(prev => ({ ...prev, [data.sn]: data }));
-                            setRawLogs(prev => [`[${topic}] ${msg.toString()}`, ...prev].slice(0, 25));
+                        const parsed = JSON.parse(e.data);
+                        if (parsed.type === 'message') {
+                            const data = JSON.parse(parsed.msg);
+                            if (data.sn) {
+                                setLatestData(prev => ({ ...prev, [data.sn]: data }));
+                                setRawLogs(prev => [`[${parsed.topic}] ${parsed.msg}`, ...prev].slice(0, 25));
+                            }
+                        } else if (parsed.type === 'system') {
+                            const data = JSON.parse(parsed.msg);
+                            if (data.status === 'connected') {
+                                setIsConnected(true);
+                            } else if (data.status === 'error') {
+                                console.error("SSE Tunnel MQTT Error:", data.error);
+                            }
                         }
                     } catch { /* silent parse err */ }
-                });
+                };
 
-                client.on('close', () => setIsConnected(false));
+                evtSource.onerror = () => {
+                    setIsConnected(false);
+                    evtSource?.close();
+                    
+                    // Simple reconexión exponencial o timeout fijo
+                    setTimeout(initMqtt, 5000); 
+                };
+
             } catch (err) {
                 console.error("MQTT Context Lock Error", err);
             }
         }
 
         initMqtt();
-        return () => { if (client) client.end(); };
+        return () => { if (evtSource) evtSource.close(); };
     }, []);
 
     return (

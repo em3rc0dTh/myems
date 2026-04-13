@@ -92,8 +92,9 @@ const ModernTrendChart = ({ data }: { data: number[] }) => {
 };
 
 export default function UltraIntelligenceDashboard() {
+  const isProd = process.env.NEXT_PUBLIC_APP_MODE === 'prod';
   const { latestData, rawLogs, setRawLogs } = useMqtt();
-  const [efficiency] = useState(98.2); // Estático para prod por ahora
+  const [efficiency] = useState(isProd ? 0 : 98.2); 
   const [history, setHistory] = useState<number[]>([]);
   const [logs, setLogs] = useState<{ id: string, msg: string, time: string, level: string }[]>([]);
   const [systemTime, setSystemTime] = useState("");
@@ -252,8 +253,8 @@ export default function UltraIntelligenceDashboard() {
             <div className="text-right">
               <div className="text-[10px] font-bold text-slate-700 uppercase mb-4">Core Telemetry [S-40]</div>
               <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                <div className="flex flex-col"><span className="text-[8px] text-slate-600 uppercase font-bold">Voltage</span><span className="text-lg font-mono text-white">224.5V</span></div>
-                <div className="flex flex-col"><span className="text-[8px] text-slate-600 uppercase font-bold">Freq</span><span className="text-lg font-mono text-white">50.0Hz</span></div>
+                <div className="flex flex-col"><span className="text-[8px] text-slate-600 uppercase font-bold">Voltage</span><span className="text-lg font-mono text-white">{isProd ? "REAL" : "224.5V"}</span></div>
+                <div className="flex flex-col"><span className="text-[8px] text-slate-600 uppercase font-bold">Freq</span><span className="text-lg font-mono text-white">{isProd ? "50.0Hz" : "50.0Hz"}</span></div>
               </div>
             </div>
           </div>

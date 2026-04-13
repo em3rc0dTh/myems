@@ -22,18 +22,41 @@ export async function GET(req: NextRequest) {
 // POST /api/containers
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, substructureId, row, position } = body;
-  if (!name || !substructureId || !row || position === undefined)
+  const { 
+    name, 
+    substructureId, 
+    row = "A", 
+    position = 0, 
+    type = "RACK", 
+    width, 
+    depth, 
+    spatialMetadata,
+    parentContainerId 
+  } = body;
+
+  if (!name || !substructureId)
     return NextResponse.json(
-      { ok: false, error: "name, substructureId, row y position son requeridos" },
+      { ok: false, error: "name y substructureId son requeridos" },
       { status: 400 }
     );
+
   try {
     const container = await prisma.container.create({
-      data: { name, substructureId, row, position: Number(position) },
+      data: { 
+        name, 
+        substructureId, 
+        row, 
+        position: Number(position),
+        type,
+        width: width ? Number(width) : undefined,
+        depth: depth ? Number(depth) : undefined,
+        spatialMetadata,
+        parentContainerId: parentContainerId || undefined
+      },
     });
     return NextResponse.json({ ok: true, data: container }, { status: 201 });
   } catch (e) {
+    console.error("Error creating container:", e);
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
   } finally {
     await prisma.$disconnect();

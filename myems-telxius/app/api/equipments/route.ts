@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma";
 
 function ok(data: unknown) {
   return NextResponse.json({ ok: true, data });
@@ -40,7 +38,7 @@ export async function GET(req: NextRequest) {
 // POST /api/equipments
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, category, slotLabel, deviceId, parentEquipmentId, unitPosition, unitHeight, logicalPrefix } = body;
+  const { name, category, slotLabel, sn, deviceId, parentEquipmentId, unitPosition, unitHeight, logicalPrefix } = body;
 
   if (!name || !category || !deviceId) return err("name, category and deviceId are required");
 
@@ -49,6 +47,7 @@ export async function POST(req: NextRequest) {
       name,
       category,
       slotLabel,
+      sn: sn || null,
       deviceId,
       parentEquipmentId: parentEquipmentId || null,
       unitPosition: unitPosition !== undefined ? Number(unitPosition) : null,
@@ -65,17 +64,19 @@ export async function PATCH(req: NextRequest) {
   if (!id) return err("id required");
 
   const body = await req.json();
-  const { name, slotLabel, category, unitPosition, unitHeight, logicalPrefix } = body;
+  const { name, slotLabel, sn, category, unitPosition, unitHeight, logicalPrefix } = body;
 
   const updated = await (prisma.equipment as any).update({
     where: { id },
     data: {
       ...(name !== undefined && { name }),
       ...(slotLabel !== undefined && { slotLabel }),
+      ...(sn !== undefined && { sn: sn || null }),
       ...(category !== undefined && { category }),
       ...(unitPosition !== undefined && { unitPosition: Number(unitPosition) }),
       ...(unitHeight !== undefined && { unitHeight: Number(unitHeight) }),
       ...(logicalPrefix !== undefined && { logicalPrefix: logicalPrefix || null }),
+      ...(body.isPinned !== undefined && { isPinned: Boolean(body.isPinned) }),
     }
   });
   return ok(updated);

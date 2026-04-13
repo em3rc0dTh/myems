@@ -31,28 +31,22 @@ const BDFBFrontView: React.FC<BDFBFrontViewProps> = ({
           {/* Top Detail (Optional internal bezel) */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-fuchsia-500/40 rounded-b-full shadow-[0_0_10px_#f0abfc]" />
 
-          {/* Internal Panel Grid (2x2) */}
-          <div className="absolute inset-x-4 top-6 bottom-10 grid grid-cols-2 grid-rows-2 gap-4">
-            <PanelButton
-              panel={getPanel("A1")}
-              isSelected={selectedPanelId === getPanel("A1")?.id}
-              onPanelClick={onPanelClick}
-            />
-            <PanelButton
-              panel={getPanel("B1")}
-              isSelected={selectedPanelId === getPanel("B1")?.id}
-              onPanelClick={onPanelClick}
-            />
-            <PanelButton
-              panel={getPanel("A2")}
-              isSelected={selectedPanelId === getPanel("A2")?.id}
-              onPanelClick={onPanelClick}
-            />
-            <PanelButton
-              panel={getPanel("B2")}
-              isSelected={selectedPanelId === getPanel("B2")?.id}
-              onPanelClick={onPanelClick}
-            />
+          {/* Dynamic Panel Grid based on real DB data */}
+          <div className={`absolute inset-x-4 top-6 bottom-10 grid ${panels.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-4 overflow-y-auto custom-scrollbar p-1`}>
+            {panels.length > 0 ? (
+              panels.map(p => (
+                <PanelButton
+                  key={p.id}
+                  panel={p}
+                  isSelected={selectedPanelId === p.id}
+                  onPanelClick={onPanelClick}
+                />
+              ))
+            ) : (
+              <div className="col-span-full h-full flex items-center justify-center opacity-20 text-center p-4">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 italic">Sin Paneles<br />Detectados</span>
+              </div>
+            )}
           </div>
 
           {/* Space label at the bottom */}

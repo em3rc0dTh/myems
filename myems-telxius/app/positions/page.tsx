@@ -626,9 +626,13 @@ export default function PositionsPage() {
         .form-acts { display: flex; gap: 4px; }
         .form-acts button { font-size: 0.6rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; cursor: pointer; background: #222; color: #fff; border: 1px solid #333; }
 
-        .nav-item{padding:.6rem;border-radius:.4rem;cursor:pointer;font-size:.85rem}
-        .nav-item:hover{background:rgba(99,102,241,.1)}
-        .nav-item.active{background:rgba(99,102,241,.2);color:#a5b4fc;font-weight:600}
+        .nav-item{padding:.6rem;border-radius:.4rem;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:space-between;gap:8px}
+        .nav-item:hover{background:rgba(255,255,255,.05)}
+        .nav-item.active{background:rgba(99,102,241,.1);color:#a5b4fc;font-weight:600}
+        .nav-item-actions{display:flex;gap:4px;opacity:0}
+        .nav-item:hover .nav-item-actions{opacity:1}
+        .nav-item-actions button{background:none;border:none;cursor:pointer;font-size:.7rem;padding:2px;border-radius:3px}
+        .nav-item-actions button:hover{background:rgba(255,255,255,0.1)}
 
         .floorplan-wrap{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:1.5rem}
         .floorplan-grid{display:grid;gap:4px}
@@ -727,19 +731,98 @@ export default function PositionsPage() {
 
         <div className="layout">
           <div className="nav-panel">
-            <div className="nav-title">📍 Sitio</div>
-            {sites.map(s => <div key={s.id} className={`nav-item ${site?.id === s.id ? "active" : ""}`} onClick={()=>{setSite(s); setStructure(null); setLevel(null); setRoom(null); api(`/api/structures?siteId=${s.id}`).then(r=>r.ok&&setStructures(r.data))}}>{s.name}</div>)}
+            <div className="nav-title" style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+              <span>📍 Sitio</span>
+              <button className="btn-add-mini" onClick={async () => {
+                const name = prompt("Nombre del Nuevo Sitio:"); if(!name) return;
+                const address = prompt("Dirección:");
+                await api("/api/sites", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name, address}) });
+                api("/api/geo").then(r => {
+                  if(!r.ok) return;
+                  const all = r.data.flatMap((c:any)=>c.regions.flatMap((rg:any)=>rg.provinces.flatMap((p:any)=>p.cities.flatMap((ci:any)=>ci.districts.flatMap((d:any)=>d.sites)))));
+                  setSites(all);
+                });
+              }}>+</button>
+            </div>
+            {sites.map(s => (
+              <div key={s.id} className={`nav-item ${site?.id === s.id ? "active" : ""}`} onClick={()=>{setSite(s); setStructure(null); setLevel(null); setRoom(null); api(`/api/structures?siteId=${s.id}`).then(r=>r.ok&&setStructures(r.data))}}>
+                <span className="truncate flex-1">{s.name}</span>
+                <div className="nav-item-actions">
+                  <button onClick={async (e) => { e.stopPropagation(); const n = prompt("Nuevo nombre:", s.name); if(n) { await api(`/api/sites?id=${s.id}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:n})}); window.location.reload(); } }}>✏️</button>
+                  <button onClick={async (e) => { e.stopPropagation(); if(confirm("¿Eliminar Sitio?")) { await api(`/api/sites?id=${s.id}`, {method:"DELETE"}); window.location.reload(); } }}>🗑️</button>
+                </div>
+              </div>
+            ))}
+            
             {site && <>
-              <div className="nav-title">🏢 Edificio</div>
-              {structures.map(s => <div key={s.id} className={`nav-item ${structure?.id === s.id ? "active" : ""}`} onClick={()=>{setStructure(s); setLevel(null); setRoom(null); api(`/api/levels?structureId=${s.id}`).then(r=>r.ok&&setLevels(r.data))}}>{s.name}</div>)}
+              <div className="nav-title" style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                <span>🏢 Edificio</span>
+                <button className="btn-add-mini" onClick={async () => {
+                  const name = prompt("Nombre del Edificio:"); if(!name) return;
+                  await api("/api/structures", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name, siteId: site.id}) });
+                  api(`/api/structures?siteId=${site.id}`).then(r=>r.ok&&setStructures(r.data));
+                }}>+</button>
+              </div>
+              {structures.map(s => (
+                <div key={s.id} className={`nav-item ${structure?.id === s.id ? "active" : ""}`} onClick={()=>{setStructure(s); setLevel(null); setRoom(null); api(`/api/levels?structureId=${s.id}`).then(r=>r.ok&&setLevels(r.data))}}>
+                  <span className="truncate flex-1">{s.name}</span>
+                  <div className="nav-item-actions">
+                    <button onClick={async (e) => { e.stopPropagation(); const n = prompt("Nuevo nombre:", s.name); if(n) { await api(`/api/structures?id=${s.id}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:n})}); api(`/api/structures?siteId=${site.id}`).then(r=>r.ok&&setStructures(r.data)); } }}>✏️</button>
+                    <button onClick={async (e) => { e.stopPropagation(); if(confirm("¿Eliminar Edificio?")) { await api(`/api/structures?id=${s.id}`, {method:"DELETE"}); setStructure(null); api(`/api/structures?siteId=${site.id}`).then(r=>r.ok&&setStructures(r.data)); } }}>🗑️</button>
+                  </div>
+                </div>
+              ))}
             </>}
+            
             {structure && <>
-              <div className="nav-title">🏬 Piso</div>
-              {levels.map(l => <div key={l.id} className={`nav-item ${level?.id === l.id ? "active" : ""}`} onClick={()=>{setLevel(l); setRoom(null); api(`/api/substructures?levelId=${l.id}`).then(r=>r.ok&&setRooms(r.data))}}>{l.name}</div>)}
+              <div className="nav-title" style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                <span>🏬 Piso</span>
+                <button className="btn-add-mini" onClick={async () => {
+                  const name = prompt("Nombre del Piso/Nivel:"); if(!name) return;
+                  await api("/api/levels", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name, structureId: structure.id}) });
+                  api(`/api/levels?structureId=${structure.id}`).then(r=>r.ok&&setLevels(r.data));
+                }}>+</button>
+              </div>
+              {levels.map(l => (
+                <div key={l.id} className={`nav-item ${level?.id === l.id ? "active" : ""}`} onClick={()=>{setLevel(l); setRoom(null); api(`/api/substructures?levelId=${l.id}`).then(r=>r.ok&&setRooms(r.data))}}>
+                  <span className="truncate flex-1">{l.name}</span>
+                  <div className="nav-item-actions">
+                    <button onClick={async (e) => { e.stopPropagation(); const n = prompt("Nuevo nombre:", l.name); if(n) { await api(`/api/levels?id=${l.id}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:n})}); api(`/api/levels?structureId=${structure.id}`).then(r=>r.ok&&setLevels(r.data)); } }}>✏️</button>
+                    <button onClick={async (e) => { e.stopPropagation(); if(confirm("¿Eliminar Piso?")) { await api(`/api/levels?id=${l.id}`, {method:"DELETE"}); setLevel(null); api(`/api/levels?structureId=${structure.id}`).then(r=>r.ok&&setLevels(r.data)); } }}>🗑️</button>
+                  </div>
+                </div>
+              ))}
             </>}
+            
             {level && <>
-              <div className="nav-title">🚪 Sala</div>
-              {rooms.map(r => <div key={r.id} className={`nav-item ${room?.id === r.id ? "active" : ""}`} onClick={()=>{setRoom(r); loadPos(r.id)}}>{r.name}</div>)}
+              <div className="nav-title" style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                <span>🚪 Sala</span>
+                <button className="btn-add-mini" onClick={async () => {
+                  const name = prompt("Nombre de la Sala (ej: TX-01):"); if(!name) return;
+                  const rows = prompt("Bahías (separadas por coma, ej: A,B,C):", "A,B"); if(!rows) return;
+                  const cols = prompt("Columnas (separadas por coma, ej: 1,2,3...):", "1,2,3,4,5,6,7,8"); if(!cols) return;
+                  await api("/api/substructures", { 
+                    method:"POST", 
+                    headers:{"Content-Type":"application/json"}, 
+                    body:JSON.stringify({
+                      name, 
+                      levelId: level.id, 
+                      gridRows: rows.split(',').map(s=>s.trim()), 
+                      gridCols: cols.split(',').map(s=>Number(s.trim())) 
+                    }) 
+                  });
+                  api(`/api/substructures?levelId=${level.id}`).then(r=>r.ok&&setRooms(r.data));
+                }}>+</button>
+              </div>
+              {rooms.map(r => (
+                <div key={r.id} className={`nav-item ${room?.id === r.id ? "active" : ""}`} onClick={()=>{setRoom(r); loadPos(r.id)}}>
+                  <span className="truncate flex-1">{r.name}</span>
+                  <div className="nav-item-actions">
+                    <button onClick={async (e) => { e.stopPropagation(); const n = prompt("Nuevo nombre:", r.name); if(n) { await api(`/api/substructures?id=${r.id}`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:n})}); api(`/api/substructures?levelId=${level.id}`).then(r=>r.ok&&setRooms(r.data)); } }}>✏️</button>
+                    <button onClick={async (e) => { e.stopPropagation(); if(confirm("¿Eliminar Sala?")) { await api(`/api/substructures?id=${r.id}`, {method:"DELETE"}); setRoom(null); api(`/api/substructures?levelId=${level.id}`).then(r=>r.ok&&setRooms(r.data)); } }}>🗑️</button>
+                  </div>
+                </div>
+              ))}
             </>}
           </div>
 

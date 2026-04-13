@@ -28,10 +28,10 @@ model Province {
   name     String
   regionId String   @db.ObjectId
   region   Region   @relation(fields: [regionId], references: [id])
-  cities   City[]
+  towns    Town[]
 }
 
-model City {
+model Town {
   id         String     @id @default(auto()) @map("_id") @db.ObjectId
   name       String
   provinceId String     @db.ObjectId
@@ -42,62 +42,116 @@ model City {
 model District {
   id     String @id @default(auto()) @map("_id") @db.ObjectId
   name   String
-  cityId String @db.ObjectId
-  city   City   @relation(fields: [cityId], references: [id])
+  townId String @db.ObjectId
+  town   Town   @relation(fields: [townId], references: [id])
   sites  Site[]
 }
 
 model Site {
-  id         String      @id @default(auto()) @map("_id") @db.ObjectId
-  name       String
-  districtId String      @db.ObjectId
-  district   District    @relation(fields: [districtId], references: [id])
-  address    String?     // Atributo derivado en el GUI (Country+City+Distrito+Specific)
-  geoCoords  String?
-  structures Structure[]
-  devices    Device[]    // Patrimonio del sitio
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  districtId      String      @db.ObjectId
+  district        District    @relation(fields: [districtId], references: [id])
+  address         String?
+  geoCoords       String?     // Point anchor [lat, lng]
+  perimeter       String?     // SVG Polygon points
+  spatialMetadata String?     // Technical rules for site layout
+  
+  width           Float?      // Physical width anchor
+  length          Float?      // Physical length/depth anchor
+  isLogical       Boolean     @default(false) // Flag for Almacén Central / Logical pools
+
+  structures      Structure[]
+  devices         Device[]
 }
 
 // --- FASE 2: DOMINIO OPERATIVO (DINÁMICO - CRUD) ---
 
 model Structure {
-  id     String  @id @default(auto()) @map("_id") @db.ObjectId
-  name   String  // Edificio
-  siteId String  @db.ObjectId
-  site   Site    @relation(fields: [siteId], references: [id])
-  levels Level[]
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  siteId          String  @db.ObjectId
+  site            Site    @relation(fields: [siteId], references: [id])
+  perimeter       String? // SVG Polygon relative to Site
+  spatialMetadata String? // Technical blueprint rules
+  levels          Level[]
 }
 
 model Level {
-  id          String         @id @default(auto()) @map("_id") @db.ObjectId
-  name        String         // Planta / Piso
-  structureId String         @db.ObjectId
-  structure   Structure      @relation(fields: [structureId], references: [id])
-  rooms       Substructure[]
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  structureId     String         @db.ObjectId
+  structure       Structure      @relation(fields: [structureId], references: [id])
+  spatialMetadata String?        // Schematic markers
+  rooms           Substructure[]
 }
 
 model Substructure {
   id              String      @id @default(auto()) @map("_id") @db.ObjectId
-  name            String      // Sala / Room
+  name            String
   type            String      @default("ROOM")
   levelId         String      @db.ObjectId
   level           Level       @relation(fields: [levelId], references: [id])
-  gridRows        String[]    // ["A", "B", "C"]
-  gridCols        Int[]       // [1, 2, 3]
-  perimeter       String?     // JSON String: perimetro de la sala [[x1,y1], [x2,y2]...]
-  referencePoints String?     // JSON String: puntos de referencia [{x,y,label,type}...]
+  
+  // -- Propiedades Físicas --
+  area            Float?
+  width           Float?
+  depth           Float?
+  length          Float?
+  measurementUnit String      @default("METRIC")
+
+  gridRows        String[]
+  gridCols        Int[]
+  perimeter       String?
+  referencePoints String?
+  spatialMetadata String?     // Engineering blueprint logic
   racks           Container[]
-  positions       Position[]  // Fase 3a: posiciones reales (tile 60x60)
+  positions       Position[]
+  rows            Row[]
+}
+
+model Row {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  name            String      // Ej: "Fila A", "Bahía 1"
+  substructureId  String      @db.ObjectId
+  substructure    Substructure @relation(fields: [substructureId], references: [id])
+  
+  spatialMetadata String?     // Rectángulo de la Bahía en el plano
+  containers      Container[]
+  positions       Position[]
 }
 
 model Container {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
-  name           String       // Nombre del Rack
-  substructureId String       @db.ObjectId
-  substructure   Substructure @relation(fields: [substructureId], references: [id])
-  row            String       // Fila F
-  position       Int          // Posición 12
-  slots          CAS[]
+  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  type            String       @default("RACK")
+  substructureId  String       @db.ObjectId
+  substructure    Substructure @relation(fields: [substructureId], references: [id])
+  
+  parentContainerId String?     @db.ObjectId
+  parentContainer   Container?  @relation("ContainerHierarchy", fields: [parentContainerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  childContainers   Container[] @relation("ContainerHierarchy")
+
+  row             String
+  rowId           String?      @db.ObjectId
+  rowRef          Row?         @relation(fields: [rowId], references: [id])
+
+  position        Int
+  spatialMetadata String?      // Footprint details (x, y, w, h)
+
+  width           Float?
+  depth           Float?
+  height          Float?
+  footprintArea   Float?
+  measurementUnit String      @default("METRIC")
+
+  mountingWidth   Float?
+  mountingDepth   Float?
+  mountingHeight  Float?
+
+  assignSpace     Int?         @default(46)
+  slots           CAS[]
+  devices         Device[]
 }
 
 model CAS {
@@ -119,6 +173,8 @@ model Position {
   substructure   Substructure @relation(fields: [substructureId], references: [id])
 
   row            String       // "A", "B", "C" — identificador de fila
+  rowId          String?      @db.ObjectId
+  rowRef         Row?         @relation(fields: [rowId], references: [id])
   col            Int          // 1, 2, 3 — identificador de columna
 
   // ── Ocupación en la cuadrícula (tiles de referencia 60×60) ──
@@ -146,9 +202,17 @@ model Position {
 model Device {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
   name       String      // BDFB-01, Cisco-Core
+  sn         String?     // Serial Number (Chassis)
   category   String      @default("NETWORKING") // BDFB, NE, METER
   siteId     String      @db.ObjectId
   site       Site        @relation(fields: [siteId], references: [id])
+  
+  containerId String?     @db.ObjectId
+  container   Container?  @relation(fields: [containerId], references: [id])
+  uPosition   Int?        // Posición inicial en el rack (U1, U2...)
+  uHeight     Int?        @default(1) // Altura en unidades (Rack Units)
+  isPinned    Boolean     @default(false)
+
   positions  Position[]  // Relación inversa: posiciones que ocupa
   equipments Equipment[] // Colección de fierros que componen este dispositivo
   ports      Port[]      // Puertos maestros del dispositivo
@@ -158,6 +222,7 @@ model Device {
 model Equipment {
   id                String      @id @default(auto()) @map("_id") @db.ObjectId
   name              String      // Ej: "Panel-A", "Subrack-1"
+  sn                String?     // Serial Number
   category          String      // RACK, SUBRACK, CIRCUIT_PACK, CIRCUIT_BREAKER
   slotLabel         String?     // Ej: "Slot-01", "Bay-A"
   
@@ -165,6 +230,7 @@ model Equipment {
   unitPosition      Int?        // Posición inicial en el rack (U1, U2...)
   unitHeight        Int?        @default(1) // Altura en Unidades de Rack (U)
   logicalPrefix     String?     // Prefijo para IDs lógicos: "0_1_"
+  isPinned          Boolean     @default(false)
 
   deviceId          String      @db.ObjectId
   device            Device      @relation(fields: [deviceId], references: [id])

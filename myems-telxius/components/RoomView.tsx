@@ -1,354 +1,519 @@
 "use client"
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Substructure, Position } from '@/lib/types';
-import { ChevronRight, Globe, MousePointer2 } from 'lucide-react';
+import { ChevronRight, Globe, MousePointer2, Layers, Cpu, CheckCircle2, AlertTriangle, Activity, Save, Trash2, Maximize2, MoveRight } from 'lucide-react';
+import Swal from 'sweetalert2';
+import RackElevationManager from './RackElevationManager';
 
 interface RoomViewProps {
-  substructure: Substructure;
-  positions: Position[];
-  onSelectBDFB: (id: string | null) => void;
+  substructureId: string;
+  onSelectBDFB?: (id: string | null) => void;
 }
 
-const RoomView: React.FC<RoomViewProps> = ({ substructure, positions, onSelectBDFB }) => {
+const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => {
   const [isMounted, setIsMounted] = useState(false);
+  const [substructure, setSubstructure] = useState<any | null>(null);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [loading, setLoading] = useState(true);
   const [hoveredZone, setHoveredZone] = useState<string | null>(null);
+  const [selectedContainer, setSelectedContainer] = useState<any | null>(null);
+  
+  // DRAWING ENGINE STATE
+  const [isDrafting, setIsDrafting] = useState(false);
+  const [activeTool, setActiveTool] = useState<'POLYGON' | 'CLUSTER_STAMP' | 'BAY_DRAFTING'>('CLUSTER_STAMP');
+  const [stampSize, setStampSize] = useState({ w: 60, h: 60 });
+  const [containerType, setContainerType] = useState<'RACK' | 'CABINET'>('RACK');
+  const [uCapacity, setUCapacity] = useState(42);
+  const [customSize, setCustomSize] = useState({ w: 60, h: 60 });
+  const [localElements, setLocalElements] = useState<any[]>([]);
+  const [activePoints, setActivePoints] = useState<any[]>([]);
+  const [localRacks, setLocalRacks] = useState<any[]>([]);
+  const [persistedRows, setPersistedRows] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const TILE_SIZE = 60; 
+
+  const PRESET_SIZES = [
+    { label: '60x60', w: 60, h: 60 },
+    { label: '60x90', w: 60, h: 90 },
+    { label: '30x60', w: 30, h: 60 },
+    { label: '30x90', w: 30, h: 90 },
+  ];
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    const fetchRoomData = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/telxius/api/substructures/?id=${substructureId}&t=${Date.now()}`);
+        const data = await res.json();
+        const obj = Array.isArray(data.data) ? data.data[0] : data.data;
+        if (obj) {
+          setSubstructure(obj);
+          if (obj.spatialMetadata) {
+            try {
+              const sm = typeof obj.spatialMetadata === 'string' ? JSON.parse(obj.spatialMetadata) : obj.spatialMetadata;
+              if (sm.clusters) setLocalElements(sm.clusters);
+            } catch (e) {}
+          }
+          if (obj.racks) setLocalRacks(obj.racks);
+          
+          const pRes = await fetch(`/telxius/api/positions/?substructureId=${substructureId}`);
+          const pData = await pRes.json();
+          setPositions(pData.data || []);
 
-  // Parse perimeter and reference points
-  const perimeter: [number, number][] = useMemo(() => {
-    try {
-      return substructure.perimeter ? JSON.parse(substructure.perimeter) : [[0, 0], [600, 0], [600, 480], [0, 480]];
-    } catch {
-      return [[0, 0], [600, 0], [600, 480], [0, 480]];
+          const rRes = await fetch(`/telxius/api/rows/?substructureId=${substructureId}`);
+          const rData = await rRes.json();
+          setPersistedRows(rData.data || []);
+        }
+      } catch (e) {
+        console.error("Error loading room engine", e);
+      } finally {
+        setLoading(false);
+        setIsMounted(true);
+      }
+    };
+    if (substructureId) fetchRoomData();
+  }, [substructureId]);
+
+  const resolveValue = (v: any) => {
+    if (v && typeof v === 'object') {
+      if ('$numberLong' in v) return parseInt(v.$numberLong);
+      if ('$oid' in v) return v.$oid;
     }
-  }, [substructure.perimeter]);
+    return v;
+  };
 
-  const referencePoints = useMemo(() => {
-    try {
-      return substructure.referencePoints ? JSON.parse(substructure.referencePoints) : [{ x: 580, y: 10, type: 'DOOR', label: 'ACCESO PRINCIPAL' }];
-    } catch {
-      return [];
+  const getID = (obj: any) => {
+    if (!obj) return null;
+    return resolveValue(obj.id) || resolveValue(obj._id);
+  };
+
+  const getSvgCoords = (e: React.MouseEvent) => {
+    if (!svgRef.current) return null;
+    const svg = svgRef.current;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const transformed = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+    return { 
+      x: Math.round(transformed.x / 10) * 10, 
+      y: Math.round(transformed.y / 10) * 10 
+    };
+  };
+
+  const handleSvgClick = (e: React.MouseEvent) => {
+    if (!isDrafting) return;
+    const coords = getSvgCoords(e);
+    if (!coords) return;
+
+    if (activeTool === 'CLUSTER_STAMP') {
+      const w = stampSize.w;
+      const h = stampSize.h;
+      
+      const allBays = [
+        ...persistedRows.map(r => ({ ...r, points: JSON.parse(r.spatialMetadata).points || [
+          {x: JSON.parse(r.spatialMetadata).x, y: JSON.parse(r.spatialMetadata).y},
+          {x: JSON.parse(r.spatialMetadata).x + JSON.parse(r.spatialMetadata).w, y: JSON.parse(r.spatialMetadata).y},
+          {x: JSON.parse(r.spatialMetadata).x + JSON.parse(r.spatialMetadata).w, y: JSON.parse(r.spatialMetadata).y + JSON.parse(r.spatialMetadata).h},
+          {x: JSON.parse(r.spatialMetadata).x, y: JSON.parse(r.spatialMetadata).y + JSON.parse(r.spatialMetadata).h}
+        ]})),
+        ...localElements.filter(el => el.type === 'BAY')
+      ];
+
+      const targetBay = allBays.find(bay => {
+        const sm = bay.points ? {
+          x: bay.points[0].x,
+          y: bay.points[0].y,
+          w: bay.points[2].x - bay.points[0].x,
+          h: bay.points[2].y - bay.points[0].y
+        } : (typeof bay.spatialMetadata === 'string' ? JSON.parse(bay.spatialMetadata) : bay.spatialMetadata);
+
+        // Normalizar los límites de la bahía para comparar con el click local
+        const nx = sm.x - bounds.minX;
+        const ny = sm.y - bounds.minY;
+
+        // RULE: Click MUST be inside the bay's local vertical slice initially.
+        return (coords.x >= nx && coords.x + w <= nx + sm.w && coords.y >= ny && coords.y <= ny + sm.h);
+      });
+
+      if (!targetBay) {
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'warning',
+          title: 'Fuera de Límites',
+          text: 'El rack debe estar dentro de una bahía.',
+          showConfirmButton: false,
+          timer: 3000,
+          background: '#020617',
+          color: '#fff'
+        });
+        return;
+      }
+
+      const baySM = targetBay.points ? {
+        x: targetBay.points[0].x,
+        y: targetBay.points[0].y,
+        w: targetBay.points[2].x - targetBay.points[0].x,
+        h: targetBay.points[2].y - targetBay.points[0].y
+      } : (typeof targetBay.spatialMetadata === 'string' ? JSON.parse(targetBay.spatialMetadata) : targetBay.spatialMetadata);
+
+      // Normalizar Y para el iman (magnetize)
+      const finalY = baySM.y - bounds.minY;
+
+      // RULE 2: No Overlap
+      const currentDraftRacks = localElements.filter(el => el.type === 'ZONE');
+      const hasOverlap = currentDraftRacks.some(r => {
+        const rx = r.points[0].x;
+        const ry = r.points[0].y;
+        const rw = r.points[1].x - rx;
+        const rh = r.points[3].y - ry;
+        return (coords.x < rx + rw && coords.x + w > rx && finalY < ry + rh && finalY + h > ry);
+      });
+
+      if (hasOverlap) {
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'error',
+          title: 'SolapamientoDetectado',
+          text: 'No se pueden superponer los racks.',
+          showConfirmButton: false,
+          timer: 3000,
+          background: '#020617',
+          color: '#fff'
+        });
+        return;
+      }
+
+      const newEl = {
+        id: `rack-${Date.now()}`,
+        type: 'ZONE',
+        cType: containerType,
+        uCapacity: uCapacity,
+        label: `${containerType} ${localElements.filter(x => x.type === 'ZONE').length + 1}`,
+        points: [
+          { x: coords.x, y: finalY },
+          { x: coords.x + w, y: finalY },
+          { x: coords.x + w, y: finalY + h },
+          { x: coords.x, y: finalY + h }
+        ]
+      };
+      setLocalElements(prev => [...prev, newEl]);
+    } else if (activeTool === 'BAY_DRAFTING') {
+      if (activePoints.length === 1) {
+        const p1 = activePoints[0];
+        const p2 = coords;
+        const x = Math.min(p1.x, p2.x);
+        const y = Math.min(p1.y, p2.y);
+        const w = Math.max(TILE_SIZE, Math.abs(p1.x - p2.x));
+        const h = Math.max(TILE_SIZE, Math.abs(p1.y - p2.y));
+        setLocalElements(prev => [...prev, { id: `bay-${Date.now()}`, type: 'BAY', label: `BAY ${prev.filter(x => x.type === 'BAY').length + 1}`, points: [{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}] }]);
+        setActivePoints([]);
+      } else {
+        setActivePoints([coords]);
+      }
     }
-  }, [substructure.referencePoints]);
+  };
 
-  // Calculate Bounding Box for SVG ViewBox
-  const viewBox = useMemo(() => {
-    const xs = [...perimeter.map(p => p[0]), ...positions.map(p => (substructure.gridCols.indexOf(p.col) * 60) + (p.physWidthCm || 60))];
-    const ys = [...perimeter.map(p => p[1]), ...positions.map(p => (substructure.gridRows.indexOf(p.row) * 60) + (p.physDepthCm || 60))];
-    const minX = Math.min(...xs, 0) - 40;
-    const minY = Math.min(...ys, 0) - 40;
-    const maxX = Math.max(...xs, 600) + 40;
-    const maxY = Math.max(...ys, 480) + 40;
-    return `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
-  }, [perimeter, positions, substructure.gridRows, substructure.gridCols]);
+  const handleSaveEngineering = async () => {
+    const roomId = getID(substructure);
+    if (!roomId) return;
+    setIsSaving(true);
+    try {
+      const bays = localElements.filter(el => el.type === 'BAY');
+      const racks = localElements.filter(el => el.type === 'ZONE');
+      const savedRows = [];
+      for (const bay of bays) {
+        // Des-normalizar para guardar en coordenadas absolutas
+        const x = bay.points[0].x + bounds.minX;
+        const y = bay.points[0].y + bounds.minY;
+        const w = bay.points[2].x - bay.points[0].x;
+        const h = bay.points[2].y - bay.points[0].y;
+        
+        const res = await fetch('/telxius/api/rows/', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ 
+            name: bay.label, 
+            substructureId: roomId, 
+            spatialMetadata: JSON.stringify({ x, y, w, h, metric: 'cm' }) 
+          }) 
+        });
+        if (res.ok) { const data = await res.json(); savedRows.push({ ...data.data, localId: bay.id }); }
+      }
+      
+      const newPersistedRacks = [];
+      for (const rack of racks) {
+        // Des-normalizar para guardar en coordenadas absolutas
+        const x = rack.points[0].x + bounds.minX;
+        const y = rack.points[0].y + bounds.minY;
+        const w = rack.points[2].x - rack.points[0].x;
+        const h = rack.points[2].y - rack.points[0].y;
+        
+        const parentRow = savedRows.find(r => { 
+          const sm = JSON.parse(r.spatialMetadata); 
+          return (x >= sm.x && x + w <= sm.x + sm.w && y >= sm.y && y + h <= sm.y + sm.h); 
+        });
+        
+        const res = await fetch('/telxius/api/containers/', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json' }, 
+          body: JSON.stringify({ 
+            name: rack.label, 
+            substructureId: roomId, 
+            rowId: parentRow ? parentRow.id : null, 
+            row: parentRow ? parentRow.name : "A", 
+            position: Math.floor((x - bounds.minX) / TILE_SIZE), 
+            type: rack.cType || 'RACK', 
+            width: w, 
+            depth: h, 
+            uCapacity: rack.uCapacity || 42, 
+            spatialMetadata: JSON.stringify({ x, y, w, h, uCapacity: rack.uCapacity || 42, metric: 'cm' }) 
+          }) 
+        });
+        if (res.ok) { const data = await res.json(); newPersistedRacks.push(data.data); }
+      }
+      setLocalRacks(prev => [...prev, ...newPersistedRacks]);
+      setLocalElements([]);
+      const rRes = await fetch(`/telxius/api/rows/?substructureId=${substructureId}`);
+      const rData = await rRes.json();
+      setPersistedRows(rData.data || []);
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Sincronización Exitosa',
+        html: `Se han persistido <b>${savedRows.length}</b> Bahías y <b>${newPersistedRacks.length}</b> Contenedores en MongoDB.`,
+        background: '#020617',
+        color: '#fff',
+        confirmButtonColor: '#2563eb',
+        backdrop: `rgba(0,0,0,0.8) backdrop-blur-sm`
+      });
+    } catch (e) { console.error(e); } finally { setIsSaving(false); }
+  };
+
+  const roomPoints = useMemo(() => {
+    console.log("DEBUG: Processing Perimeter for Substructure:", substructure?.name, "Raw perimeter:", substructure?.perimeter);
+    if (!substructure?.perimeter) {
+      // Si no hay perímetro, intentamos generarlo desde width/length
+      const w = (resolveValue(substructure?.width) || 12) * 100;
+      const h = (resolveValue(substructure?.length) || 8) * 100;
+      console.log("DEBUG: No perimeter found. Synthesizing rectangle:", w, "x", h);
+      return [{x:0, y:0}, {x:w, y:0}, {x:w, y:h}, {x:0, y:h}];
+    }
+    try {
+      const pts = JSON.parse(substructure.perimeter);
+      if (Array.isArray(pts) && pts.length > 0) return pts;
+      return null;
+    } catch (e) {
+      console.error("DEBUG: Failed to parse perimeter JSON", e);
+      return null;
+    }
+  }, [substructure]);
+
+  const bounds = useMemo(() => {
+    if (!roomPoints || roomPoints.length === 0) return { minX: 0, minY: 0, w: 1200, h: 800 };
+    const xs = roomPoints.map((p: any) => p.x);
+    const ys = roomPoints.map((p: any) => p.y);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    const maxX = Math.max(...xs);
+    const maxY = Math.max(...ys);
+    return { minX, minY, w: maxX - minX, h: maxY - minY };
+  }, [roomPoints]);
+
+  const normalizedPointsString = useMemo(() => {
+    if (!roomPoints) return "";
+    return roomPoints.map((p: any) => `${p.x - bounds.minX},${p.y - bounds.minY}`).join(' ');
+  }, [roomPoints, bounds]);
+
+  const viewBox = `-100 -100 ${bounds.w + 200} ${bounds.h + 200}`;
+
+  if (loading || !substructure) return <div className="flex-1 flex flex-col items-center justify-center bg-black"><Activity className="animate-spin text-blue-500 mb-4" /></div>;
 
   return (
-    <div className="flex flex-col h-full select-none overflow-hidden pb-4">
-      {/* Header with Hierarchical Breadcrumbs */}
-      <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-md relative z-30">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
-            <Globe className="w-2.5 h-2.5" />
-            <span>{substructure.siteName || 'Telxius Global'}</span>
-            <ChevronRight className="w-2.5 h-2.5 opacity-30" />
-            <span>{substructure.buildingName || 'Central Office'}</span>
-            <ChevronRight className="w-2.5 h-2.5 opacity-30" />
-            <span className="text-slate-400">Digital Twin Engine</span>
-          </div>
-          <h2 className="text-xl font-black text-white tracking-widest uppercase italic leading-none">{substructure.name}</h2>
+    <div className="w-full h-full flex flex-col bg-[#020617] font-sans selection:bg-blue-500/30">
+      <div className="h-24 px-8 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-2xl shrink-0 z-50">
+        <div className="flex items-center gap-6">
+           <div>
+             <div className="flex items-center gap-2 text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+               <Globe className="w-2.5 h-2.5" />
+               <span>Infrastructure Digital Twin</span>
+             </div>
+             <h2 className="text-xl font-black text-white italic tracking-tighter uppercase leading-none">{resolveValue(substructure.name)}</h2>
+           </div>
+
+           {isDrafting && (
+             <div className="flex items-center gap-3 ml-8 bg-white/5 p-1.5 rounded-2xl border border-white/5 animate-in zoom-in-95">
+                {['CLUSTER_STAMP', 'BAY_DRAFTING'].map(t => (
+                  <button key={t} onClick={() => setActiveTool(t as any)} className={`px-4 py-2 text-[9px] font-black uppercase rounded-xl transition-all ${activeTool === t ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                    {t === 'CLUSTER_STAMP' ? 'Add Rack' : 'Define Bay'}
+                  </button>
+                ))}
+             </div>
+           )}
         </div>
 
-        <div className="flex gap-4 flex-wrap max-w-2xl justify-end">
-          <LegendItem
-            icon={<div className="w-3 h-3 border border-slate-500 bg-slate-500/40 rounded-sm" />}
-            label="Disponible"
-          />
-          <LegendItem
-            icon={<div className="w-3 h-3 bg-emerald-500/40 border border-emerald-500 rounded-sm" />}
-            label="Funcional"
-          />
-          <LegendItem
-            icon={<div className="w-3 h-3 bg-orange-500/40 border border-orange-500 rounded-sm" />}
-            label="Alerta"
-          />
-          <LegendItem
-            icon={<div className="w-3 h-3 bg-red-500/40 border border-red-500 rounded-sm" />}
-            label="Problema"
-          />
-          <div className="w-[1px] h-3 bg-white/10 mx-1" />
-          <LegendItem
-            icon={<div className="w-3 h-3 border-2 border-fuchsia-500 bg-transparent rounded-sm" />}
-            label="BDFB"
-          />
-          <LegendItem
-            icon={<div className="w-3 h-3 border-2 border-cyan-500 bg-transparent rounded-sm" />}
-            label="Mega Tank"
-          />
-          <LegendItem
-            icon={<div className="w-4 h-0.5 border-t-2 border-dashed border-white/30" />}
-            label="Perímetro"
-          />
+        <div className="flex items-center gap-4">
+          {isDrafting && activeTool === 'CLUSTER_STAMP' && (
+             <div className="flex items-center gap-3 pr-4 border-r border-white/10">
+               <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1 mr-2 items-center px-3">
+                 <span className="text-[8px] font-black uppercase text-slate-500 mr-2">Capacity</span>
+                 <input 
+                    type="number" value={uCapacity} 
+                    onChange={e => setUCapacity(Number(e.target.value))}
+                    className="w-10 h-6 bg-white/5 border border-white/5 rounded text-[10px] text-center text-white font-black"
+                 />
+                 <span className="text-[8px] font-black uppercase text-slate-500 ml-1">U</span>
+               </div>
+               <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1 mr-2">
+                 <button onClick={() => setContainerType('RACK')} className={`px-3 py-1 text-[8px] font-black uppercase rounded-lg transition-all ${containerType === 'RACK' ? 'bg-emerald-500 text-black' : 'text-slate-500'}`}>Rack</button>
+                 <button onClick={() => setContainerType('CABINET')} className={`px-3 py-1 text-[8px] font-black uppercase rounded-lg transition-all ${containerType === 'CABINET' ? 'bg-slate-400 text-black' : 'text-slate-500'}`}>Cabinet</button>
+               </div>
+               {PRESET_SIZES.map(s => (
+                 <button key={s.label} onClick={() => setStampSize({w: s.w, h: s.h})} className={`w-12 h-8 flex items-center justify-center text-[8px] font-bold border rounded-lg transition-all ${stampSize.w === s.w && stampSize.h === s.h ? 'border-amber-500 bg-amber-500/10 text-white' : 'border-white/10 text-slate-500'}`}>
+                   {s.label}
+                 </button>
+               ))}
+               <div className="flex gap-1 ml-2">
+                  <input 
+                    type="number" value={customSize.w} 
+                    onChange={e => setCustomSize(prev => ({...prev, w: Math.min(120, Number(e.target.value))}))}
+                    className="w-10 h-8 bg-black/40 border border-white/10 rounded-lg text-[9px] text-center text-white" 
+                  />
+                  <input 
+                    type="number" value={customSize.h} 
+                    onChange={e => setCustomSize(prev => ({...prev, h: Math.min(120, Number(e.target.value))}))}
+                    className="w-10 h-8 bg-black/40 border border-white/10 rounded-lg text-[9px] text-center text-white" 
+                  />
+                  <button onClick={() => setStampSize(customSize)} className="w-8 h-8 flex items-center justify-center bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-[10px]">+</button>
+               </div>
+             </div>
+          )}
+          
+          <button onClick={handleSaveEngineering} disabled={isSaving || localElements.length === 0} className="px-6 py-2.5 bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-xl disabled:opacity-20 flex items-center gap-2">
+            <Save className="w-3.5 h-3.5" /> {isSaving ? 'Syncing...' : 'Save Draft'}
+          </button>
+          <button onClick={() => setIsDrafting(!isDrafting)} className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border ${isDrafting ? 'bg-amber-500 text-black border-amber-400 shadow-xl' : 'bg-white/5 text-slate-500 border-white/5 hover:text-white'}`}>
+            {isDrafting ? 'Drafting Machine ON' : 'Drafting Engine'}
+          </button>
         </div>
       </div>
 
-      {/* SVG Canvas Area */}
-      <div className="flex-1 relative bg-radial from-slate-900 via-black to-black overflow-hidden flex items-center justify-center p-8">
-        {!isMounted ? (
-          <div className="flex items-center gap-3">
-            <div className="w-4 h-4 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Iniciando Digital Twin...</span>
-          </div>
-        ) : (
-          <svg
-            viewBox={viewBox}
-            className="w-full h-full max-w-[1200px] drop-shadow-[0_0_50px_rgba(0,0,0,0.8)] px-10"
-            preserveAspectRatio="xMidYMid meet"
-          >
-            {/* DEFINITIONS for Gradients and Masks */}
-            <defs>
-              <pattern id="gridPattern" width="60" height="60" patternUnits="userSpaceOnUse">
-                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" />
-              </pattern>
-              <radialGradient id="gradRoom" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                <stop offset="0%" stopColor="rgba(30,41,59,0.1)" />
-                <stop offset="100%" stopColor="rgba(15,23,42,0.4)" />
-              </radialGradient>
-            </defs>
+      <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
+        <svg ref={svgRef} viewBox={viewBox} onClick={handleSvgClick} className="w-full h-full p-12 transition-all duration-700">
+          <defs>
+            <pattern id="grid30" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.02)" strokeWidth="0.5"/></pattern>
+            <pattern id="grid60" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1"/></pattern>
+            
+            <clipPath id="roomClip">
+              {roomPoints ? (
+                <polygon points={normalizedPointsString} />
+              ) : (
+                <rect x={0} y={0} width={bounds.w} height={bounds.h} />
+              )}
+            </clipPath>
+          </defs>
 
-            {/* LAYER 0: Theoretical Grid (Ghost Tiles) */}
-            <rect x="-1000" y="-1000" width="3000" height="3000" fill="url(#gridPattern)" />
+          {/* BACKGROUND FONDATION */}
+          {roomPoints ? (
+            <polygon points={normalizedPointsString} fill="#020617" stroke="#3b82f6" strokeWidth="6" strokeLinejoin="round" />
+          ) : (
+            <rect x={0} y={0} width={bounds.w} height={bounds.h} fill="#020617" stroke="#3b82f6" strokeWidth="2" />
+          )}
 
-            {/* LAYER 1: Room Perimeter (Polygonal Walls) */}
-            <polygon
-              points={perimeter.map(p => p.join(',')).join(' ')}
-              fill="url(#gradRoom)"
-              stroke="rgba(255,255,255,0.1)"
-              strokeWidth="2"
-              strokeDasharray="4 2"
-            />
+          {/* GRID CLIPPED TO ROOM SHAPE */}
+          <g clipPath="url(#roomClip)">
+            <rect x={-100} y={-100} width={bounds.w + 200} height={bounds.h + 200} fill="url(#grid30)" />
+            <rect x={-100} y={-100} width={bounds.w + 200} height={bounds.h + 200} fill="url(#grid60)" />
+          </g>
 
-            {/* LAYER 1.5: Styled Bay Boxes (Based on Mockup Visualization) */}
-            {(['C', 'G', 'K']).map((bayRow, idx) => {
-              const ri = substructure.gridRows.indexOf(bayRow);
-              if (ri === -1) return null;
-
-              const colors = [
-                { main: '#d946ef', name: 'BAHÍA A' }, // Fuchsia
-                { main: '#06b6d4', name: 'BAHÍA B' }, // Cyan
-                { main: '#f59e0b', name: 'BAHÍA C' }  // Amber/Orange
-              ];
-              const { main, name } = colors[idx];
-              const x = 60; // Starts at col 2
-              const y = ri * 60;
-              const w = 10 * 60;
-              const h = 60;
-
-              return (
-                <g key={`bay-group-${bayRow}`}>
-                  {/* Bay Border Outline */}
-                  <rect
-                    x={x} y={y} width={w} height={h}
-                    fill="none"
-                    stroke={main}
-                    strokeWidth="1.5"
-                    strokeOpacity="0.4"
-                    rx="4"
-                  />
-
-                  {/* Top Label Tag */}
-                  <text
-                    x={x + 10} y={y - 8}
-                    className="font-black text-[10px] uppercase tracking-widest"
-                    fill={main}
-                  >
-                    {name}
-                  </text>
-
-                  {/* Bottom Dimension Indicator */}
-                  <text
-                    x={x + w / 2} y={y + h + 15}
-                    textAnchor="middle"
-                    className="font-black text-[7px] uppercase tracking-[0.2em] fill-slate-600"
-                  >
-                    10t × 1t
-                  </text>
-
-                  {/* Faint Inner Fill */}
-                  <rect
-                    x={x} y={y} width={w} height={h}
-                    fill={main} fillOpacity="0.03"
-                    rx="4"
-                    className="pointer-events-none"
-                  />
-                </g>
-              );
+          <g>
+            {persistedRows.map(row => {
+               if (!row.spatialMetadata) return null;
+               const sm = JSON.parse(row.spatialMetadata);
+               // Normalizar posición de la bahía
+               const nx = sm.x - bounds.minX;
+               const ny = sm.y - bounds.minY;
+               return (
+                 <g key={row.id}>
+                    <rect x={nx} y={ny} width={sm.w} height={sm.h} fill="rgba(217, 70, 239, 0.03)" stroke="#d946ef" strokeWidth="2" strokeDasharray="10 5" />
+                    <text x={nx + 10} y={ny - 10} className="fill-slate-500 text-[10px] font-black uppercase tracking-widest">{row.name}</text>
+                 </g>
+               );
             })}
 
-            {/* External Outline for Depth Effect (Restored but Sharp) */}
-            <polygon
-              points={perimeter.map(p => p.join(',')).join(' ')}
-              fill="none"
-              stroke="rgba(99,102,241,0.15)"
-              strokeWidth="6"
-              className=""
-            />
-
-            {/* LAYER 2: Reference Markers (Doors, etc.) */}
-            {referencePoints.map((point: { x: number, y: number, type: string, label: string }, idx: number) => (
-              <g key={idx} transform={`translate(${point.x}, ${point.y})`}>
-                {point.type === 'DOOR' && (
-                  <g transform={`scale(1.8) rotate(${point.x > 500 ? 0 : 180})`}>
-                    {/* Swing Path (Ahora mucho más vistoso) */}
-                    <path
-                      d="M 30 0 A 30 30 0 0 0 0 30"
-                      fill="rgba(245,158,11,0.1)" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 2"
-                    />
-                    {/* Door Leaf Vistosa */}
-                    <line x1="30" y1="0" x2="30" y2="30" stroke="#f59e0b" strokeWidth="3" className="drop-shadow-[0_0_6px_rgba(245,158,11,0.8)]" />
-                    {/* Bisagra */}
-                    <circle cx="30" cy="30" r="2.5" fill="#fff" />
+            {localRacks.map(rack => {
+                let x, y, w, h;
+                const isCab = rack.type === 'CABINET';
+                if (rack.spatialMetadata) {
+                  const sm = typeof rack.spatialMetadata === 'string' ? JSON.parse(rack.spatialMetadata) : rack.spatialMetadata;
+                  x = sm.x - bounds.minX + 4; y = sm.y - bounds.minY + 4; w = sm.w - 8; h = sm.h - 8;
+                } else { x = Number(rack.position || 0)*TILE_SIZE+4; y = 4; w = TILE_SIZE-8; h = TILE_SIZE-8; }
+                return (
+                  <g key={rack.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); if(!isDrafting) setSelectedContainer(rack); }}>
+                    <rect x={x} y={y} width={w} height={h} rx="4" fill={isCab ? 'rgba(71, 85, 105, 0.2)' : 'rgba(16, 185, 129, 0.15)'} stroke={isCab ? '#94a3b8' : '#10b981'} strokeWidth={isCab ? "3" : "2"} className="transition-all group-hover:stroke-white" />
+                    {isCab && <rect x={x+2} y={y+2} width={w-4} height={h-4} rx="2" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />}
+                    <text x={x+4} y={y+10} className="text-[5px] font-black fill-white/40 uppercase tracking-tighter">{rack.name}</text>
                   </g>
-                )}
-                <text
-                  y={point.y > 400 ? -20 : 70}
-                  textAnchor="middle"
-                  className="fill-amber-500 text-[12px] font-black tracking-widest uppercase drop-shadow-md"
-                >
-                  {point.label}
-                </text>
+                );
+            })}
+
+            {positions.map(pos => {
+              const x = ((Number(pos.col)||1)-1)*TILE_SIZE+8, y = ((Number(pos.row)||1)-1)*TILE_SIZE+8;
+              const isOccupied = pos.status !== 'EMPTY';
+              return <rect key={pos.id} x={x} y={y} width={TILE_SIZE-16} height={TILE_SIZE-16} rx="4" fill={isOccupied ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.01)'} stroke={isOccupied ? '#3b82f6' : 'rgba(255,255,255,0.04)'} />;
+            })}
+
+            {localElements.map(el => (
+              <g key={el.id}>
+                <rect 
+                  x={el.points[0].x} y={el.points[0].y} 
+                  width={el.points[1].x - el.points[0].x} 
+                  height={el.points[2].y - el.points[1].y} 
+                  fill={el.type === 'BAY' ? 'rgba(217,70,239,0.1)' : (el.cType === 'CABINET' ? 'rgba(148, 163, 184, 0.2)' : 'rgba(245,158,11,0.2)')} 
+                  stroke={el.type === 'BAY' ? '#d946ef' : (el.cType === 'CABINET' ? '#94a3b8' : '#f59e0b')} 
+                  strokeWidth="2" strokeDasharray="6 4" 
+                />
               </g>
             ))}
+          </g>
+          
+          <text x={bounds.w/2} y={bounds.h/2} textAnchor="middle" className="fill-white/[0.03] text-[120px] font-black uppercase italic tracking-tighter select-none pointer-events-none">TELXIUS</text>
+        </svg>
 
-            {/* LAYER 3: Equipment Positions */}
-            {positions.map((pos) => {
-              const ri = substructure.gridRows.indexOf(pos.row);
-              const ci = substructure.gridCols.indexOf(pos.col);
-              if (ri === -1 || ci === -1) return null;
-
-              // Coordinate from theoretical grid + offsets
-              const x = (ci * 60) + (pos.physOffsetX || 0);
-              const y = (ri * 60) + (pos.physOffsetY || 0);
-              const w = pos.physWidthCm || 60;
-              const h = pos.physDepthCm || 60;
-              const isBDFB = pos.label?.startsWith('BDFB');
-
-              // Determine highlighting based on influence zones
-              const isHighlighted = hoveredZone && (pos.deviceId === hoveredZone || pos.fedBy === hoveredZone);
-              const isDimmed = hoveredZone && !isHighlighted;
-
-              return (
-                <g
-                  key={pos.id}
-                  className={`cursor-pointer group transition-opacity duration-300 ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
-                  onClick={() => pos.deviceId ? onSelectBDFB(pos.deviceId) : onSelectBDFB(null)}
-                  onMouseEnter={() => setHoveredZone(isBDFB ? pos.deviceId || null : pos.fedBy || null)}
-                  onMouseLeave={() => setHoveredZone(null)}
-                >
-                  {/* 1. Underlying Theoretical Tile Shadow */}
-                  <rect
-                    x={ci * 60} y={ri * 60}
-                    width={pos.widthUnits * 60} height={pos.depthUnits * 60}
-                    className="fill-white/[0.02] stroke-white/5"
-                  />
-
-                  {/* 2. Physical Container (Full Color Fill) */}
-                  <rect
-                    x={x} y={y}
-                    width={w} height={h}
-                    fill={
-                      pos.status === 'ERROR' ? 'rgba(239, 68, 68, 0.4)' : // Rojo: Problema
-                      pos.status === 'WARNING' ? 'rgba(249, 115, 22, 0.4)' : // Naranja: Alerta
-                      (pos.status === 'OCCUPIED' || pos.status === 'RESERVED') ? 'rgba(16, 185, 129, 0.4)' : // Verde: Funcional
-                      'rgba(100, 116, 139, 0.2)' // Gris: Disponible
-                    }
-                    stroke={
-                      isHighlighted ? '#d946ef' : /* Glow border when in active zone */
-                        isBDFB ? '#d946ef' :
-                          pos.label?.startsWith('MEGA') ? '#06b6d4' :
-                            pos.status !== 'EMPTY' ? '#cbd5e1' :
-                              'rgba(255,255,255,0.1)'
-                    }
-                    strokeWidth={pos.status !== 'EMPTY' || isHighlighted ? "2" : "1"}
-                    className={`transition-all duration-300 ${isHighlighted ? 'brightness-125 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'group-hover:brightness-125'}`}
-                  />
-
-                  {/* 3. Icons / Internal Details */}
-                  {isBDFB && (
-                    <g transform={`translate(${x}, ${y})`}>
-                      {/* Panel A1 */}
-                      <rect x={w * 0.1} y={h * 0.1} width={w * 0.35} height={h * 0.3} fill="#d946ef" fillOpacity="0.4" rx="2" />
-                      <text x={w * 0.275} y={h * 0.3} textAnchor="middle" className="fill-white font-black text-[6px]">A1</text>
-
-                      {/* Panel B1 */}
-                      <rect x={w * 0.55} y={h * 0.1} width={w * 0.35} height={h * 0.3} fill="#d946ef" fillOpacity="0.4" rx="2" />
-                      <text x={w * 0.725} y={h * 0.3} textAnchor="middle" className="fill-white font-black text-[6px]">B1</text>
-
-                      {/* Panel A2 */}
-                      <rect x={w * 0.1} y={h * 0.5} width={w * 0.35} height={h * 0.3} fill="#d946ef" fillOpacity="0.4" rx="2" />
-                      <text x={w * 0.275} y={h * 0.7} textAnchor="middle" className="fill-white font-black text-[6px]">A2</text>
-
-                      {/* Panel B2 */}
-                      <rect x={w * 0.55} y={h * 0.5} width={w * 0.35} height={h * 0.3} fill="#d946ef" fillOpacity="0.4" rx="2" />
-                      <text x={w * 0.725} y={h * 0.7} textAnchor="middle" className="fill-white font-black text-[6px]">B2</text>
-
-                      {/* Space Label */}
-                      <text x={w * 0.5} y={h * 0.92} textAnchor="middle" className="fill-fuchsia-500/40 font-black text-[4px] uppercase tracking-widest"></text>
-                    </g>
-                  )}
-
-                  {pos.label?.startsWith('MEGA') && (
-                    <g transform={`translate(${x}, ${y})`}>
-                      {/* Horizontal server tray lines */}
-                      <line x1="10" y1={h * 0.3} x2={w - 10} y2={h * 0.3} stroke="#06b6d4" strokeWidth="2" opacity="0.5" />
-                      <line x1="10" y1={h * 0.5} x2={w - 10} y2={h * 0.5} stroke="#06b6d4" strokeWidth="2" opacity="0.5" />
-                      <line x1="10" y1={h * 0.7} x2={w - 10} y2={h * 0.7} stroke="#06b6d4" strokeWidth="2" opacity="0.5" />
-                    </g>
-                  )}
-
-                  {/* 4. Labels (only on hover or if label exists) */}
-                  <text
-                    x={x + w / 2} y={y + h + 15}
-                    textAnchor="middle"
-                    className="fill-slate-400 text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    {pos.label || `${pos.row}${pos.col}`}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        )}
-
-        {/* Floating Tooltip Helper */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-xl border border-white/5 py-2.5 px-6 rounded-full shadow-2xl">
-          <MousePointer2 className="w-3 h-3 text-accent-primary" />
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Vista Top-Down • Escala Real 1cm:1px</span>
-          <div className="w-[1px] h-3 bg-white/10 mx-1" />
-          <span className="text-[9px] font-black text-white uppercase tracking-widest">SALA-01 Telxius</span>
+        <div className="absolute bottom-10 left-10 flex gap-4">
+           <LegendItem icon={<div className="w-3 h-3 bg-blue-500 rounded-sm" />} label="Assets Inventariados" />
+           <LegendItem icon={<div className="w-3 h-3 bg-fuchsia-500 rounded-sm" />} label="Bahías (Bays)" />
+           <LegendItem icon={<div className="w-3 h-3 bg-emerald-500 rounded-sm" />} label="Racks Operativos" />
         </div>
       </div>
 
-      {/* Simplified Footer Summary */}
-      <div className="px-6 py-2 flex justify-between items-center text-[9px] font-black text-slate-500 uppercase tracking-widest bg-black/20">
-        <div className="flex gap-4">
-          <span>Posiciones: {positions.length}</span>
-          <span className="text-accent-primary">Ocupadas: {positions.filter(p => p.status === 'OCCUPIED').length}</span>
-          <span className="text-warning">Reservadas: {positions.filter(p => p.status === 'RESERVED').length}</span>
-          <span>Vacantes: {positions.filter(p => p.status === 'EMPTY').length}</span>
-        </div>
-        <div className="text-slate-400 italic">Unidad de Medida Balodsa Estándar (Tile): 60x60 CM</div>
-      </div>
+      {selectedContainer && (
+        <RackElevationManager 
+          container={selectedContainer} 
+          siteId={substructure?.level?.structure?.siteId}
+          onClose={() => setSelectedContainer(null)} 
+          onUpdate={() => {
+            // Re-fetch substructure data to see new racks/devices if necessary
+            const fetchRoomData = async () => {
+              const res = await fetch(`/telxius/api/substructures/?id=${substructureId}&t=${Date.now()}`);
+              const data = await res.json();
+              const obj = Array.isArray(data.data) ? data.data[0] : data.data;
+              if (obj && obj.racks) setLocalRacks(obj.racks);
+            };
+            fetchRoomData();
+          }}
+        />
+      )}
     </div>
   );
 };
 
-const LegendItem: React.FC<{ icon: React.ReactNode; label: string }> = ({ icon, label }) => (
-  <div className="flex items-center gap-2.5">
-    <div className="opacity-80 scale-75">{icon}</div>
-    <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.15em]">{label}</span>
+const LegendItem = ({ icon, label }: { icon: React.ReactNode, label: string }) => (
+  <div className="flex items-center gap-3 px-5 py-2.5 bg-black/60 backdrop-blur-3xl rounded-2xl border border-white/5 shadow-2xl">
+    {icon} <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{label}</span>
   </div>
 );
 
