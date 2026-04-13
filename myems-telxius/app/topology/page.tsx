@@ -86,34 +86,35 @@ const STEPS = [
     endpoint: '/telxius/api/bulk/devices/?isCatalog=true',
     templateName: '02_catalog_template.json',
     sample: [{ name: "BDFB-TEMPLATE-V1", category: "BDFB", isTemplate: true }]
-  },
-  {
-    id: 'instances',
-    title: 'Capa 3: Instanciación Física',
-    description: 'Placement of Devices in Racks',
-    icon: Box,
-    endpoint: '/telxius/api/bulk/devices/',
-    templateName: '03_instances_template.json',
-    sample: [{ siteName: "Datacenter Lurin", containerName: "RACK-D12", templateName: "BDFB-TEMPLATE-V1", name: "BDFB-LURIN-01" }]
-  },
-  {
-    id: 'equipment',
-    title: 'Capa 4: Equipamiento Físico',
-    description: 'Panels, Cards & Modules',
-    icon: Cpu,
-    endpoint: '/telxius/api/bulk/equipments/',
-    templateName: '04_equipment_template.json',
-    sample: [{ deviceName: "BDFB-LURIN-01", name: "Panel-A1", sn: "SN-998877", category: "SUBRACK", unitPosition: 40, unitHeight: 2 }]
-  },
-  {
-    id: 'ports',
-    title: 'Capa 5: Telemetría MQTT',
-    description: 'Mapeo de Sensores InfluxDB',
-    icon: Activity,
-    endpoint: '/telxius/api/bulk/ports/',
-    templateName: '05_ports_template.json',
-    sample: [{ equipmentName: "Panel-A1", name: "Breaker-1", type: "POWER_OUT", sensorTopic: "0_1_1" }]
   }
+  // },
+  // {
+  //   id: 'instances',
+  //   title: 'Capa 3: Instanciación Física',
+  //   description: 'Placement of Devices in Racks',
+  //   icon: Box,
+  //   endpoint: '/telxius/api/bulk/devices/',
+  //   templateName: '03_instances_template.json',
+  //   sample: [{ siteName: "Datacenter Lurin", containerName: "RACK-D12", templateName: "BDFB-TEMPLATE-V1", name: "BDFB-LURIN-01" }]
+  // },
+  // {
+  //   id: 'equipment',
+  //   title: 'Capa 4: Equipamiento Físico',
+  //   description: 'Panels, Cards & Modules',
+  //   icon: Cpu,
+  //   endpoint: '/telxius/api/bulk/equipments/',
+  //   templateName: '04_equipment_template.json',
+  //   sample: [{ deviceName: "BDFB-LURIN-01", name: "Panel-A1", sn: "SN-998877", category: "SUBRACK", unitPosition: 40, unitHeight: 2 }]
+  // },
+  // {
+  //   id: 'ports',
+  //   title: 'Capa 5: Telemetría MQTT',
+  //   description: 'Mapeo de Sensores InfluxDB',
+  //   icon: Activity,
+  //   endpoint: '/telxius/api/bulk/ports/',
+  //   templateName: '05_ports_template.json',
+  //   sample: [{ equipmentName: "Panel-A1", name: "Breaker-1", type: "POWER_OUT", sensorTopic: "0_1_1" }]
+  // }
 ];
 
 export default function CascadeIngestionPage() {

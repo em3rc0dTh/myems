@@ -186,19 +186,40 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
             </div>
         </div>
 
-        <div className="flex-1 p-8 relative flex items-center justify-center bg-[#01040a]">
-          <div className="w-full h-full max-w-[1200px] max-aspect-[1/1] relative shadow-2xl">
-            <TechnicalBlueprintEngine 
-              widthCm={site.widthCm || 5000} 
-              heightCm={site.heightCm || 5000}
-              showGrid={true}
-              gridSize={150}
-              isEditable={isDrafting}
-              activeTool={activeTool}
-              elements={allVisualElements}
-              onDrawingComplete={handleDrawingComplete}
-              onElementUpdated={handleElementUpdated}
-            />
+        <div className="flex-1 p-8 relative flex items-center justify-center bg-[#01040a] min-h-0 min-w-0">
+          <div className="flex-1 w-full h-full relative shadow-2xl border border-white/5 rounded-[40px] overflow-hidden">
+            {(() => {
+              // Calculate global bounds for all structures to auto-fit
+              let minX = 0, minY = 0, maxX = 5000, maxY = 5000;
+              if (structures.length > 0) {
+                const allPoints = structures.flatMap(s => JSON.parse(s.perimeter || '[]'));
+                if (allPoints.length > 0) {
+                  const xs = allPoints.map(p => p.x);
+                  const ys = allPoints.map(p => p.y);
+                  minX = Math.min(...xs) - 500;
+                  minY = Math.min(...ys) - 500;
+                  maxX = Math.max(...xs) + 500;
+                  maxY = Math.max(...ys) + 500;
+                }
+              }
+
+              return (
+                <TechnicalBlueprintEngine 
+                  widthCm={maxX - minX} 
+                  heightCm={maxY - minY}
+                  viewBoxX={minX}
+                  viewBoxY={minY}
+                  showGrid={true}
+                  gridSize={200}
+                  isEditable={isDrafting}
+                  activeTool={activeTool}
+                  elements={allVisualElements}
+                  onDrawingComplete={handleDrawingComplete}
+                  onElementUpdated={handleElementUpdated}
+                  className="w-full h-full"
+                />
+              );
+            })()}
           </div>
 
           {namingModal.isOpen && (

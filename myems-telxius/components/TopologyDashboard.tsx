@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { ChevronRight, Home, MapPin, Building2, DoorOpen, Layers, ArrowRight } from 'lucide-react';
+import { ChevronRight, Home, MapPin, Building2, DoorOpen, Layers, ArrowRight, Database } from 'lucide-react';
 import SiteDashboardView from './SiteDashboardView';
 import StructureDashboardView from './StructureDashboardView';
 import RoomView from './RoomView';
@@ -130,27 +130,43 @@ export default function TopologyDashboard() {
 
               {allSites.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {allSites.map(site => (
-                    <button
-                      key={site.id}
-                      onClick={() => setSelectedSiteId(site.id)}
-                      className="group relative flex flex-col p-8 bg-white/[0.02] border border-white/5 rounded-[40px] hover:bg-sky-500/5 hover:border-sky-500/40 transition-all text-left overflow-hidden"
-                    >
-                      <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
-                        <MapPin className="w-20 h-20" />
-                      </div>
-                      <div className="p-3 bg-sky-500/10 rounded-2xl border border-sky-500/20 w-fit mb-6 group-hover:bg-sky-500 group-hover:text-black transition-all">
-                        <MapPin className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-xl font-black uppercase italic tracking-tighter text-white mb-2">{site.name}</h3>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-6">{site.address || 'Geo-Location Pending'}</p>
+                  {allSites.map(site => {
+                    const isAlmacen = site.name?.toUpperCase().includes('ALMACÉN') || site.name?.toUpperCase().includes('ALMACEN');
+                    const Icon = isAlmacen ? Database : MapPin;
+                    
+                    return (
+                      <button
+                        key={site.id}
+                        onClick={() => setSelectedSiteId(site.id)}
+                        className={`group relative flex flex-col p-8 bg-white/[0.02] border rounded-[40px] transition-all text-left overflow-hidden ${isAlmacen ? 'border-amber-500/20 hover:bg-amber-500/5 hover:border-amber-500/40' : 'border-white/5 hover:bg-sky-500/5 hover:border-sky-500/40'}`}
+                      >
+                        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
+                          <Icon className="w-20 h-20" />
+                        </div>
+                        <div className={`p-3 rounded-2xl border w-fit mb-6 transition-all ${isAlmacen ? 'bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500 group-hover:text-black' : 'bg-sky-500/10 border-sky-500/20 group-hover:bg-sky-500 group-hover:text-black'}`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        
+                        {isAlmacen && (
+                          <div className="mb-4">
+                            <span className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-md text-[7px] font-black text-amber-500 uppercase tracking-[0.2em]">
+                              ALMACÉN TÉCNICO • CATALOG
+                            </span>
+                          </div>
+                        )}
 
-                      <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-6">
-                        <span className="text-[9px] font-black text-sky-400 uppercase tracking-widest">Enter Master Plan</span>
-                        <ArrowRight className="w-4 h-4 text-sky-400 transform group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </button>
-                  ))}
+                        <h3 className="text-xl font-black uppercase italic tracking-tighter text-white mb-2">{site.name}</h3>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-6">{isAlmacen ? 'Repositorio de Plantillas Maestras' : (site.address || 'Geo-Location Pending')}</p>
+  
+                        <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-6">
+                          <span className={`text-[9px] font-black uppercase tracking-widest ${isAlmacen ? 'text-amber-500' : 'text-sky-400'}`}>
+                            {isAlmacen ? 'Gestionar Plantillas' : 'Enter Master Plan'}
+                          </span>
+                          <ArrowRight className={`w-4 h-4 transform group-hover:translate-x-1 transition-transform ${isAlmacen ? 'text-amber-500' : 'text-sky-400'}`} />
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center p-20 text-center bg-black/20 rounded-[40px] border border-white/5 border-dashed">

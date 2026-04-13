@@ -3,7 +3,7 @@ import BDFBSummary from "@/components/BDFBSummary";
 import { BDFBData, PanelData, BreakerData } from "@/lib/types";
 import { BDFB_MOCK_DATA } from "@/lib/mockData";
 import React, { useState, useEffect } from "react";
-import { Settings, ChevronRight, ChevronDown, Edit, Trash2, Plus, Server, FolderTree, AlertTriangle, CheckCircle2, FileDown, Inbox, Pin, PinOff } from "lucide-react";
+import { Settings, ChevronRight, ChevronDown, Edit, Trash2, Plus, Server, FolderTree, AlertTriangle, CheckCircle2, FileDown, Inbox, Pin, PinOff, Sliders } from "lucide-react";
 import Link from 'next/link';
 import EquipmentEditorModal from "@/components/EquipmentEditorModal";
 
@@ -69,7 +69,7 @@ export default function Home() {
     };
 
     const isSystemEmpty = !isLoading && activeBDFBs.length === 0;
-    
+
     const filteredBDFBs = activeBDFBs.filter(b => selectedIds.includes(b.id));
     const hasActivePins = selectedIds.length > 0;
 
@@ -77,7 +77,7 @@ export default function Home() {
         <main className="h-screen w-screen overflow-hidden p-4 lg:p-6 flex flex-col pt-10 relative">
             {/* GLOBAL ENVIRONMENT BANNER FOR CONSISTENCY */}
             <div className={`absolute top-0 left-0 w-full py-1 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-center z-[100] flex items-center justify-center gap-2 ${isProd ? 'bg-success/20 text-[#a7f3d0] border-b border-success/30' : 'bg-[#1e293b] text-[#94a3b8] border-b border-white/5'}`}>
-                {isProd ? <><CheckCircle2 className="w-3 h-3" /> ENTORNO DE PRODUCCIÓN - TAPI DB [VACÍO POR DEFECTO]</> : <><AlertTriangle className="w-3 h-3" /> MODO DE DESARROLLO (MOCK) - CARGANDO DATA ESTÁTICA PARA UX</>}
+                {isProd ? <><CheckCircle2 className="w-3 h-3" /> ENTORNO DE PRODUCCIÓN</> : <><AlertTriangle className="w-3 h-3" /> MODO DE DESARROLLO (MOCK) - CARGANDO DATA ESTÁTICA PARA UX</>}
             </div>
 
             <div className="max-w-[1700px] mx-auto w-full h-full flex flex-col lg:flex-row gap-4 relative z-10">
@@ -134,8 +134,8 @@ export default function Home() {
                                 onClick={() => setShowConfig(true)}
                                 className="w-full px-4 py-2 bg-gradient-to-r from-accent-primary/20 to-accent-primary/5 hover:from-accent-primary/30 hover:to-accent-primary/10 rounded-lg border border-accent-primary/30 transition-all font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(14,165,233,0.15)] text-accent-primary"
                             >
-                                <Settings className="w-4 h-4" />
-                                Config & Setup
+                                <Sliders className="w-4 h-4" />
+                                Gestión Operativa
                             </button>
                         </div>
                     </div>
@@ -171,7 +171,7 @@ export default function Home() {
                                     <Pin className="w-16 h-16 text-slate-600 mb-4 animate-bounce" />
                                     <h3 className="text-white font-black uppercase tracking-widest mb-2">Home No Configurado</h3>
                                     <p className="text-slate-400 text-sm max-w-sm text-center font-medium">Usa los botones de <strong>Pin</strong> en los ajustes para seleccionar qué BDFBs quieres ver en el resumen de hoy.</p>
-                                    <button onClick={() => setShowConfig(true)} className="mt-6 px-6 py-3 bg-accent-primary hover:bg-sky-400 text-white font-black uppercase tracking-widest rounded-xl transition-colors shadow-lg shadow-accent-primary/20 flex items-center gap-2"> <Settings className="w-4 h-4"/> Abrir Configuración</button>
+                                    <button onClick={() => setShowConfig(true)} className="mt-6 px-6 py-3 bg-accent-primary hover:bg-sky-400 text-white font-black uppercase tracking-widest rounded-xl transition-colors shadow-lg shadow-accent-primary/20 flex items-center gap-2"> <Settings className="w-4 h-4" /> Abrir Configuración</button>
                                 </div>
                             ) : (
                                 <div className="flex gap-4 h-full min-w-max px-1">
@@ -197,7 +197,7 @@ export default function Home() {
                                     <div className="h-full flex items-center justify-center opacity-50 px-4 text-center">
                                         <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Esperando telemetría inicial...</p>
                                     </div>
-                               ) : (
+                                ) : (
                                     <div className="space-y-3">
                                         <div className="p-4 bg-success/10 border border-success/20 rounded-2xl flex items-start gap-4">
                                             <div className="p-2 bg-success text-black rounded-lg"><CheckCircle2 className="w-4 h-4" /></div>
@@ -420,7 +420,7 @@ function ConfigPanelItem({ panel }: { panel: any }) {
         <div className={`border rounded-xl transition-all ${isPinned ? 'border-sky-500/50 bg-sky-500/[0.03]' : 'border-white/5 bg-black/40'}`}>
             <div className="p-3 flex items-center justify-between hover:bg-white/[0.02] cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
                 <div className="flex items-center gap-3">
-                    <button 
+                    <button
                         onClick={togglePin}
                         className={`p-1.5 rounded transition-all ${isPinned ? 'text-sky-400 bg-sky-500/10' : 'text-slate-600 hover:text-slate-400'}`}
                     >
@@ -433,7 +433,7 @@ function ConfigPanelItem({ panel }: { panel: any }) {
                 </div>
                 <button className="p-1.5 hover:bg-white/5 rounded text-slate-600 hover:text-white transition-all"><Edit className="w-3.5 h-3.5" /></button>
             </div>
-            
+
             {isExpanded && (
                 <div className="p-3 pt-2 border-t border-white/5 pl-8 space-y-1">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">

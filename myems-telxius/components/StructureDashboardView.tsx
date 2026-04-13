@@ -181,7 +181,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 min-w-0 overflow-hidden">
         {/* SIDEBAR MÁS COMPACTO */}
         <div className="w-64 border-r border-white/5 p-4 space-y-4 bg-black/20">
             <h3 className="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] px-2 italic">Rooms in this Building</h3>
@@ -202,22 +202,15 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
         </div>
 
         {/* CANVAS CON MEJOR ESCALA */}
-        <div className="flex-1 bg-[#01040a] relative overflow-hidden flex items-center justify-center p-8">
+        <div className="flex-1 bg-[#01040a] relative overflow-hidden flex items-center justify-center p-8 min-h-0 min-w-0">
           <div 
-            className="relative shadow-[0_0_100px_rgba(30,58,138,0.1)] rounded-[40px] border border-white/5 bg-slate-900/40 p-4 transition-all duration-700 ease-in-out"
-            style={{ 
-              width: '100%', 
-              height: '100%',
-              maxWidth: `${canvasWidth}px`,
-              maxHeight: `${canvasHeight}px`,
-              aspectRatio: `${canvasWidth} / ${canvasHeight}`
-            }}
+            className="flex-1 w-full h-full relative shadow-[0_0_100px_rgba(30,58,138,0.1)] rounded-[40px] border border-white/5 bg-slate-900/40 p-1"
           >
             <TechnicalBlueprintEngine 
-              widthCm={canvasWidth}
-              heightCm={canvasHeight}
-              viewBoxX={minX - 100}
-              viewBoxY={minY - 100}
+              widthCm={Math.max(maxX - minX + 1000, 3000)}
+              heightCm={Math.max(maxY - minY + 1000, 3000)}
+              viewBoxX={minX - 500}
+              viewBoxY={minY - 500}
               perimeter={structure.perimeter}
               showGrid={true}
               gridSize={80}

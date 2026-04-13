@@ -13,11 +13,12 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Telxius EMS | Datacenter Energy Management",
+  title: "AppM EMS | Datacenter Energy Management",
   description: "Advanced infrastructure management for MyemsTelxius. Physical BDFB monitoring, real-time telemetry and capacity planning.",
 };
 
 import { MqttProvider } from "../lib/MqttContext";
+import NavigationSidebar from "@/components/NavigationSidebar";
 
 export default function RootLayout({
   children,
@@ -30,9 +31,14 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${inter.variable} ${mono.variable} h-full antialiased`}
     >
-      <body suppressHydrationWarning className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-500">
+      <body suppressHydrationWarning className="min-h-full bg-background text-foreground transition-colors duration-500">
         <MqttProvider>
-          {children}
+          <div className="flex min-h-screen">
+            <NavigationSidebar />
+            <div className="flex-1 lg:pl-32 flex flex-col min-w-0">
+               {children}
+            </div>
+          </div>
         </MqttProvider>
       </body>
     </html>
