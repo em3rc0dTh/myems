@@ -3,7 +3,7 @@ import BDFBSummary from "@/components/BDFBSummary";
 import { BDFBData, PanelData, BreakerData } from "@/lib/types";
 import { BDFB_MOCK_DATA } from "@/lib/mockData";
 import React, { useState, useEffect } from "react";
-import { Settings, ChevronRight, ChevronDown, Edit, Trash2, Plus, Server, FolderTree, AlertTriangle, CheckCircle2, FileDown, Inbox, Pin, PinOff, Sliders } from "lucide-react";
+import { Settings, ChevronRight, ChevronDown, Edit, Trash2, LayoutGrid, Activity, Plus, Server, FolderTree, AlertTriangle, CheckCircle2, FileDown, Inbox, Pin, PinOff, Sliders } from "lucide-react";
 import Link from 'next/link';
 import EquipmentEditorModal from "@/components/EquipmentEditorModal";
 
@@ -68,152 +68,221 @@ export default function Home() {
         }
     };
 
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const isSystemEmpty = !isLoading && activeBDFBs.length === 0;
 
     const filteredBDFBs = activeBDFBs.filter(b => selectedIds.includes(b.id));
     const hasActivePins = selectedIds.length > 0;
 
     return (
-        <main className="h-screen w-screen overflow-hidden p-4 lg:p-6 flex flex-col pt-10 relative">
+        <main className="h-screen w-full overflow-hidden p-4 lg:p-6 flex flex-col pt-12 relative bg-[#020617]">
             {/* GLOBAL ENVIRONMENT BANNER FOR CONSISTENCY */}
             <div className={`absolute top-0 left-0 w-full py-1 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-center z-[100] flex items-center justify-center gap-2 ${isProd ? 'bg-success/20 text-[#a7f3d0] border-b border-success/30' : 'bg-[#1e293b] text-[#94a3b8] border-b border-white/5'}`}>
                 {isProd ? <><CheckCircle2 className="w-3 h-3" /> ENTORNO DE PRODUCCIÓN</> : <><AlertTriangle className="w-3 h-3" /> MODO DE DESARROLLO (MOCK) - CARGANDO DATA ESTÁTICA PARA UX</>}
             </div>
 
-            <div className="max-w-[1700px] mx-auto w-full h-full flex flex-col lg:flex-row gap-4 relative z-10">
+            <div className="flex-1 w-full max-w-[1700px] mx-auto flex gap-6 relative z-10 min-h-0">
 
-                {/* Sidebar */}
-                <aside className="w-full lg:w-[340px] shrink-0 flex flex-col h-full">
-                    <div className="glass-panel p-5 rounded-2xl h-full flex flex-col">
-                        <h1 className="text-3xl font-extrabold mb-1 tracking-tight shrink-0">
-                            <span className="text-gradient">AppM Energy EMS</span>
-                        </h1>
-                        <p className="text-slate-400 mb-4 text-sm leading-relaxed shrink-0">
-                            Sistema de monitoreo energético y planificación física de infraestructura.
-                        </p>
-
-                        <div className="flex-1 overflow-auto pr-1 space-y-3">
-                            <div className="p-4 bg-white/5 rounded-xl border border-white/5">
-                                <h5 className="text-[10px] font-bold text-slate-500 uppercase mb-2">Resumen de Capacidad</h5>
-                                <div className="space-y-2">
-                                    {(() => {
-                                        const totalCap = activeBDFBs.reduce((sum, b) => sum + b.panels.reduce((ps, p) => ps + p.installedCapacity, 0), 0);
-                                        const totalCons = activeBDFBs.reduce((sum, b) => sum + b.panels.reduce((ps, p) => ps + p.consumedCapacity, 0), 0);
-                                        const totalRes = activeBDFBs.reduce((sum, b) => sum + b.panels.reduce((ps, p) => ps + p.reservedCapacity, 0), 0);
-
-                                        const installPerc = totalCap > 0 ? 100 : 0;
-                                        const consPerc = totalCap > 0 ? Math.round((totalCons / totalCap) * 100) : 0;
-                                        const resPerc = totalCap > 0 ? Math.round((totalRes / totalCap) * 100) : 0;
-
-                                        return (
-                                            <>
-                                                <ProgressBar label="Total Instalado" value={installPerc} color="bg-accent-primary" />
-                                                <ProgressBar label="Total Consumido" value={consPerc} color="bg-success" />
-                                                <ProgressBar label="Reservado" value={resPerc} color="bg-warning" />
-                                            </>
-                                        );
-                                    })()}
+                {/* Sidebar (Collapsible & Transitioning to Dock) */}
+                <aside
+                    className={`fixed lg:relative z-[60] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] overflow-hidden ${isSidebarOpen ? 'w-[320px] opacity-100 translate-x-0 h-[calc(100vh-100px)] lg:h-full lg:mr-6' : 'w-0 opacity-0 pointer-events-none -translate-x-full lg:translate-x-[-100%] h-0'}`}
+                >
+                    {isSidebarOpen && (
+                        <div className="glass-panel p-6 rounded-[2.5rem] h-full flex flex-col border border-white/5 shadow-2xl bg-slate-900/40 backdrop-blur-3xl min-w-[320px]">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex flex-col">
+                                    <h1 className="text-2xl font-black tracking-tighter shrink-0 text-white italic">
+                                        <span className="text-sky-400 not-italic">AppM</span> EMS
+                                    </h1>
+                                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">Telemetry Control Unit</span>
                                 </div>
+                                <button
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="p-2.5 bg-white/5 hover:bg-white/10 rounded-2xl text-slate-400 transition-all border border-white/5"
+                                    title="Acoplar en Dock"
+                                >
+                                    <ChevronRight className="w-5 h-5 rotate-180" />
+                                </button>
                             </div>
-                        </div>
-                        <Link href="/topology/dashboard" className="flex items-center">
-                            <button className="bg-transparent cursor-pointer">
-                                <h5 className="text-lg font-bold text-slate-500 uppercase mb-2">Sites</h5>
-                            </button>
-                        </Link>
 
-                        <div className="mt-4 space-y-3 shrink-0">
-                            <div className="p-3 bg-accent-primary/10 rounded-xl border border-accent-primary/20">
-                                <h4 className="text-accent-primary font-bold mb-0.5 flex items-center gap-2 text-xs">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${isSystemEmpty ? 'bg-slate-500' : 'bg-accent-primary animate-pulse'}`} />
-                                    Estado del Sistema
-                                </h4>
-                                <p className="text-xs text-slate-300">{isSystemEmpty ? 'Inactivo (Falta Infraestructura)' : 'Latencia promedio: 45ms.'}</p>
+                            <div className="flex-1 overflow-auto custom-scrollbar pr-1 space-y-5 mb-6">
+                                <div className="p-5 bg-gradient-to-br from-white/[0.03] to-transparent rounded-[2rem] border border-white/5">
+                                    <h5 className="text-[9px] font-black text-sky-500/50 uppercase tracking-[0.2em] mb-4">Capacity Fleet Status</h5>
+                                    <div className="space-y-4">
+                                        {(() => {
+                                            const totalCap = activeBDFBs.reduce((sum, b) => sum + (b.panels?.reduce((ps, p) => ps + p.installedCapacity, 0) || 0), 0);
+                                            const totalCons = activeBDFBs.reduce((sum, b) => sum + (b.panels?.reduce((ps, p) => ps + p.consumedCapacity, 0) || 0), 0);
+                                            const totalRes = activeBDFBs.reduce((sum, b) => sum + (b.panels?.reduce((ps, p) => ps + p.reservedCapacity, 0) || 0), 0);
+
+                                            const installPerc = totalCap > 0 ? 100 : 0;
+                                            const consPerc = totalCap > 0 ? Math.round((totalCons / totalCap) * 100) : 0;
+                                            const resPerc = totalCap > 0 ? Math.round((totalRes / totalCap) * 100) : 0;
+
+                                            return (
+                                                <>
+                                                    <ProgressBar label="Installed" value={installPerc} color="bg-sky-500" />
+                                                    <ProgressBar label="Load Out" value={consPerc} color="bg-emerald-500" />
+                                                    <ProgressBar label="Reserve" value={resPerc} color="bg-amber-500" />
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+
+                                <Link href="/topology/dashboard" className="block p-5 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/5 transition-all group">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-2.5 bg-sky-500/10 rounded-xl border border-sky-500/20"><Server className="w-4 h-4 text-sky-400" /></div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-white uppercase tracking-widest">Topology Maps</span>
+                                                <span className="text-[8px] font-medium text-slate-500 uppercase tracking-widest">Sites & Rooms</span>
+                                            </div>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-white transition-colors" />
+                                    </div>
+                                </Link>
                             </div>
-                            <button
-                                onClick={() => setShowConfig(true)}
-                                className="w-full px-4 py-2 bg-gradient-to-r from-accent-primary/20 to-accent-primary/5 hover:from-accent-primary/30 hover:to-accent-primary/10 rounded-lg border border-accent-primary/30 transition-all font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(14,165,233,0.15)] text-accent-primary"
-                            >
-                                <Sliders className="w-4 h-4" />
-                                Gestión Operativa
-                            </button>
+
+                            <div className="mt-auto space-y-3 shrink-0">
+                                <div className="p-4 bg-emerald-500/5 rounded-[1.5rem] border border-emerald-500/10 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-2 h-2 rounded-full ${isSystemEmpty ? 'bg-slate-700' : 'bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]'}`} />
+                                        <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest">Core Status Ready</span>
+                                    </div>
+                                    <Activity className="w-3.5 h-3.5 text-emerald-500/50" />
+                                </div>
+                                <button
+                                    onClick={() => setShowConfig(true)}
+                                    className="w-full px-4 py-4 bg-sky-600 hover:bg-sky-500 rounded-2xl border border-sky-400/30 transition-all font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 text-white shadow-lg shadow-sky-900/20"
+                                >
+                                    <Sliders className="w-4 h-4" />
+                                    System Configuration
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </aside>
 
-                {/* Main Content */}
-                <div className="flex-1 flex flex-col gap-4 h-full min-w-0">
+                {/* BOTTOM FLOATING DOCK (When Sidebar is Closed) */}
+                {!isSidebarOpen && (
+                    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 p-2 bg-[#0a0c12]/80 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-10 duration-500 px-6 h-16">
+                        <button
+                            onClick={() => setIsSidebarOpen(true)}
+                            className="p-3 bg-sky-500 hover:bg-sky-400 text-white rounded-2xl shadow-xl transition-all group relative"
+                            title="Expandir EMS Sidebar"
+                        >
+                            <LayoutGrid className="w-5 h-5" />
+                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#0a0c12] rounded-full" />
+                        </button>
+
+                        <div className="h-6 w-px bg-white/10 mx-2" />
+
+                        {/* Quick Metrics in Dock */}
+                        <div className="flex gap-6 px-2">
+                            {(() => {
+                                const totalCap = activeBDFBs.reduce((sum, b) => sum + (b.panels?.reduce((ps, p) => ps + p.installedCapacity, 0) || 0), 0);
+                                const totalCons = activeBDFBs.reduce((sum, b) => sum + (b.panels?.reduce((ps, p) => ps + p.consumedCapacity, 0) || 0), 0);
+                                const load = totalCap > 0 ? Math.round((totalCons / totalCap) * 100) : 0;
+                                return (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex flex-col text-right">
+                                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Avg Load</span>
+                                            <span className="text-xs font-mono font-black text-white">{load}%</span>
+                                        </div>
+                                        <div className="w-16 h-1 bg-white/5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-sky-500" style={{ width: `${load}%` }} />
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            <div className="flex items-center gap-3 border-l border-white/5 pl-6">
+                                <button onClick={() => setShowConfig(true)} className="flex items-center gap-2 hover:bg-white/5 p-2 rounded-xl transition-all group">
+                                    <Settings className="w-4 h-4 text-slate-500 group-hover:text-white" />
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest group-hover:text-white">Settings</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {!isSystemEmpty && (
+                            <div className="ml-4 flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Sync Alive</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Main Content (Now expansive) */}
+                <div className="flex-1 flex flex-col gap-4 min-h-0 min-w-0 transition-all duration-500">
 
                     {/* BDFB Section */}
-                    <section className="flex flex-col h-2/3 relative">
+                    <section className="flex flex-col h-[60%] min-h-0 relative">
                         <div className="flex items-center justify-between mb-3 shrink-0 px-1">
-                            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Resumen de BDFBs</h2>
-                            <span className="px-2.5 py-1 bg-white/5 rounded-full text-[10px] font-mono text-slate-500 uppercase tracking-widest border border-white/5">
-                                {selectedIds.length > 0 ? `${selectedIds.length} de ${activeBDFBs.length}` : activeBDFBs.length} Activos
+                            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Consola de BDFBs Activas</h2>
+                            <span className="px-2.5 py-1 bg-white/5 rounded-full text-[9px] font-mono text-slate-600 uppercase tracking-widest border border-white/5">
+                                {selectedIds.length} Pinned Units
                             </span>
                         </div>
 
-                        <div className="flex-1 overflow-x-auto overflow-y-hidden pb-2 relative">
-                            {isLoading ? (
-                                <div className="absolute inset-0 m-1 glass-panel rounded-2xl flex flex-col items-center justify-center border-dashed border-2 border-white/10">
-                                    <div className="w-12 h-12 border-4 border-accent-primary/30 border-t-accent-primary rounded-full animate-spin mb-4" />
-                                    <h3 className="text-white font-black uppercase tracking-widest text-sm">Sincronizando con Base de Datos...</h3>
-                                </div>
-                            ) : isSystemEmpty ? (
-                                <div className="absolute inset-0 m-1 glass-panel rounded-2xl flex flex-col items-center justify-center border-dashed border-2 border-white/10">
-                                    <Inbox className="w-16 h-16 text-slate-600 mb-4" />
-                                    <h3 className="text-white font-black uppercase tracking-widest mb-2">Base de Datos Limpia</h3>
-                                    <p className="text-slate-400 text-sm max-w-sm text-center font-medium">No hay activos registrados en Producción. Por favor accede a <strong>Config & Setup</strong> para realizar la ingesta de topología.</p>
-                                    <button onClick={() => setShowConfig(true)} className="mt-6 px-6 py-3 bg-accent-primary hover:bg-sky-400 text-white font-black uppercase tracking-widest rounded-xl transition-colors shadow-lg shadow-accent-primary/20">Iniciar Ingesta</button>
-                                </div>
-                            ) : !hasActivePins ? (
-                                <div className="absolute inset-0 m-1 glass-panel rounded-2xl flex flex-col items-center justify-center border-dashed border-2 border-white/10">
-                                    <Pin className="w-16 h-16 text-slate-600 mb-4 animate-bounce" />
-                                    <h3 className="text-white font-black uppercase tracking-widest mb-2">Home No Configurado</h3>
-                                    <p className="text-slate-400 text-sm max-w-sm text-center font-medium">Usa los botones de <strong>Pin</strong> en los ajustes para seleccionar qué BDFBs quieres ver en el resumen de hoy.</p>
-                                    <button onClick={() => setShowConfig(true)} className="mt-6 px-6 py-3 bg-accent-primary hover:bg-sky-400 text-white font-black uppercase tracking-widest rounded-xl transition-colors shadow-lg shadow-accent-primary/20 flex items-center gap-2"> <Settings className="w-4 h-4" /> Abrir Configuración</button>
-                                </div>
-                            ) : (
-                                <div className="flex gap-4 h-full min-w-max px-1">
-                                    {filteredBDFBs.map((bdfb: BDFBData) => (
-                                        <div key={bdfb.id} className="flex justify-center items-center w-[300px] h-auto">
-                                            <BDFBSummary bdfb={bdfb} />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                        <div className="flex-1 glass-panel rounded-3xl overflow-hidden relative border border-white/5 bg-black/20">
+                            <div className="p-6 h-full overflow-x-auto overflow-y-hidden custom-scrollbar">
+                                {isLoading ? (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <div className="w-10 h-10 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin mb-4" />
+                                        <h3 className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px]">Syncing Telemetry...</h3>
+                                    </div>
+                                ) : isSystemEmpty ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
+                                        <Inbox className="w-12 h-12 mb-4" />
+                                        <h3 className="text-white font-black uppercase tracking-widest mb-1">Inventario Vacío</h3>
+                                        <p className="text-[10px] uppercase font-bold tracking-widest">Accede a Gestión para realizar la ingesta.</p>
+                                    </div>
+                                ) : !hasActivePins ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-center px-10">
+                                        <Pin className="w-10 h-10 text-sky-500 mb-4 animate-bounce" />
+                                        <h3 className="text-white font-black uppercase tracking-widest mb-2">Workspace No Personalizado</h3>
+                                        <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest leading-loose">USA EL PIN EN GESTIÓN OPERATIVA PARA MOSTRAR LAS BDFBS EN ESTA VISTA.</p>
+                                    </div>
+                                ) : (
+                                    <div className="flex gap-6 h-full min-w-max items-center">
+                                        {filteredBDFBs.map((bdfb: BDFBData) => (
+                                            <div key={bdfb.id} className="h-full py-4 flex items-center justify-center min-w-[320px]">
+                                                <BDFBSummary bdfb={bdfb} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </section>
 
                     {/* Notifications Section */}
-                    <section className="flex flex-col h-1/3 flex-1 min-h-0">
+                    <section className="flex flex-col h-[40%] min-h-0">
                         <div className="flex items-center gap-3 mb-3 shrink-0 px-1">
-                            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Notificaciones Críticas</h2>
-                            {!isSystemEmpty && <span className="flex h-1.5 w-1.5 rounded-full bg-danger animate-pulse" />}
+                            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Notificaciones de Ingeniería</h2>
+                            {!isSystemEmpty && <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                         </div>
-                        <div className="glass-panel flex-1 rounded-2xl overflow-hidden border-white/5 flex flex-col min-h-0">
-                            <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+                        <div className="glass-panel flex-1 rounded-3xl overflow-hidden border border-white/5 flex flex-col min-h-0 bg-black/20">
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                                 {isSystemEmpty ? (
-                                    <div className="h-full flex items-center justify-center opacity-50 px-4 text-center">
-                                        <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Esperando telemetría inicial...</p>
+                                    <div className="h-full flex items-center justify-center opacity-30 text-center">
+                                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-[0.4em]">Listening for telemetry streams...</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
-                                        <div className="p-4 bg-success/10 border border-success/20 rounded-2xl flex items-start gap-4">
-                                            <div className="p-2 bg-success text-black rounded-lg"><CheckCircle2 className="w-4 h-4" /></div>
+                                        <div className="p-5 bg-emerald-500/5 border border-emerald-500/10 rounded-[2rem] flex items-center gap-5 group hover:bg-emerald-500/10 transition-all">
+                                            <div className="p-3 bg-emerald-500/20 text-emerald-500 rounded-2xl"><CheckCircle2 className="w-5 h-5 shadow-[0_0_15px_rgba(16,185,129,0.3)]" /></div>
                                             <div>
-                                                <h4 className="text-white font-black text-xs uppercase tracking-widest">Estado Nominal</h4>
-                                                <p className="text-slate-400 text-[10px] mt-1">El sistema está operando dentro de los límites de seguridad en todos los nodos detectados.</p>
+                                                <h4 className="text-white font-black text-xs uppercase tracking-widest">Infraestructura Estable</h4>
+                                                <p className="text-slate-500 text-[10px] mt-1 font-bold uppercase tracking-tighter">Sin anomalías detectadas en los últimos 45 reportes de carga.</p>
                                             </div>
                                         </div>
-                                        {isProd && (
-                                            <p className="text-[9px] text-slate-600 font-bold uppercase tracking-[0.3em] text-center pt-4">Telemetría de Producción Activa • {new Date().toLocaleDateString()}</p>
-                                        )}
                                     </div>
                                 )}
                             </div>
-                            <button className="w-full py-2.5 bg-white/5 hover:bg-white/10 transition-colors text-xs font-bold text-slate-500 uppercase tracking-widest border-t border-white/5 shrink-0" disabled={isSystemEmpty}>
-                                Ver historial completo
+                            <button className="w-full py-3 bg-white/[0.02] hover:bg-white/5 transition-colors text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] border-t border-white/5 shrink-0" disabled={isSystemEmpty}>
+                                Ver Eventos de Red Completo
                             </button>
                         </div>
                     </section>

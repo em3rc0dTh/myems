@@ -71,7 +71,23 @@ export const MqttProvider = ({ children }: { children: React.ReactNode }) => {
                         if (parsed.type === 'message') {
                             const data = JSON.parse(parsed.msg);
                             if (data.sn) {
-                                setLatestData(prev => ({ ...prev, [data.sn]: data }));
+                                setLatestData(prev => {
+                                    const existing = prev[data.sn] || {};
+                                    const existingReported = (existing.reported as Record<string, unknown>) || {};
+                                    const newReported = (data.reported as Record<string, unknown>) || {};
+                                    
+                                    return {
+                                        ...prev,
+                                        [data.sn]: {
+                                            ...existing,
+                                            ...data,
+                                            reported: {
+                                                ...existingReported,
+                                                ...newReported
+                                            }
+                                        }
+                                    };
+                                });
                                 setRawLogs(prev => [`[${parsed.topic}] ${parsed.msg}`, ...prev].slice(0, 25));
                             }
                         } else if (parsed.type === 'system') {

@@ -35,7 +35,7 @@ export default function RootLayout({
         <MqttProvider>
           <div className="flex min-h-screen">
             <NavigationSidebar />
-            <div className="flex-1 lg:pl-32 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0">
                {children}
             </div>
           </div>

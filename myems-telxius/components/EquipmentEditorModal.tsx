@@ -260,7 +260,37 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                         </div>
                         <div>
                             <h2 className="text-xl font-black text-white uppercase italic tracking-widest">{device.name}</h2>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Configuración Física de Módulos</p>
+                            <div className="flex items-center gap-3 mt-1">
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">S/N:</p>
+                                <input 
+                                    defaultValue={device.serialNumber || ''} 
+                                    onBlur={async (e) => {
+                                        const newSn = e.target.value;
+                                        if (newSn === device.serialNumber) return;
+                                        try {
+                                            await fetch(`/telxius/api/devices/?id=${device.id}`, {
+                                                method: 'PUT',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ serialNumber: newSn })
+                                            });
+                                            Swal.fire({
+                                                toast: true,
+                                                position: 'top-end',
+                                                icon: 'success',
+                                                title: 'S/N Vinculado',
+                                                showConfirmButton: false,
+                                                timer: 1500,
+                                                background: '#0f172a',
+                                                color: '#fff'
+                                            });
+                                        } catch (e) {
+                                            console.error("Error updating SN", e);
+                                        }
+                                    }}
+                                    className="bg-sky-500/5 border border-sky-500/20 rounded px-2 py-0.5 text-[10px] font-mono text-sky-400 focus:border-sky-500 outline-none w-40"
+                                    placeholder="Click para asignar SN..."
+                                />
+                            </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
