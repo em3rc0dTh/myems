@@ -75,7 +75,14 @@ const STEPS = [
     endpoint: '/telxius/api/bulk/sites/',
     templateName: '01_site_template.json',
     sample: [
-      { name: "Datacenter Lurin", width: 150.0, length: 200.0, measurementUnit: "METRIC", isLogical: false }
+      { 
+        name: "Datacenter Lurin", 
+        address: "Panamericana Sur Km 35",
+        geoCoords: "-12.2530, -76.8820",
+        width: 155.0, 
+        length: 120.0, 
+        isLogical: false 
+      }
     ]
   },
   {
@@ -85,7 +92,14 @@ const STEPS = [
     icon: Inbox,
     endpoint: '/telxius/api/bulk/devices/?isCatalog=true',
     templateName: '02_catalog_template.json',
-    sample: [{ name: "BDFB-TEMPLATE-V1", category: "BDFB", isTemplate: true }]
+    sample: [{ 
+      name: "BDFB-TEMPLATE-V1", 
+      category: "BDFB", 
+      uHeight: 44, 
+      physWidth: 60, 
+      physDepth: 60, 
+      physHeight: 200 
+    }]
   }
   // },
   // {

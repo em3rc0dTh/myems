@@ -17,7 +17,9 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
   const [loading, setLoading] = useState(true);
   const [namingModal, setNamingModal] = useState<{ isOpen: boolean, points: any[] }>({ isOpen: false, points: [] });
   const [newRoomName, setNewRoomName] = useState("");
-  const [activeTool, setActiveTool] = useState<'POLYGON' | 'MOVE'>('POLYGON');
+  const [activeTool, setActiveTool] = useState<'POLYGON' | 'MOVE' | 'REFERENCE_SYMBOL'>('POLYGON');
+  const [symbolType, setSymbolType] = useState<'DOOR' | 'COLUMN' | 'WINDOW' | 'PANEL' | 'HVAC' | 'SECURITY'>('DOOR');
+  const [symbolRotation, setSymbolRotation] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -41,6 +43,12 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
         const allRooms = (obj.levels || []).flatMap((level: any) => level.rooms || []);
         console.log("FETCH: Flattened Rooms discovered:", allRooms.length);
         setRooms(allRooms);
+        if (obj.spatialMetadata) {
+          try {
+            const sm = typeof obj.spatialMetadata === 'string' ? JSON.parse(obj.spatialMetadata) : obj.spatialMetadata;
+            if (sm.references) setLocalElements(prev => [...prev.filter(el => el.type !== 'REFERENCE'), ...(sm.references || [])]);
+          } catch(e) {}
+        }
       }
     } catch (e) {
       console.error("Error loading building data", e);
@@ -66,6 +74,10 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
     setNamingModal({ isOpen: false, points: [] });
     setNewRoomName("");
     setActiveTool('MOVE');
+  };
+
+  const handleElementAdded = (newEl: any) => {
+    setLocalElements(prev => [...prev, { ...newEl, symbol: symbolType }]);
   };
 
   const handleElementUpdated = (updatedEl: any) => {
@@ -108,6 +120,22 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
           })
         });
       }
+
+      // PERSIST REFERENCE ICONS TO STRUCTURE
+      const refs = localElements.filter(el => el.type === 'REFERENCE');
+      const existingMetadata = structure.spatialMetadata ? (typeof structure.spatialMetadata === 'string' ? JSON.parse(structure.spatialMetadata) : structure.spatialMetadata) : {};
+      
+      await fetch(`/telxius/api/structures/?id=${structureId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spatialMetadata: JSON.stringify({
+            ...existingMetadata,
+            references: refs
+          })
+        })
+      });
+
       setLocalElements([]);
       setIsDrafting(false);
       setActiveTool('POLYGON');
@@ -168,7 +196,21 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
             >
               Draw Room
             </button>
+            <button 
+              onClick={() => { setIsDrafting(true); setActiveTool('REFERENCE_SYMBOL'); }}
+              className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'REFERENCE_SYMBOL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              Add Icon
+            </button>
           </div>
+
+          {isDrafting && activeTool === 'REFERENCE_SYMBOL' && (
+            <div className="flex bg-white/5 p-1 rounded-lg border border-white/5 gap-1 mr-4">
+              {['DOOR', 'COLUMN', 'WINDOW', 'PANEL', 'HVAC', 'SECURITY'].map(s => (
+                <button key={s} onClick={() => setSymbolType(s as any)} className={`px-2 py-1 text-[7px] font-black uppercase rounded-md transition-all ${symbolType === s ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}>{s}</button>
+              ))}
+            </div>
+          )}
 
           {activeTool === 'MOVE' && (
             <button 
@@ -216,8 +258,10 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
               gridSize={80}
               isEditable={isDrafting}
               activeTool={activeTool}
+              stampSize={symbolType === 'COLUMN' ? { w: 50, h: 50 } : (symbolType === 'DOOR' ? { w: 100, h: 10 } : (symbolType === 'HVAC' ? { w: 80, h: 80 } : { w: 120, h: 10 }))}
               elements={allVisualElements}
               onDrawingComplete={handleDrawingComplete}
+              onElementAdded={handleElementAdded}
               onElementUpdated={handleElementUpdated}
               className="w-full h-full"
             />

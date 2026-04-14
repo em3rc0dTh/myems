@@ -72,3 +72,17 @@ export async function POST(req: NextRequest) {
     await prisma.$disconnect();
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get("id");
+  const body = await req.json();
+  if (!id) return NextResponse.json({ ok: false, error: "id requerido" }, { status: 400 });
+  try {
+    const struct = await prisma.structure.update({ where: { id }, data: body });
+    return NextResponse.json({ ok: true, data: struct });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
+  }
+}

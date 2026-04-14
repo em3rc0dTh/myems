@@ -7,7 +7,7 @@ import BDFBFrontView from '@/components/BDFBFrontView';
 import BDFBRackDetail from '@/components/BDFBRackDetail';
 import MeteringDiagram from '@/components/MeteringDiagram';
 import EnergyHistoryView from '@/components/EnergyHistoryView';
-import { Plus, LayoutGrid, Cpu, CheckCircle2, AlertTriangle, Activity, Inbox } from 'lucide-react';
+import { Plus, LayoutGrid, Cpu, CheckCircle2, AlertTriangle, Activity, Inbox, MapPin } from 'lucide-react';
 import { BDFB_MOCK_DATA } from '@/lib/mockData';
 import { BDFBData, BreakerData, HistoryPoint } from '@/lib/types';
 import { useMqtt } from '@/lib/MqttContext';
@@ -184,7 +184,15 @@ const BDFBDetailPage: React.FC = () => {
                             <span className="text-gradient leading-tight">{bdfbData?.name || 'BDFB Node'}</span>
                             <span className="text-slate-600 font-medium tracking-normal text-xs uppercase px-3 py-1 bg-white/5 rounded-lg">{viewMode === 'room' ? 'Digital Twin' : 'Physical Detail'}</span>
                         </h1>
-                        <p className="text-slate-500 text-[10px] mt-0.5 uppercase tracking-[0.2em] font-bold">{bdfbData?.location || 'Lurin DC'} • {isProd && `SN: ${bdfbData?.sn}`}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                            <span className="px-2 py-0.5 bg-white/5 border border-white/5 rounded text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none flex items-center gap-1.5">
+                                <MapPin className="w-2.5 h-2.5" />
+                                {bdfbData?.location || 'Site Emplacement'}
+                            </span>
+                            <span className="text-sky-400 text-[9px] font-black uppercase tracking-[0.2em]">
+                                {isProd && bdfbData?.sn ? `SN: ${bdfbData.sn}` : 'ID-SYSTEM'}
+                            </span>
+                        </div>
                     </div>
                 </div>
 

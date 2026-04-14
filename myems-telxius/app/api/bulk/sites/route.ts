@@ -51,6 +51,8 @@ export async function POST(req: Request) {
                     data: { 
                         name: item.name, 
                         districtId: defaultDistrictId,
+                        address: item.address || null,
+                        geoCoords: item.geoCoords || null,
                         width: item.width ? parseFloat(item.width) : null,
                         length: item.length ? parseFloat(item.length) : null,
                         isLogical: item.isLogical || false

@@ -76,7 +76,11 @@ export async function POST(req: Request) {
                         category: item.category || "GENERAL",
                         siteId: site.id,
                         containerId: container?.id || null,
-                        uPosition: item.uPosition ? Number(item.uPosition) : null
+                        uPosition: item.uPosition ? Number(item.uPosition) : null,
+                        uHeight: item.uHeight ? Number(item.uHeight) : 1,
+                        physWidth: item.physWidth ? Number(item.physWidth) : null,
+                        physDepth: item.physDepth ? Number(item.physDepth) : null,
+                        physHeight: item.physHeight ? Number(item.physHeight) : null
                     }
                 });
             }

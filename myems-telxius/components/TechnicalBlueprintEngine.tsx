@@ -21,7 +21,7 @@ interface BlueprintProps {
   onDrawingComplete?: (points: Point[]) => void;
   onElementAdded?: (element: any) => void;
   onElementUpdated?: (element: any) => void;
-  activeTool?: 'POLYGON' | 'CLUSTER_STAMP' | 'MOVE' | null;
+  activeTool?: 'POLYGON' | 'CLUSTER_STAMP' | 'MOVE' | 'REFERENCE_SYMBOL' | null;
   stampSize?: { w: number, h: number };
 }
 
@@ -151,16 +151,19 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
 
     if (activeTool === 'POLYGON') {
       setActivePoints(prev => [...prev, coords]);
-    } else if (activeTool === 'CLUSTER_STAMP' && onElementAdded) {
+    } else if (activeTool === 'REFERENCE_SYMBOL' && onElementAdded) {
+      const sizes: any = { DOOR: { w: 100, h: 10 }, COLUMN: { w: 50, h: 50 }, WINDOW: { w: 120, h: 10 }, PANEL: { w: 40, h: 20 } };
+      // Note: Rotation state should ideally come from parent, but default to 0 for now or assume stampSize.w/h is already set
+      const s = stampSize || { w: 100, h: 10 }; 
       onElementAdded({
-        id: `cluster-${Date.now()}`,
-        type: 'ZONE',
-        label: 'New Area',
+        id: `ref-${Date.now()}`,
+        type: 'REFERENCE',
+        label: '',
         points: [
-          { x: coords.x, y: coords.y },
-          { x: coords.x + stampSize.w, y: coords.y },
-          { x: coords.x + stampSize.w, y: coords.y + stampSize.h },
-          { x: coords.x, y: coords.y + stampSize.h }
+          { x: coords.x - s.w/2, y: coords.y - s.h/2 },
+          { x: coords.x + s.w/2, y: coords.y - s.h/2 },
+          { x: coords.x + s.w/2, y: coords.y + s.h/2 },
+          { x: coords.x - s.w/2, y: coords.y + s.h/2 }
         ]
       });
     }
@@ -311,25 +314,39 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
 
         <polyline points={boundaryPoints.length > 0 ? [...boundaryPoints, boundaryPoints[0]].map(p => `${p.x},${p.y}`).join(' ') : ""} fill="rgba(15, 23, 42, 0.6)" stroke="#475569" strokeWidth={3 / zoom} />
 
-        {elements.map(zone => (
-          <g key={zone.id} onMouseDown={(e) => handleDragStart(e, zone)} className={`${isEditable && activeTool === 'MOVE' ? 'cursor-grab active:cursor-grabbing hover:filter hover:brightness-125' : ''}`}>
-            {zone.points && (
-              <polygon points={zone.points.map((p: any) => `${p.x},${p.y}`).join(' ')} fill={zone.color || 'rgba(59, 130, 246, 0.1)'} stroke={zone.color || '#3b82f6'} strokeWidth={(draggingElement?.id === zone.id ? 3 : 1.5) / zoom} strokeDasharray={draggingElement?.id === zone.id ? "" : `${4 / zoom} ${2 / zoom}`} />
-            )}
-            {zone.label && zone.points && zone.points.length >= 3 && (
-              <text 
-                x={zone.points.reduce((acc: number, p: any) => acc + p.x, 0) / zone.points.length} 
-                y={zone.points.reduce((acc: number, p: any) => acc + p.y, 0) / zone.points.length} 
-                textAnchor="middle" 
-                dominantBaseline="central"
-                className="fill-white font-black uppercase tracking-widest pointer-events-none italic drop-shadow-lg" 
-                style={{ fontSize: 48 / zoom }}
-              >
-                {zone.label}
-              </text>
-            )}
-          </g>
-        ))}
+        {elements.map(zone => {
+          const isReference = zone.type === 'REFERENCE';
+          const pointsStr = zone.points?.map((p: any) => `${p.x},${p.y}`).join(' ');
+          
+          return (
+            <g key={zone.id} onMouseDown={(e) => handleDragStart(e, zone)} className={`${isEditable && activeTool === 'MOVE' ? 'cursor-grab active:cursor-grabbing hover:filter hover:brightness-125' : ''}`}>
+              {zone.points && (
+                <polygon 
+                  points={pointsStr} 
+                  fill={isReference ? 'rgba(239, 68, 68, 0.2)' : (zone.color || 'rgba(59, 130, 246, 0.1)')} 
+                  stroke={isReference ? '#ef4444' : (zone.color || '#3b82f6')} 
+                  strokeWidth={(draggingElement?.id === zone.id ? 3 : 1.5) / zoom} 
+                  strokeDasharray={(!isReference && draggingElement?.id !== zone.id) ? `${4 / zoom} ${2 / zoom}` : ""} 
+                />
+              )}
+              {isReference && zone.points && (
+                <text x={zone.points[0].x} y={zone.points[0].y} dy="-5" className="fill-white/40 font-black uppercase tracking-widest" style={{ fontSize: 18 / zoom }}>{zone.symbol || 'REF'}</text>
+              )}
+              {zone.label && zone.points && zone.points.length >= 3 && !isReference && (
+                <text 
+                  x={zone.points.reduce((acc: number, p: any) => acc + p.x, 0) / zone.points.length} 
+                  y={zone.points.reduce((acc: number, p: any) => acc + p.y, 0) / zone.points.length} 
+                  textAnchor="middle" 
+                  dominantBaseline="central"
+                  className="fill-white font-black uppercase tracking-widest pointer-events-none italic drop-shadow-lg" 
+                  style={{ fontSize: 48 / zoom }}
+                >
+                  {zone.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
         {children}
       </svg>
     </div>

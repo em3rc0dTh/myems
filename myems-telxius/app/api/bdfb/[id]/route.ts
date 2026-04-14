@@ -70,7 +70,7 @@ export async function GET(
 
     const bdfbData = {
       id: device.id,
-      sn: device.id, 
+      sn: device.sn || device.id, 
       name: device.name,
       location: locationName,
       substructureId: substructureId,

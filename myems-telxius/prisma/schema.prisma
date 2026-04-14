@@ -211,6 +211,12 @@ model Device {
   container   Container?  @relation(fields: [containerId], references: [id])
   uPosition   Int?        // Posición inicial en el rack (U1, U2...)
   uHeight     Int?        @default(1) // Altura en unidades (Rack Units)
+
+  // -- Propiedades Físicas (Footprint) --
+  physWidth   Float?      // Ancho en cm
+  physDepth   Float?      // Profundidad/Pisada en cm
+  physHeight  Float?      // Altura total en cm
+
   isPinned    Boolean     @default(false)
 
   positions  Position[]  // Relación inversa: posiciones que ocupa

@@ -3,10 +3,30 @@
 import React, { useState } from 'react';
 import { ChevronRight, Home, MapPin, Building2, DoorOpen, Layers, ArrowRight, Database } from 'lucide-react';
 import SiteDashboardView from './SiteDashboardView';
+import WarehouseInventoryView from './WarehouseInventoryView';
 import StructureDashboardView from './StructureDashboardView';
 import RoomView from './RoomView';
+import { useMqtt } from '@/lib/MqttContext';
+import { Activity } from 'lucide-react';
 
 type ViewMode = 'SITE' | 'STRUCTURE' | 'ROOM';
+
+function MqttIndicator() {
+  const { isConnected, latestData } = useMqtt();
+  const dataCount = Object.keys(latestData).length;
+
+  return (
+    <div className="flex items-center gap-2.5 px-4 py-1.5 bg-black/20 rounded-full border border-white/5 ring-1 ring-white/5">
+      <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500'}`} />
+      <div className="flex items-center gap-1.5">
+        <Activity className={`w-3 h-3 ${isConnected ? 'text-sky-400' : 'text-slate-600'}`} />
+        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+          {isConnected ? `Live: ${dataCount} Nodes` : 'MQTT Offline'}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default function TopologyDashboard() {
   const [viewMode, setViewMode] = useState<ViewMode>('SITE');
@@ -15,6 +35,9 @@ export default function TopologyDashboard() {
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const selectedSite = allSites.find(s => s.id === selectedSiteId);
+  const isAlmacen = selectedSite?.name?.toUpperCase().includes('ALMACÉN') || selectedSite?.name?.toUpperCase().includes('ALMACEN');
 
   // Load all sites on mount
   React.useEffect(() => {
@@ -100,8 +123,9 @@ export default function TopologyDashboard() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="px-4 py-1.5 bg-white/5 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-            ENGINEERING GRADE: <span className="text-emerald-400">MILIMETRIC SYNC</span>
+          <MqttIndicator />
+          <div className="px-4 py-1.5 bg-white/5 rounded-full border border-white/5 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-slate-600">
+             {isAlmacen ? "MASTER CATALOG MODE" : "ENGINEERING GRADE: MILIMETRIC SYNC"}
           </div>
         </div>
       </div>
@@ -131,23 +155,23 @@ export default function TopologyDashboard() {
               {allSites.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {allSites.map(site => {
-                    const isAlmacen = site.name?.toUpperCase().includes('ALMACÉN') || site.name?.toUpperCase().includes('ALMACEN');
-                    const Icon = isAlmacen ? Database : MapPin;
+                    const isSiteAlmacen = site.name?.toUpperCase().includes('ALMACÉN') || site.name?.toUpperCase().includes('ALMACEN');
+                    const Icon = isSiteAlmacen ? Database : MapPin;
                     
                     return (
                       <button
                         key={site.id}
                         onClick={() => setSelectedSiteId(site.id)}
-                        className={`group relative flex flex-col p-8 bg-white/[0.02] border rounded-[40px] transition-all text-left overflow-hidden ${isAlmacen ? 'border-amber-500/20 hover:bg-amber-500/5 hover:border-amber-500/40' : 'border-white/5 hover:bg-sky-500/5 hover:border-sky-500/40'}`}
+                        className={`group relative flex flex-col p-8 bg-white/[0.02] border rounded-[40px] transition-all text-left overflow-hidden ${isSiteAlmacen ? 'border-amber-500/20 hover:bg-amber-500/5 hover:border-amber-500/40' : 'border-white/5 hover:bg-sky-500/5 hover:border-sky-500/40'}`}
                       >
                         <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 transition-opacity">
                           <Icon className="w-20 h-20" />
                         </div>
-                        <div className={`p-3 rounded-2xl border w-fit mb-6 transition-all ${isAlmacen ? 'bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500 group-hover:text-black' : 'bg-sky-500/10 border-sky-500/20 group-hover:bg-sky-500 group-hover:text-black'}`}>
+                        <div className={`p-3 rounded-2xl border w-fit mb-6 transition-all ${isSiteAlmacen ? 'bg-amber-500/10 border-amber-500/20 group-hover:bg-amber-500 group-hover:text-black' : 'bg-sky-500/10 border-sky-500/20 group-hover:bg-sky-500 group-hover:text-black'}`}>
                           <Icon className="w-5 h-5" />
                         </div>
                         
-                        {isAlmacen && (
+                        {isSiteAlmacen && (
                           <div className="mb-4">
                             <span className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-md text-[7px] font-black text-amber-500 uppercase tracking-[0.2em]">
                               ALMACÉN TÉCNICO • CATALOG
@@ -156,13 +180,13 @@ export default function TopologyDashboard() {
                         )}
 
                         <h3 className="text-xl font-black uppercase italic tracking-tighter text-white mb-2">{site.name}</h3>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-6">{isAlmacen ? 'Repositorio de Plantillas Maestras' : (site.address || 'Geo-Location Pending')}</p>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-6">{isSiteAlmacen ? 'Repositorio de Plantillas Maestras' : (site.address || 'Geo-Location Pending')}</p>
   
                         <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-6">
-                          <span className={`text-[9px] font-black uppercase tracking-widest ${isAlmacen ? 'text-amber-500' : 'text-sky-400'}`}>
-                            {isAlmacen ? 'Gestionar Plantillas' : 'Enter Master Plan'}
+                          <span className={`text-[9px] font-black uppercase tracking-widest ${isSiteAlmacen ? 'text-amber-500' : 'text-sky-400'}`}>
+                            {isSiteAlmacen ? 'Gestionar Plantillas' : 'Enter Master Plan'}
                           </span>
-                          <ArrowRight className={`w-4 h-4 transform group-hover:translate-x-1 transition-transform ${isAlmacen ? 'text-amber-500' : 'text-sky-400'}`} />
+                          <ArrowRight className={`w-4 h-4 transform group-hover:translate-x-1 transition-transform ${isSiteAlmacen ? 'text-amber-500' : 'text-sky-400'}`} />
                         </div>
                       </button>
                     );
@@ -182,10 +206,14 @@ export default function TopologyDashboard() {
         ) : (
           <>
             {viewMode === 'SITE' && (
-              <SiteDashboardView
-                siteId={selectedSiteId}
-                onStructureSelect={navigateToStructure}
-              />
+              isAlmacen ? (
+                <WarehouseInventoryView siteId={selectedSiteId} />
+              ) : (
+                <SiteDashboardView
+                  siteId={selectedSiteId}
+                  onStructureSelect={navigateToStructure}
+                />
+              )
             )}
 
             {viewMode === 'STRUCTURE' && selectedStructureId && (

@@ -263,33 +263,88 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                             <div className="flex items-center gap-3 mt-1">
                                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">S/N:</p>
                                 <input 
-                                    defaultValue={device.serialNumber || ''} 
+                                    defaultValue={device.sn || ''} 
                                     onBlur={async (e) => {
                                         const newSn = e.target.value;
-                                        if (newSn === device.serialNumber) return;
+                                        if (newSn === device.sn) return;
                                         try {
                                             await fetch(`/telxius/api/devices/?id=${device.id}`, {
-                                                method: 'PUT',
+                                                method: 'PATCH',
                                                 headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ serialNumber: newSn })
+                                                body: JSON.stringify({ sn: newSn })
                                             });
-                                            Swal.fire({
-                                                toast: true,
-                                                position: 'top-end',
-                                                icon: 'success',
-                                                title: 'S/N Vinculado',
-                                                showConfirmButton: false,
-                                                timer: 1500,
-                                                background: '#0f172a',
-                                                color: '#fff'
-                                            });
+                                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'S/N Vinculado', showConfirmButton: false, timer: 1500, background: '#0f172a', color: '#fff' });
                                         } catch (e) {
                                             console.error("Error updating SN", e);
                                         }
                                     }}
-                                    className="bg-sky-500/5 border border-sky-500/20 rounded px-2 py-0.5 text-[10px] font-mono text-sky-400 focus:border-sky-500 outline-none w-40"
-                                    placeholder="Click para asignar SN..."
+                                    className="bg-sky-500/5 border border-sky-500/20 rounded px-2 py-0.5 text-[10px] font-mono text-sky-400 focus:border-sky-500 outline-none w-32"
+                                    placeholder="Serial Number..."
                                 />
+                                
+                                <div className="h-4 w-px bg-white/10 mx-1" />
+                                
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">W:</span>
+                                    <input 
+                                        defaultValue={device.physWidth || ''} 
+                                        type="number"
+                                        onBlur={async (e) => {
+                                            await fetch(`/telxius/api/devices/?id=${device.id}`, {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ physWidth: e.target.value })
+                                            });
+                                        }}
+                                        className="bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-slate-300 w-12 text-center"
+                                        placeholder="cm"
+                                    />
+                                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">D (Pisada):</span>
+                                    <input 
+                                        defaultValue={device.physDepth || ''} 
+                                        type="number"
+                                        onBlur={async (e) => {
+                                            await fetch(`/telxius/api/devices/?id=${device.id}`, {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ physDepth: e.target.value })
+                                            });
+                                        }}
+                                        className="bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-slate-300 w-12 text-center"
+                                        placeholder="cm"
+                                    />
+                                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">H:</span>
+                                    <input 
+                                        defaultValue={device.physHeight || ''} 
+                                        type="number"
+                                        onBlur={async (e) => {
+                                            await fetch(`/telxius/api/devices/?id=${device.id}`, {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ physHeight: e.target.value })
+                                            });
+                                        }}
+                                        className="bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-slate-300 w-12 text-center"
+                                        placeholder="cm"
+                                    />
+
+                                    <div className="h-4 w-px bg-white/10 mx-1" />
+
+                                    <span className="text-[8px] font-black text-sky-500 uppercase tracking-widest">Rack Units (U):</span>
+                                    <input 
+                                        defaultValue={device.uHeight || 1} 
+                                        type="number"
+                                        onBlur={async (e) => {
+                                            await fetch(`/telxius/api/devices/?id=${device.id}`, {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ uHeight: e.target.value })
+                                            });
+                                        }}
+                                        className="bg-sky-500/10 border border-sky-500/30 rounded px-1.5 py-0.5 text-[10px] text-sky-400 w-10 text-center font-bold"
+                                        placeholder="U"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>

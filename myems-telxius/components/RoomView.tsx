@@ -20,9 +20,11 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
 
   // DRAWING ENGINE STATE
   const [isDrafting, setIsDrafting] = useState(false);
-  const [activeTool, setActiveTool] = useState<'POLYGON' | 'CLUSTER_STAMP' | 'BAY_DRAFTING'>('CLUSTER_STAMP');
+  const [activeTool, setActiveTool] = useState<'POLYGON' | 'CLUSTER_STAMP' | 'BAY_DRAFTING' | 'REFERENCE_SYMBOL'>('CLUSTER_STAMP');
   const [stampSize, setStampSize] = useState({ w: 60, h: 60 });
   const [containerType, setContainerType] = useState<'RACK' | 'CABINET'>('RACK');
+  const [symbolType, setSymbolType] = useState<'DOOR' | 'COLUMN' | 'WINDOW' | 'PANEL' | 'HVAC' | 'SECURITY'>('DOOR');
+  const [symbolRotation, setSymbolRotation] = useState(0);
   const [uCapacity, setUCapacity] = useState(42);
   const [customSize, setCustomSize] = useState({ w: 60, h: 60 });
   const [localElements, setLocalElements] = useState<any[]>([]);
@@ -33,6 +35,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
   const svgRef = useRef<SVGSVGElement>(null);
 
   const TILE_SIZE = 60;
+  const contentRef = useRef<SVGGElement>(null);
 
   const PRESET_SIZES = [
     { label: '60x60', w: 60, h: 60 },
@@ -53,7 +56,8 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
           if (obj.spatialMetadata) {
             try {
               const sm = typeof obj.spatialMetadata === 'string' ? JSON.parse(obj.spatialMetadata) : obj.spatialMetadata;
-              if (sm.clusters) setLocalElements(sm.clusters);
+              if (sm.clusters) setLocalElements(prev => [...prev.filter(el => el.type !== 'ZONE'), ...(sm.clusters || [])]);
+              if (sm.references) setLocalElements(prev => [...prev.filter(el => el.type !== 'REFERENCE'), ...(sm.references || [])]);
             } catch (e) { }
           }
           if (obj.racks) setLocalRacks(obj.racks);
@@ -96,12 +100,13 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 });
 
   const getSvgCoords = (e: React.MouseEvent) => {
-    if (!svgRef.current) return null;
+    if (!svgRef.current || !contentRef.current) return null;
     const svg = svgRef.current;
+    const content = contentRef.current;
     const pt = svg.createSVGPoint();
     pt.x = e.clientX;
     pt.y = e.clientY;
-    const transformed = pt.matrixTransform(svg.getScreenCTM()?.inverse());
+    const transformed = pt.matrixTransform(content.getScreenCTM()?.inverse());
     return {
       x: transformed.x,
       y: transformed.y
@@ -128,6 +133,18 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
     setIsPanning(false);
   };
 
+  const rotatePoint = (x: number, y: number, angleDeg: number, cx: number, cy: number) => {
+    const rad = (angleDeg * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const dx = x - cx;
+    const dy = y - cy;
+    return {
+      x: cx + dx * cos - dy * sin,
+      y: cy + dx * sin + dy * cos
+    };
+  };
+
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey) {
       e.preventDefault();
@@ -141,87 +158,91 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
     const coords = getSvgCoords(e);
     if (!coords) return;
 
-    if (activeTool === 'CLUSTER_STAMP') {
+    if (activeTool === 'CLUSTER_STAMP' && alignmentData) {
       const w = stampSize.w;
       const h = stampSize.h;
 
+      // 1. Transform Click to Aligned Space
+      const uCoords = rotatePoint(coords.x, coords.y, -alignmentData.angle, alignmentData.centerX, alignmentData.centerY);
+
       const allBays = [
-        ...persistedRows.map(r => ({
-          ...r, points: JSON.parse(r.spatialMetadata).points || [
-            { x: JSON.parse(r.spatialMetadata).x, y: JSON.parse(r.spatialMetadata).y },
-            { x: JSON.parse(r.spatialMetadata).x + JSON.parse(r.spatialMetadata).w, y: JSON.parse(r.spatialMetadata).y },
-            { x: JSON.parse(r.spatialMetadata).x + JSON.parse(r.spatialMetadata).w, y: JSON.parse(r.spatialMetadata).y + JSON.parse(r.spatialMetadata).h },
-            { x: JSON.parse(r.spatialMetadata).x, y: JSON.parse(r.spatialMetadata).y + JSON.parse(r.spatialMetadata).h }
-          ]
-        })),
-        ...localElements.filter(el => el.type === 'BAY')
+        ...persistedRows.map(r => {
+          const sm = JSON.parse(r.spatialMetadata);
+          const pts = sm.points || [
+            { x: sm.x, y: sm.y },
+            { x: sm.x + sm.w, y: sm.y },
+            { x: sm.x + sm.w, y: sm.y + sm.h },
+            { x: sm.x, y: sm.y + sm.h }
+          ];
+          // Transform world-norm points to Aligned Space
+          const uPts = pts.map((p: any) => rotatePoint(p.x - bounds.minX, p.y - bounds.minY, -alignmentData.angle, alignmentData.centerX, alignmentData.centerY));
+          return { ...r, uPts };
+        }),
+        ...localElements.filter(el => el.type === 'BAY').map(el => ({
+          ...el,
+          uPts: el.points.map((p: any) => rotatePoint(p.x, p.y, -alignmentData.angle, alignmentData.centerX, alignmentData.centerY))
+        }))
       ];
 
       const targetBay = allBays.find(bay => {
-        const sm = bay.points ? {
-          x: bay.points[0].x,
-          y: bay.points[0].y,
-          w: bay.points[2].x - bay.points[0].x,
-          h: bay.points[2].y - bay.points[0].y
-        } : (typeof bay.spatialMetadata === 'string' ? JSON.parse(bay.spatialMetadata) : bay.spatialMetadata);
+        const uXS = bay.uPts.map((p: any) => p.x);
+        const uYS = bay.uPts.map((p: any) => p.y);
+        const uMinX = Math.min(...uXS);
+        const uMaxX = Math.max(...uXS);
+        const uMinY = Math.min(...uYS);
+        const uMaxY = Math.max(...uYS);
 
-        // Normalizar los límites de la bahía para comparar con el click local
-        const nx = sm.x - bounds.minX;
-        const ny = sm.y - bounds.minY;
-
-        // RULE: Click MUST be inside the bay's local vertical slice initially.
-        return (coords.x >= nx && coords.x + w <= nx + sm.w && coords.y >= ny && coords.y <= ny + sm.h);
+        // Check if uCoords (in aligned space) is inside the aligned bay boundary
+        return (uCoords.x >= uMinX && uCoords.x + w <= uMaxX && uCoords.y >= uMinY && uCoords.y <= uMaxY);
       });
 
       if (!targetBay) {
         Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'warning',
-          title: 'Fuera de Límites',
+          toast: true, position: 'top-end', icon: 'warning', title: 'Fuera de Límites',
           text: 'El rack debe estar dentro de una bahía.',
-          showConfirmButton: false,
-          timer: 3000,
-          background: '#020617',
-          color: '#fff'
+          showConfirmButton: false, timer: 3000, background: '#020617', color: '#fff'
         });
         return;
       }
 
-      const baySM = targetBay.points ? {
-        x: targetBay.points[0].x,
-        y: targetBay.points[0].y,
-        w: targetBay.points[2].x - targetBay.points[0].x,
-        h: targetBay.points[2].y - targetBay.points[0].y
-      } : (typeof targetBay.spatialMetadata === 'string' ? JSON.parse(targetBay.spatialMetadata) : targetBay.spatialMetadata);
+      // 2. Magnetize Y to the Bay's top edge in Aligned Space
+      const uBayTopY = Math.min(...targetBay.uPts.map((p: any) => p.y));
 
-      // Normalizar Y para el iman (magnetize)
-      const finalY = baySM.y - bounds.minY;
+      // 3. Check for Overlap in Aligned Space
+      const currentDraftRacks = localElements.filter(el => el.type === 'ZONE').map(el => ({
+        ...el,
+        uPts: el.points.map((p: any) => rotatePoint(p.x, p.y, -alignmentData.angle, alignmentData.centerX, alignmentData.centerY))
+      }));
 
-      // RULE 2: No Overlap
-      const currentDraftRacks = localElements.filter(el => el.type === 'ZONE');
       const hasOverlap = currentDraftRacks.some(r => {
-        const rx = r.points[0].x;
-        const ry = r.points[0].y;
-        const rw = r.points[1].x - rx;
-        const rh = r.points[3].y - ry;
-        return (coords.x < rx + rw && coords.x + w > rx && finalY < ry + rh && finalY + h > ry);
+        const ruXS = r.uPts.map((p: any) => p.x);
+        const ruYS = r.uPts.map((p: any) => p.y);
+        const ruMinX = Math.min(...ruXS);
+        const ruMaxX = Math.max(...ruXS);
+        const ruMinY = Math.min(...ruYS);
+        const ruMaxY = Math.max(...ruYS);
+        
+        return (uCoords.x < ruMaxX && uCoords.x + w > ruMinX && uBayTopY < ruMaxY && uBayTopY + h > ruMinY);
       });
 
       if (hasOverlap) {
         Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'error',
-          title: 'SolapamientoDetectado',
+          toast: true, position: 'top-end', icon: 'error', title: 'SolapamientoDetectado',
           text: 'No se pueden superponer los racks.',
-          showConfirmButton: false,
-          timer: 3000,
-          background: '#020617',
-          color: '#fff'
+          showConfirmButton: false, timer: 3000, background: '#020617', color: '#fff'
         });
         return;
       }
+
+      // 4. Form 4 vertices in Aligned Space and un-rotate back to World-norm
+      const newAlignedPoints = [
+        { x: uCoords.x, y: uBayTopY },
+        { x: uCoords.x + w, y: uBayTopY },
+        { x: uCoords.x + w, y: uBayTopY + h },
+        { x: uCoords.x, y: uBayTopY + h }
+      ];
+
+      const worldPoints = newAlignedPoints.map(p => rotatePoint(p.x, p.y, alignmentData.angle, alignmentData.centerX, alignmentData.centerY));
 
       const newEl = {
         id: `rack-${Date.now()}`,
@@ -229,23 +250,75 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
         cType: containerType,
         uCapacity: uCapacity,
         label: `${containerType} ${localElements.filter(x => x.type === 'ZONE').length + 1}`,
-        points: [
-          { x: coords.x, y: finalY },
-          { x: coords.x + w, y: finalY },
-          { x: coords.x + w, y: finalY + h },
-          { x: coords.x, y: finalY + h }
-        ]
+        points: worldPoints
       };
       setLocalElements(prev => [...prev, newEl]);
+    } else if (activeTool === 'REFERENCE_SYMBOL' && alignmentData) {
+      const sizes = {
+        DOOR: { w: 100, h: 10 },
+        COLUMN: { w: 50, h: 50 },
+        WINDOW: { w: 120, h: 10 },
+        PANEL: { w: 40, h: 20 },
+        HVAC: { w: 80, h: 80 },
+        SECURITY: { w: 20, h: 20 }
+      };
+      const s = sizes[symbolType];
+      
+      // Calculate 4 points in Aligned Space (centered at click)
+      const uClick = rotatePoint(coords.x, coords.y, -alignmentData.angle, alignmentData.centerX, alignmentData.centerY);
+      
+      // Rotation within aligned space (0, 90, 180, 270)
+      const uPts = [
+        { x: uClick.x - s.w/2, y: uClick.y - s.h/2 },
+        { x: uClick.x + s.w/2, y: uClick.y - s.h/2 },
+        { x: uClick.x + s.w/2, y: uClick.y + s.h/2 },
+        { x: uClick.x - s.w/2, y: uClick.y + s.h/2 }
+      ];
+
+      // Apply symbol rotation around uClick
+      const rotatedUPts = uPts.map(p => rotatePoint(p.x, p.y, symbolRotation, uClick.x, uClick.y));
+
+      // Un-rotate back to World Space
+      const worldPoints = rotatedUPts.map(p => rotatePoint(p.x, p.y, alignmentData.angle, alignmentData.centerX, alignmentData.centerY));
+
+      setLocalElements(prev => [...prev, {
+        id: `ref-${Date.now()}`,
+        type: 'REFERENCE',
+        symbol: symbolType,
+        angle: symbolRotation,
+        points: worldPoints
+      }]);
     } else if (activeTool === 'BAY_DRAFTING') {
-      if (activePoints.length === 1) {
-        const p1 = activePoints[0];
-        const p2 = coords;
-        const x = Math.min(p1.x, p2.x);
-        const y = Math.min(p1.y, p2.y);
-        const w = Math.max(TILE_SIZE, Math.abs(p1.x - p2.x));
-        const h = Math.max(TILE_SIZE, Math.abs(p1.y - p2.y));
-        setLocalElements(prev => [...prev, { id: `bay-${Date.now()}`, type: 'BAY', label: `BAY ${prev.filter(x => x.type === 'BAY').length + 1}`, points: [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }] }]);
+      if (activePoints.length === 1 && alignmentData) {
+        const p1 = activePoints[0]; // World-norm point
+        const p2 = coords;           // World-norm point
+
+        // 1. Project to Aligned Space to form the oriented rectangle
+        const u1 = rotatePoint(p1.x, p1.y, -alignmentData.angle, alignmentData.centerX, alignmentData.centerY);
+        const u2 = rotatePoint(p2.x, p2.y, -alignmentData.angle, alignmentData.centerX, alignmentData.centerY);
+
+        const uxMin = Math.min(u1.x, u2.x);
+        const uyMin = Math.min(u1.y, u2.y);
+        const uw = Math.max(TILE_SIZE, Math.abs(u1.x - u2.x));
+        const uh = Math.max(TILE_SIZE, Math.abs(u1.y - u2.y));
+
+        // 2. Form 4 vertices in Aligned Space
+        const alignedPoints = [
+          { x: uxMin, y: uyMin },
+          { x: uxMin + uw, y: uyMin },
+          { x: uxMin + uw, y: uyMin + uh },
+          { x: uxMin, y: uyMin + uh }
+        ];
+
+        // 3. Un-rotate back to World Space
+        const worldPoints = alignedPoints.map(p => rotatePoint(p.x, p.y, alignmentData.angle, alignmentData.centerX, alignmentData.centerY));
+
+        setLocalElements(prev => [...prev, { 
+          id: `bay-${Date.now()}`, 
+          type: 'BAY', 
+          label: `BAY ${prev.filter(x => x.type === 'BAY').length + 1}`, 
+          points: worldPoints 
+        }]);
         setActivePoints([]);
       } else {
         setActivePoints([coords]);
@@ -261,37 +334,33 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
       const bays = localElements.filter(el => el.type === 'BAY');
       const racks = localElements.filter(el => el.type === 'ZONE');
       const savedRows = [];
+      
       for (const bay of bays) {
-        // Des-normalizar para guardar en coordenadas absolutas
-        const x = bay.points[0].x + bounds.minX;
-        const y = bay.points[0].y + bounds.minY;
-        const w = bay.points[2].x - bay.points[0].x;
-        const h = bay.points[2].y - bay.points[0].y;
-
+        const points = bay.points.map((p: any) => ({ x: p.x + bounds.minX, y: p.y + bounds.minY }));
         const res = await fetch('/telxius/api/rows/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: bay.label,
             substructureId: roomId,
-            spatialMetadata: JSON.stringify({ x, y, w, h, metric: 'cm' })
+            spatialMetadata: JSON.stringify({ points, metric: 'cm' })
           })
         });
-        if (res.ok) { const data = await res.json(); savedRows.push({ ...data.data, localId: bay.id }); }
+        if (res.ok) { 
+          const data = await res.json(); 
+          savedRows.push({ ...data.data, localId: bay.id }); 
+        }
       }
 
       const newPersistedRacks = [];
       for (const rack of racks) {
-        // Des-normalizar para guardar en coordenadas absolutas
-        const x = rack.points[0].x + bounds.minX;
-        const y = rack.points[0].y + bounds.minY;
-        const w = rack.points[2].x - rack.points[0].x;
-        const h = rack.points[2].y - rack.points[0].y;
-
-        const parentRow = savedRows.find(r => {
-          const sm = JSON.parse(r.spatialMetadata);
-          return (x >= sm.x && x + w <= sm.x + sm.w && y >= sm.y && y + h <= sm.y + sm.h);
-        });
+        const points = rack.points.map((p: any) => ({ x: p.x + bounds.minX, y: p.y + bounds.minY }));
+        const minX = Math.min(...points.map((p: any) => p.x));
+        const minY = Math.min(...points.map((p: any) => p.y));
+        const maxX = Math.max(...points.map((p: any) => p.x));
+        const maxY = Math.max(...points.map((p: any) => p.y));
+        const w = maxX - minX;
+        const h = maxY - minY;
 
         const res = await fetch('/telxius/api/containers/', {
           method: 'POST',
@@ -299,20 +368,55 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
           body: JSON.stringify({
             name: rack.label,
             substructureId: roomId,
-            rowId: parentRow ? parentRow.id : null,
-            row: parentRow ? parentRow.name : "A",
-            position: Math.floor((x - bounds.minX) / TILE_SIZE),
+            row: "A", 
+            position: 0,
             type: rack.cType || 'RACK',
             width: w,
             depth: h,
             uCapacity: rack.uCapacity || 42,
-            spatialMetadata: JSON.stringify({ x, y, w, h, uCapacity: rack.uCapacity || 42, metric: 'cm' })
+            spatialMetadata: JSON.stringify({ points, x: minX, y: minY, w, h, uCapacity: rack.uCapacity || 42, metric: 'cm' })
           })
         });
-        if (res.ok) { const data = await res.json(); newPersistedRacks.push(data.data); }
+        if (res.ok) { 
+          const data = await res.json(); 
+          newPersistedRacks.push(data.data); 
+        }
       }
+
       setLocalRacks(prev => [...prev, ...newPersistedRacks]);
+      
+      // PERSIST REFERENCE ICONS
+      const refs = localElements.filter(el => el.type === 'REFERENCE');
+      const existingMetadata = substructure.spatialMetadata ? (typeof substructure.spatialMetadata === 'string' ? JSON.parse(substructure.spatialMetadata) : substructure.spatialMetadata) : {};
+      
+      await fetch(`/telxius/api/substructures/?id=${roomId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spatialMetadata: JSON.stringify({
+            ...existingMetadata,
+            references: refs
+          })
+        })
+      });
+
       setLocalElements([]);
+      
+      // RE-FETCH ALL ROOM DATA (including spatialMetadata with the new references/icons)
+      const roomRes = await fetch(`/telxius/api/substructures/?id=${roomId}&t=${Date.now()}`);
+      const roomData = await roomRes.json();
+      const obj = Array.isArray(roomData.data) ? roomData.data[0] : roomData.data;
+      if (obj) {
+        setSubstructure(obj);
+        if (obj.spatialMetadata) {
+          try {
+            const sm = typeof obj.spatialMetadata === 'string' ? JSON.parse(obj.spatialMetadata) : obj.spatialMetadata;
+            if (sm.clusters) setLocalElements(prev => [...prev.filter(el => el.type !== 'ZONE'), ...(sm.clusters || [])]);
+            if (sm.references) setLocalElements(prev => [...prev.filter(el => el.type !== 'REFERENCE'), ...(sm.references || [])]);
+          } catch (e) { }
+        }
+      }
+
       const rRes = await fetch(`/telxius/api/rows/?substructureId=${substructureId}`);
       const rData = await rRes.json();
       setPersistedRows(rData.data || []);
@@ -326,7 +430,11 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
         confirmButtonColor: '#2563eb',
         backdrop: `rgba(0,0,0,0.8) backdrop-blur-sm`
       });
-    } catch (e) { console.error(e); } finally { setIsSaving(false); }
+    } catch (e) { 
+      console.error(e); 
+    } finally { 
+      setIsSaving(false); 
+    }
   };
 
   const roomPoints = useMemo(() => {
@@ -364,6 +472,57 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
     return roomPoints.map((p: any) => `${p.x - bounds.minX},${p.y - bounds.minY}`).join(' ');
   }, [roomPoints, bounds]);
 
+  const alignmentData = useMemo(() => {
+    if (!roomPoints || roomPoints.length < 2) return null;
+
+    // 1. Identify the 'Top Wall' (Lowest Average Y)
+    let minAvgY = Infinity;
+    let topWallIndex = 0;
+    for (let i = 0; i < roomPoints.length; i++) {
+      const p1 = roomPoints[i];
+      const p2 = roomPoints[(i + 1) % roomPoints.length];
+      const avgY = (p1.y + p2.y) / 2;
+      if (avgY < minAvgY) {
+        minAvgY = avgY;
+        topWallIndex = i;
+      }
+    }
+
+    const pA = roomPoints[topWallIndex];
+    const pB = roomPoints[(topWallIndex + 1) % roomPoints.length];
+    
+    // 2. Calculate Angle (Ensuring it flows somewhat left-to-right)
+    let angle = Math.atan2(pB.y - pA.y, pB.x - pA.x) * (180 / Math.PI);
+    
+    // 3. Find Global Extents in Oriented Space
+    const rad = (-angle * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+
+    const orientedPoints = roomPoints.map((p: any) => ({
+      x: (p.x - bounds.minX) * cos - (p.y - bounds.minY) * sin,
+      y: (p.x - bounds.minX) * sin + (p.y - bounds.minY) * cos
+    }));
+
+    const oXS = orientedPoints.map((p: any) => p.x);
+    const oYS = orientedPoints.map((p: any) => p.y);
+    const oMinX = Math.min(...oXS);
+    const oMinY = Math.min(...oYS);
+    const oMaxX = Math.max(...oXS);
+    const oMaxY = Math.max(...oYS);
+
+    return {
+      angle,
+      oMinX, oMinY,
+      w: oMaxX - oMinX,
+      h: oMaxY - oMinY,
+      orientedPoints: orientedPoints.map(p => ({ x: p.x - oMinX, y: p.y - oMinY })),
+      // Reference for rotation center (middle of the world box)
+      centerX: bounds.w / 2,
+      centerY: bounds.h / 2
+    };
+  }, [roomPoints, bounds]);
+
   const viewBox = (() => {
     const baseW = bounds.w + 200;
     const baseH = bounds.h + 200;
@@ -391,9 +550,13 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
 
           {isDrafting && (
             <div className="flex items-center gap-3 ml-8 bg-white/5 p-1.5 rounded-2xl border border-white/5 animate-in zoom-in-95">
-              {['CLUSTER_STAMP', 'BAY_DRAFTING'].map(t => (
-                <button key={t} onClick={() => setActiveTool(t as any)} className={`px-4 py-2 text-[9px] font-black uppercase rounded-xl transition-all ${activeTool === t ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
-                  {t === 'CLUSTER_STAMP' ? 'Add Rack' : 'Define Bay'}
+              {[
+                { id: 'CLUSTER_STAMP', label: 'Racks' },
+                { id: 'BAY_DRAFTING', label: 'Bays' },
+                { id: 'REFERENCE_SYMBOL', label: 'Icons' }
+              ].map(t => (
+                <button key={t.id} onClick={() => setActiveTool(t.id as any)} className={`px-4 py-2 text-[9px] font-black uppercase rounded-xl transition-all ${activeTool === t.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                  {t.label}
                 </button>
               ))}
             </div>
@@ -423,6 +586,26 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
               Reset
             </button>
           </div>
+
+          {isDrafting && activeTool === 'REFERENCE_SYMBOL' && (
+            <div className="flex items-center gap-3 pr-4 border-r border-white/10">
+              <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1">
+                {['DOOR', 'COLUMN', 'WINDOW', 'PANEL', 'HVAC', 'SECURITY'].map(s => (
+                  <button key={s} onClick={() => setSymbolType(s as any)} className={`px-2 py-1 text-[8px] font-black uppercase rounded-lg transition-all ${symbolType === s ? 'bg-indigo-500 text-white' : 'text-slate-500'}`}>{s}</button>
+                ))}
+              </div>
+              <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1 items-center px-3">
+                <span className="text-[8px] font-black uppercase text-slate-500 mr-2">Rot</span>
+                <select 
+                  value={symbolRotation} 
+                  onChange={e => setSymbolRotation(Number(e.target.value))}
+                  className="bg-transparent text-[10px] text-white font-black outline-none appearance-none cursor-pointer"
+                >
+                  {[0, 90, 180, 270].map(deg => <option key={deg} value={deg} className="bg-slate-900">{deg}°</option>)}
+                </select>
+              </div>
+            </div>
+          )}
 
           {isDrafting && activeTool === 'CLUSTER_STAMP' && (
             <div className="flex items-center gap-3 pr-4 border-r border-white/10">
@@ -490,142 +673,189 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
             </clipPath>
           </defs>
 
-          {/* BACKGROUND FONDATION */}
-          {roomPoints ? (
-            <polygon points={normalizedPointsString} fill="#050508" stroke="#3b82f6" strokeWidth={8 / zoom} strokeLinejoin="round" />
-          ) : (
-            <rect x={0} y={0} width={bounds.w} height={bounds.h} fill="#050508" stroke="#3b82f6" strokeWidth={4 / zoom} />
-          )}
+          {/* MAIN ROTATED CONTENT GROUP */}
+          <g ref={contentRef} transform={`rotate(${isDrafting && alignmentData ? -alignmentData.angle : 0}, ${alignmentData?.centerX || 0}, ${alignmentData?.centerY || 0})`} className="transition-transform duration-700 ease-in-out">
+            {/* BACKGROUND FONDATION */}
+            {roomPoints ? (
+              <polygon points={normalizedPointsString} fill="#050508" stroke="#3b82f6" strokeWidth={8 / zoom} strokeLinejoin="round" />
+            ) : (
+              <rect x={0} y={0} width={bounds.w} height={bounds.h} fill="#050508" stroke="#3b82f6" strokeWidth={4 / zoom} />
+            )}
 
-          {/* DYNAMIC COORDINATE SYSTEM (60x60 Tiles) */}
-          <g clipPath="url(#roomClip)">
-            <rect x={-100} y={-100} width={bounds.w + 200} height={bounds.h + 200} fill="url(#grid30)" />
-            <rect x={-100} y={-100} width={bounds.w + 200} height={bounds.h + 200} fill="url(#grid60)" />
+            {/* DYNAMIC COORDINATE SYSTEM (60x60 Tiles) - Aligned to Room Orientation */}
+            <g clipPath="url(#roomClip)">
+              {/* Discrete Tile border and labels generated in aligned space */}
+              {(() => {
+                if (!alignmentData) return null;
+                const rows = Math.ceil(alignmentData.h / 60);
+                const cols = Math.ceil(alignmentData.w / 60);
+                const grid = [];
+                
+                // Inverse transform to place grid in original coordinate space if needed
+                // But since everything is inside the group, we work in Aligned Space directly.
+                
+                // We need to shift the grid to match the Orientated Bounds
+                // Let's create a sub-group for the grid that translates to the oriented origin
+                return (
+                  <g transform={`translate(${alignmentData.oMinX}, ${alignmentData.oMinY}) rotate(${alignmentData.angle}, 0, 0)`}>
+                    {/* The grid pattern itself can be simpler now */}
+                    <rect x={-500} y={-500} width={alignmentData.w + 1000} height={alignmentData.h + 1000} fill="url(#grid30)" opacity={0.5} />
+                    <rect x={-500} y={-500} width={alignmentData.w + 1000} height={alignmentData.h + 1000} fill="url(#grid60)" />
 
-            {/* Coordinate Labels and Technical Tiles */}
-            {(() => {
-              const rows = Math.ceil(bounds.h / 60);
-              const cols = Math.ceil(bounds.w / 60);
-              const grid = [];
-              for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                  const label = `${String.fromCharCode(65 + r)}${c + 1}`;
-                  grid.push(
-                    <g key={`${r}-${c}`}>
-                      {/* Discrete Tile border */}
-                      <rect
-                        x={c * 60} y={r * 60} width="60" height="60"
-                        fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth={0.5 / zoom}
-                      />
+                    {Array.from({ length: rows }).map((_, r) => (
+                      Array.from({ length: cols }).map((_, c) => {
+                        const label = `${String.fromCharCode(65 + r)}${c + 1}`;
+                        return (
+                          <g key={`${r}-${c}`}>
+                            <rect
+                              x={c * 60} y={r * 60} width="60" height="60"
+                              fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth={0.5 / zoom}
+                            />
+                            <text
+                              x={c * 60 + 30}
+                              y={r * 60 + 35}
+                              textAnchor="middle"
+                              className="fill-white/10 font-black pointer-events-none uppercase tracking-tighter"
+                              style={{ fontSize: '10px' }}
+                            >
+                              {label}
+                            </text>
+                          </g>
+                        );
+                      })
+                    ))}
+                  </g>
+                );
+              })()}
+            </g>
+
+            {/* PERIMETER MEASUREMENTS */}
+            <g>
+              {(() => {
+                const points = roomPoints ? roomPoints.map((p: any) => ({
+                  x: p.x - bounds.minX,
+                  y: p.y - bounds.minY
+                })) : [
+                  { x: 0, y: 0 }, { x: bounds.w, y: 0 }, { x: bounds.w, y: bounds.h }, { x: 0, y: bounds.h }
+                ];
+
+                const measurements = [];
+                for (let i = 0; i < points.length; i++) {
+                  const p1 = points[i];
+                  const p2 = points[(i + 1) % points.length];
+
+                  const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                  const midX = (p1.x + p2.x) / 2;
+                  const midY = (p1.y + p2.y) / 2;
+
+                  // Normal vector for offset
+                  const dx = p2.x - p1.x;
+                  const dy = p2.y - p1.y;
+                  const angle = Math.atan2(dy, dx);
+                  const offsetX = Math.sin(angle) * (20 / zoom);
+                  const offsetY = -Math.cos(angle) * (20 / zoom);
+
+                  measurements.push(
+                    <g key={`measure-${i}`}>
                       <text
-                        x={c * 60 + 30}
-                        y={r * 60 + 35}
+                        x={midX + offsetX} y={midY + offsetY}
                         textAnchor="middle"
-                        className="fill-white/20 font-black pointer-events-none uppercase tracking-tighter"
-                        style={{ fontSize: '10px' }}
+                        className="fill-blue-400 font-black tracking-tighter"
+                        style={{ fontSize: 12 / zoom }}
                       >
-                        {label}
+                        {(dist / 100).toFixed(2)}m
                       </text>
                     </g>
                   );
                 }
-              }
-              return grid;
-            })()}
-          </g>
+                return measurements;
+              })()}
+            </g>
 
-          {/* PERIMETER MEASUREMENTS */}
-          <g>
-            {(() => {
-              const points = roomPoints ? roomPoints.map((p: any) => ({
-                x: p.x - bounds.minX,
-                y: p.y - bounds.minY
-              })) : [
-                { x: 0, y: 0 }, { x: bounds.w, y: 0 }, { x: bounds.w, y: bounds.h }, { x: 0, y: bounds.h }
-              ];
+            <g>
+              {persistedRows.map(row => {
+                if (!row.spatialMetadata) return null;
+                const sm = JSON.parse(row.spatialMetadata);
+                
+                // Si tiene puntos (formato nuevo), úsalos. Si no, usa x,y,w,h (formato viejo)
+                let ptsString = "";
+                if (sm.points) {
+                  ptsString = sm.points.map((p: any) => `${p.x - bounds.minX},${p.y - bounds.minY}`).join(' ');
+                } else {
+                  const nx = sm.x - bounds.minX;
+                  const ny = sm.y - bounds.minY;
+                  ptsString = `${nx},${ny} ${nx + sm.w},${ny} ${nx + sm.w},${ny + sm.h} ${nx},${ny + sm.h}`;
+                }
 
-              const measurements = [];
-              for (let i = 0; i < points.length; i++) {
-                const p1 = points[i];
-                const p2 = points[(i + 1) % points.length];
+                // Centro del polígono para la etiqueta
+                const sumX = (sm.points || []).reduce((acc: number, p: any) => acc + p.x, 0) || (sm.x + sm.w / 2) * (sm.points?.length || 1);
+                const sumY = (sm.points || []).reduce((acc: number, p: any) => acc + p.y, 0) || (sm.y + sm.h / 2) * (sm.points?.length || 1);
+                const labelX = (sumX / (sm.points?.length || 1)) - bounds.minX;
+                const labelY = (sumY / (sm.points?.length || 1)) - bounds.minY;
 
-                const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-                const midX = (p1.x + p2.x) / 2;
-                const midY = (p1.y + p2.y) / 2;
-
-                // Normal vector for offset
-                const dx = p2.x - p1.x;
-                const dy = p2.y - p1.y;
-                const angle = Math.atan2(dy, dx);
-                const offsetX = Math.sin(angle) * (20 / zoom);
-                const offsetY = -Math.cos(angle) * (20 / zoom);
-
-                measurements.push(
-                  <g key={`measure-${i}`}>
-                    <text
-                      x={midX + offsetX} y={midY + offsetY}
-                      textAnchor="middle"
-                      className="fill-blue-400 font-black tracking-tighter"
-                      style={{ fontSize: 12 / zoom }}
-                    >
-                      {(dist / 100).toFixed(2)}m
-                    </text>
+                return (
+                  <g key={row.id}>
+                    <polygon points={ptsString} fill="rgba(217, 70, 239, 0.03)" stroke="#d946ef" strokeWidth={2 / zoom} strokeDasharray={`${10 / zoom} ${5 / zoom}`} />
+                    <text x={labelX} y={labelY} textAnchor="middle" alignmentBaseline="middle" className="fill-white font-black uppercase tracking-widest drop-shadow-md" style={{ fontSize: 18 / zoom }}>{row.name}</text>
                   </g>
                 );
-              }
-              return measurements;
-            })()}
-          </g>
+              })}
 
-          <g>
-            {persistedRows.map(row => {
-              if (!row.spatialMetadata) return null;
-              const sm = JSON.parse(row.spatialMetadata);
-              // Normalizar posición de la bahía
-              const nx = sm.x - bounds.minX;
-              const ny = sm.y - bounds.minY;
-              return (
-                <g key={row.id}>
-                  <rect x={nx} y={ny} width={sm.w} height={sm.h} fill="rgba(217, 70, 239, 0.03)" stroke="#d946ef" strokeWidth={2 / zoom} strokeDasharray={`${10 / zoom} ${5 / zoom}`} />
-                  <text x={nx + sm.w / 2} y={ny + sm.h / 2} textAnchor="middle" alignmentBaseline="middle" className="fill-white font-black uppercase tracking-widest drop-shadow-md" style={{ fontSize: 18 / zoom }}>{row.name}</text>
-                </g>
-              );
-            })}
+              {localRacks.map(rack => {
+                let x, y, w, h;
+                const isCab = rack.type === 'CABINET';
+                if (rack.spatialMetadata) {
+                  const sm = typeof rack.spatialMetadata === 'string' ? JSON.parse(rack.spatialMetadata) : rack.spatialMetadata;
+                  x = sm.x - bounds.minX + 4; y = sm.y - bounds.minY + 4; w = sm.w - 8; h = sm.h - 8;
+                } else { x = Number(rack.position || 0) * TILE_SIZE + 4; y = 4; w = TILE_SIZE - 8; h = TILE_SIZE - 8; }
+                return (
+                  <g key={rack.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); if (!isDrafting) setSelectedContainer(rack); }}>
+                    <rect x={x} y={y} width={w} height={h} rx="4" fill={isCab ? 'rgba(71, 85, 105, 0.2)' : 'rgba(16, 185, 129, 0.15)'} stroke={isCab ? '#94a3b8' : '#10b981'} strokeWidth={(isCab ? 3 : 2) / zoom} className="transition-all group-hover:stroke-white" />
+                    {isCab && <rect x={x + 2} y={y + 2} width={w - 4} height={h - 4} rx="2" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={1 / zoom} />}
+                    <text x={x + w / 2} y={y + h / 2} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter drop-shadow-sm" style={{ fontSize: 12 / zoom }}>{rack.name}</text>
+                  </g>
+                );
+              })}
 
-            {localRacks.map(rack => {
-              let x, y, w, h;
-              const isCab = rack.type === 'CABINET';
-              if (rack.spatialMetadata) {
-                const sm = typeof rack.spatialMetadata === 'string' ? JSON.parse(rack.spatialMetadata) : rack.spatialMetadata;
-                x = sm.x - bounds.minX + 4; y = sm.y - bounds.minY + 4; w = sm.w - 8; h = sm.h - 8;
-              } else { x = Number(rack.position || 0) * TILE_SIZE + 4; y = 4; w = TILE_SIZE - 8; h = TILE_SIZE - 8; }
-              return (
-                <g key={rack.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); if (!isDrafting) setSelectedContainer(rack); }}>
-                  <rect x={x} y={y} width={w} height={h} rx="4" fill={isCab ? 'rgba(71, 85, 105, 0.2)' : 'rgba(16, 185, 129, 0.15)'} stroke={isCab ? '#94a3b8' : '#10b981'} strokeWidth={(isCab ? 3 : 2) / zoom} className="transition-all group-hover:stroke-white" />
-                  {isCab && <rect x={x + 2} y={y + 2} width={w - 4} height={h - 4} rx="2" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={1 / zoom} />}
-                  <text x={x + w / 2} y={y + h / 2} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter drop-shadow-sm" style={{ fontSize: 12 / zoom }}>{rack.name}</text>
-                </g>
-              );
-            })}
+              {positions.map(pos => {
+                const x = ((Number(pos.col) || 1) - 1) * TILE_SIZE + 8, y = ((Number(pos.row) || 1) - 1) * TILE_SIZE + 8;
+                const isOccupied = pos.status !== 'EMPTY';
+                return <rect key={pos.id} x={x} y={y} width={TILE_SIZE - 16} height={TILE_SIZE - 16} rx="4" fill={isOccupied ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.01)'} stroke={isOccupied ? '#3b82f6' : 'rgba(255,255,255,0.04)'} strokeWidth={1 / zoom} />;
+              })}
 
-            {positions.map(pos => {
-              const x = ((Number(pos.col) || 1) - 1) * TILE_SIZE + 8, y = ((Number(pos.row) || 1) - 1) * TILE_SIZE + 8;
-              const isOccupied = pos.status !== 'EMPTY';
-              return <rect key={pos.id} x={x} y={y} width={TILE_SIZE - 16} height={TILE_SIZE - 16} rx="4" fill={isOccupied ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.01)'} stroke={isOccupied ? '#3b82f6' : 'rgba(255,255,255,0.04)'} strokeWidth={1 / zoom} />;
-            })}
+              {localElements.map(el => {
+                const ptsString = (el.points || []).map((p: any) => `${p.x},${p.y}`).join(' ');
+                
+                if (el.type === 'REFERENCE') {
+                  const color = el.symbol === 'DOOR' ? '#ef4444' : (el.symbol === 'COLUMN' ? '#3b82f6' : (el.symbol === 'HVAC' ? '#06b6d4' : '#10b981'));
+                  return (
+                    <g key={el.id}>
+                      <polygon points={ptsString} fill={`${color}20`} stroke={color} strokeWidth={2/zoom} />
+                      {/* Technical detail for Doors */}
+                      {el.symbol === 'DOOR' && (
+                        <circle cx={el.points[0].x} cy={el.points[0].y} r={30/zoom} fill="none" stroke={color} strokeWidth={1/zoom} strokeDasharray="2 2" />
+                      )}
+                      {/* Technical detail for HVAC */}
+                      {el.symbol === 'HVAC' && (
+                        <path d={`M ${el.points[0].x} ${el.points[0].y} L ${el.points[2].x} ${el.points[2].y} M ${el.points[1].x} ${el.points[1].y} L ${el.points[3].x} ${el.points[3].y}`} stroke={color} strokeWidth={1/zoom} opacity={0.5} />
+                      )}
+                      <text x={el.points[0].x} y={el.points[0].y} dy="-5" className="fill-white/40 text-[6px] font-black uppercase">{el.symbol}</text>
+                    </g>
+                  );
+                }
 
-            {localElements.map(el => (
-              <g key={el.id}>
-                <rect
-                  x={el.points[0].x} y={el.points[0].y}
-                  width={el.points[1].x - el.points[0].x}
-                  height={el.points[2].y - el.points[1].y}
-                  fill={el.type === 'BAY' ? 'rgba(217,70,239,0.1)' : (el.cType === 'CABINET' ? 'rgba(148, 163, 184, 0.2)' : 'rgba(245,158,11,0.2)')}
-                  stroke={el.type === 'BAY' ? '#d946ef' : (el.cType === 'CABINET' ? '#94a3b8' : '#f59e0b')}
-                  strokeWidth={2 / zoom} strokeDasharray={`${6 / zoom} ${4 / zoom}`}
-                />
-              </g>
-            ))}
+                return (
+                  <g key={el.id}>
+                    <polygon
+                      points={ptsString}
+                      fill={el.type === 'BAY' ? 'rgba(217,70,239,0.1)' : (el.cType === 'CABINET' ? 'rgba(148, 163, 184, 0.2)' : 'rgba(245,158,11,0.2)')}
+                      stroke={el.type === 'BAY' ? '#d946ef' : (el.cType === 'CABINET' ? '#94a3b8' : '#f59e0b')}
+                      strokeWidth={2 / zoom} strokeDasharray={`${6 / zoom} ${4 / zoom}`}
+                    />
+                  </g>
+                );
+              })}
+            </g>
           </g>
 
           <text x={bounds.w / 2} y={bounds.h / 2} textAnchor="middle" className="fill-white/[0.03] font-black uppercase italic tracking-tighter select-none pointer-events-none" style={{ fontSize: 120 / zoom }}>AppM</text>

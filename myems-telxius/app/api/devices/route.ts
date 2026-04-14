@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 // Crea un dispositivo (ej: BDFB-01) y lo vincula opcionalmente a posiciones o clona una plantilla
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, category, sn, siteId, positionIds, containerId, uPosition, templateId } = body;
+  const { name, category, sn, siteId, positionIds, containerId, uPosition, templateId, physWidth, physDepth, physHeight } = body;
 
   // ESCENARIO: CLONACIÓN DE PLANTILLA (Clona Device + Equipos + Puertos)
   if (templateId) {
@@ -56,7 +56,10 @@ export async function POST(req: NextRequest) {
           category: category ?? "NETWORKING", 
           siteId,
           containerId: containerId || null,
-          uPosition: uPosition ? Number(uPosition) : null
+          uPosition: uPosition ? Number(uPosition) : null,
+          physWidth: physWidth ? Number(physWidth) : null,
+          physDepth: physDepth ? Number(physDepth) : null,
+          physHeight: physHeight ? Number(physHeight) : null
         }
       });
 
@@ -96,7 +99,10 @@ async function cloneDevice(templateId: string, siteId: string, containerId: stri
           category: template.category,
           siteId,
           containerId: containerId || null,
-          uPosition: uPosition ? Number(uPosition) : null
+          uPosition: uPosition ? Number(uPosition) : null,
+          physWidth: template.physWidth,
+          physDepth: template.physDepth,
+          physHeight: template.physHeight
         }
       });
 
@@ -187,6 +193,9 @@ export async function PATCH(req: NextRequest) {
       ...(uHeight !== undefined && { uHeight: Number(uHeight) }),
       ...(body.sn !== undefined && { sn: body.sn || null }),
       ...(body.isPinned !== undefined && { isPinned: Boolean(body.isPinned) }),
+      ...(body.physWidth !== undefined && { physWidth: Number(body.physWidth) || null }),
+      ...(body.physDepth !== undefined && { physDepth: Number(body.physDepth) || null }),
+      ...(body.physHeight !== undefined && { physHeight: Number(body.physHeight) || null }),
     }
   });
   return ok(updated);
