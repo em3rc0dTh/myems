@@ -201,9 +201,8 @@ model Position {
 
 model Device {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
-  name       String      // BDFB-01, Cisco-Core
-  sn         String?     // Serial Number (Chassis)
-  category   String      @default("NETWORKING") // BDFB, NE, METER
+  name       String      // Logical Wrapper Name (e.g. BDFB-01-WRAPPER)
+  category   String      @default("NETWORKING") 
   siteId     String      @db.ObjectId
   site       Site        @relation(fields: [siteId], references: [id])
   
@@ -227,9 +226,9 @@ model Device {
 
 model Equipment {
   id                String      @id @default(auto()) @map("_id") @db.ObjectId
-  name              String      // Ej: "Panel-A", "Subrack-1"
-  sn                String?     // Serial Number
-  category          String      // RACK, SUBRACK, CIRCUIT_PACK, CIRCUIT_BREAKER
+  name              String      // BDFB Model Name, Router Chassis Name
+  sn                String?     // The Real Serial Number of the hardware
+  category          String      // BDFB, ROUTER, SWITCH, etc.
   slotLabel         String?     // Ej: "Slot-01", "Bay-A"
   
   // -- Posicionamiento Vertical (Fase 3c) --
@@ -255,6 +254,7 @@ model Port {
   equipment         Equipment?  @relation(fields: [equipmentId], references: [id])
   deviceId          String      @db.ObjectId
   device            Device      @relation(fields: [deviceId], references: [id])
+  clientName        String?     @default("")
   sourceConnections Connection[] @relation("SourceConnection")
   targetConnections Connection[] @relation("TargetConnection")
 }

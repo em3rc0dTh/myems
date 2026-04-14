@@ -60,6 +60,8 @@ const BDFBDetailPage: React.FC = () => {
     const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
     const [selectedBreaker, setSelectedBreaker] = useState<{ panelId: string, data: BreakerData } | null>(null);
     const [focusedView, setFocusedView] = useState<'none' | 'history' | 'diagram'>('none');
+    const [historyRange, setHistoryRange] = useState<'24h' | '7d' | '30d'>('24h');
+    const [historyLoading, setHistoryLoading] = useState(false);
 
     // Initialize selected panel on load
     useEffect(() => {
@@ -68,6 +70,49 @@ const BDFBDetailPage: React.FC = () => {
             setSelectedPanelId(panelA2?.id || bdfbData.panels[0].id);
         }
     }, [bdfbData, selectedPanelId]);
+
+    // REAL HISTORY FETCHING
+    const [realHistory, setRealHistory] = useState<any[]>([]);
+    useEffect(() => {
+        if (focusedView === 'history' && bdfbData?.sn) {
+            const fetchHistory = async () => {
+                try {
+                    // Fetch Voltage (U1) and Current (I1) history
+                    const [vRes, iRes] = await Promise.all([
+                        fetch(`/telxius/api/history/?sn=${bdfbData.sn}&field=U1&range=${historyRange}`),
+                        fetch(`/telxius/api/history/?sn=${bdfbData.sn}&field=I1&range=${historyRange}`)
+                    ]);
+
+                    if (vRes.ok && iRes.ok) {
+                        const vData = await vRes.json();
+                        const iData = await iRes.json();
+                        
+                        // Robust Time-Matching Merge
+                        const timeMap: Record<string, any> = {};
+                        
+                        vData.forEach((v: any) => {
+                            timeMap[v.time] = { ...timeMap[v.time], time: v.time, voltage: v.value };
+                        });
+                        
+                        iData.forEach((i: any) => {
+                            timeMap[i.time] = { ...timeMap[i.time], time: i.time, current: i.value };
+                        });
+                        
+                        const combined = Object.values(timeMap).sort((a, b) => 
+                            new Date(a.time).getTime() - new Date(b.time).getTime()
+                        );
+
+                        setRealHistory(combined);
+                    }
+                } catch (e) {
+                    console.error("History fetch failed", e);
+                } finally {
+                    setHistoryLoading(false);
+                }
+            };
+            fetchHistory();
+        }
+    }, [focusedView, bdfbData?.sn, historyRange]);
 
     // Derived data for the selected segment/slot
     const selectedPanel = bdfbData?.panels.find(p => p.id === selectedPanelId);
@@ -176,7 +221,7 @@ const BDFBDetailPage: React.FC = () => {
                 <div className="flex items-center gap-6">
                     <Link href="/topology/dashboard" className="p-3 bg-white/5 hover:bg-accent-primary/20 rounded-2xl border border-white/10 transition-all text-slate-400 hover:text-accent-primary transform hover:-translate-x-1">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
                     </Link>
                     <div>
@@ -209,24 +254,24 @@ const BDFBDetailPage: React.FC = () => {
             <div className="flex-1 min-h-0 relative">
                 <div className="absolute inset-0 transition-all duration-500 overflow-hidden">
                     {isLoading ? (
-                         <div className="w-full h-full glass-panel rounded-3xl flex flex-col items-center justify-center animate-pulse border border-white/5">
+                        <div className="w-full h-full glass-panel rounded-3xl flex flex-col items-center justify-center animate-pulse border border-white/5">
                             <div className="w-12 h-12 border-4 border-accent-primary/30 border-t-accent-primary rounded-full animate-spin mb-4" />
                             <h3 className="text-white font-black uppercase tracking-widest text-sm italic">Synchronizing Node Assets...</h3>
                         </div>
                     ) : viewMode === 'room' && bdfbData?.substructureId ? (
-                         <div className="w-full h-full glass-panel rounded-3xl overflow-hidden border border-white/5 animate-in fade-in duration-500">
-                             <RoomView 
-                                substructureId={bdfbData.substructureId} 
+                        <div className="w-full h-full glass-panel rounded-3xl overflow-hidden border border-white/5 animate-in fade-in duration-500">
+                            <RoomView
+                                substructureId={bdfbData.substructureId}
                                 onSelectBDFB={(id) => {
                                     if (id) {
                                         router.push(`/bdfb/${id}`);
                                         setViewMode('device');
                                     }
                                 }}
-                             />
-                         </div>
+                            />
+                        </div>
                     ) : (
-                         <div className="flex gap-6 h-full animate-in slide-in-from-right-4 duration-500 relative">
+                        <div className="flex gap-6 h-full animate-in slide-in-from-right-4 duration-500 relative">
                             {focusedView === 'none' && (
                                 <div className="w-[200px] flex flex-col h-full shrink-0">
                                     <BDFBFrontView panels={bdfbData?.panels || []} selectedPanelId={selectedPanelId} onPanelClick={(pid) => { setSelectedPanelId(pid); setSelectedBreaker(null); }} />
@@ -234,9 +279,16 @@ const BDFBDetailPage: React.FC = () => {
                             )}
 
                             {focusedView !== 'none' ? (
-                                 <div className="flex-1 min-h-0 h-full">
+                                <div className="flex-1 min-h-0 h-full">
                                     {focusedView === 'history' ? (
-                                        <EnergyHistoryView history={bdfbData?.telemetryHistory || []} onClose={() => setFocusedView('none')} title="Telemetry History" />
+                                        <EnergyHistoryView 
+                                            history={realHistory} 
+                                            onClose={() => setFocusedView('none')} 
+                                            title="Análisis Histórico de Carga" 
+                                            range={historyRange}
+                                            onRangeChange={setHistoryRange}
+                                            loading={historyLoading}
+                                        />
                                     ) : (
                                         <div className="w-full h-full glass-panel rounded-3xl border border-white/5 flex flex-col animate-in zoom-in-95">
                                             <div className="p-8 border-b border-white/5 flex justify-between items-center bg-black/20">
@@ -248,7 +300,7 @@ const BDFBDetailPage: React.FC = () => {
                                             </div>
                                         </div>
                                     )}
-                                 </div>
+                                </div>
                             ) : (
                                 <div className="flex-1 flex gap-6 min-w-0 h-full">
                                     <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -298,7 +350,7 @@ const BDFBDetailPage: React.FC = () => {
                                     </div>
                                 </div>
                             )}
-                         </div>
+                        </div>
                     )}
                 </div>
             </div>

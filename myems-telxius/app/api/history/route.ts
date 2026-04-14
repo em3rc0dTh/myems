@@ -1,7 +1,7 @@
 import { InfluxDB, FluxTableMetaData } from '@influxdata/influxdb-client';
 import { NextResponse } from 'next/server';
 
-const url = process.env.INFLUX_URL || 'http://myems-influxdb:8086';
+const url = process.env.INFLUX_URL || 'http://localhost:8086';
 const token = process.env.INFLUX_TOKEN || '';
 const org = process.env.INFLUX_ORG || 'myems';
 const bucket = process.env.INFLUX_BUCKET || 'energy';
@@ -37,6 +37,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     const client = new InfluxDB({ url, token });
     const queryApi = client.getQueryApi(org);
 
+    // Adaptive aggregation window
+    let window = '1h';
+    if (range === '7d') window = '6h';
+    if (range === '30d') window = '24h';
+
     // Flux Query: 
     // - Measurement: mqtt_consumer (written by Telegraf)
     // - Fields: Look for fields ending in _P, _U1, or _A1 (flattened by Telegraf json_v2)
@@ -47,7 +52,7 @@ export async function GET(request: Request): Promise<NextResponse> {
             |> filter(fn: (r) => r._measurement == "mqtt_consumer")
             ${sn ? `|> filter(fn: (r) => r.sn == "${sn}")` : ''}
             |> filter(fn: (r) => r._field =~ /.+_${fieldType}$/)
-            |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)
+            |> aggregateWindow(every: ${window}, fn: mean, createEmpty: false)
             |> yield(name: "mean")
     `;
 

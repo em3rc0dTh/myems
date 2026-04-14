@@ -91,11 +91,10 @@ async function cloneDevice(templateId: string, siteId: string, containerId: stri
     if (!template) return err("Template not found");
 
     const newDevice = await prisma.$transaction(async (tx) => {
-      // 1. Clonamos el Device base
-      const d = await tx.device.create({
+      // 1. Clonamos el Device base (El Box)
+      const d = await (tx as any).device.create({
         data: {
-          name: name || `${template.name} (Instancia)`,
-          sn: sn || null,
+          name: name ? `${name}-WRAPPER` : `${template.name}-WRAPPER`,
           category: template.category,
           siteId,
           containerId: containerId || null,
@@ -107,10 +106,19 @@ async function cloneDevice(templateId: string, siteId: string, containerId: stri
       });
 
       // 2. Función recursiva para clonar Equipment
+      let firstRootClaimed = false;
       const cloneEquipment = async (eq: any, parentId: string | null = null) => {
-        const newEq = await (tx.equipment as any).create({
+        // Asignamos el SN proporcionado al primer equipo raíz que encontremos (el chasis principal)
+        let targetSn = eq.sn;
+        if (!parentId && !firstRootClaimed && sn) {
+          targetSn = sn;
+          firstRootClaimed = true;
+        }
+
+        const newEq = await (tx as any).equipment.create({
           data: {
-            name: eq.name,
+            name: !parentId && name ? name : eq.name,
+            sn: targetSn,
             category: eq.category,
             slotLabel: eq.slotLabel,
             unitPosition: eq.unitPosition,
@@ -124,13 +132,14 @@ async function cloneDevice(templateId: string, siteId: string, containerId: stri
         // Clonar puertos del equipo
         if (eq.ports?.length > 0) {
           for (const p of eq.ports) {
-            await tx.port.create({
+            await (tx as any).port.create({
               data: {
                 name: p.name,
                 type: p.type,
                 sensorTopic: p.sensorTopic,
                 equipmentId: newEq.id,
-                deviceId: d.id
+                deviceId: d.id,
+                clientName: (p as any).clientName || ""
               }
             });
           }

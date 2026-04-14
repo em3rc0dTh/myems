@@ -1,9 +1,10 @@
 "use client"
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Substructure, Position } from '@/lib/types';
-import { ChevronRight, Globe, MousePointer2, Layers, Cpu, CheckCircle2, AlertTriangle, Activity, Save, Trash2, Maximize2, MoveRight, Plus } from 'lucide-react';
+import { ChevronRight, Globe, MousePointer2, Layers, Cpu, CheckCircle2, AlertTriangle, Activity, Save, Trash2, Maximize2, MoveRight, Plus, Flame } from 'lucide-react';
 import Swal from 'sweetalert2';
 import RackElevationManager from './RackElevationManager';
+import { useMqtt } from '@/lib/MqttContext';
 
 interface RoomViewProps {
   substructureId: string;
@@ -31,6 +32,8 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
   const [activePoints, setActivePoints] = useState<any[]>([]);
   const [localRacks, setLocalRacks] = useState<any[]>([]);
   const [persistedRows, setPersistedRows] = useState<any[]>([]);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const { latestData } = useMqtt();
   const [isSaving, setIsSaving] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -142,6 +145,48 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
     return {
       x: cx + dx * cos - dy * sin,
       y: cy + dx * sin + dy * cos
+    };
+  };
+
+  const calculateRackHeat = (rack: any) => {
+    let totalPower = 0;
+    const devices = rack.devices || [];
+    
+    devices.forEach((dev: any) => {
+        const sns: string[] = [];
+        const findSns = (eqs: any[]) => {
+            eqs.forEach(eq => {
+                if (eq.sn) sns.push(eq.sn);
+                if (eq.children) findSns(eq.children);
+            });
+        };
+        findSns(dev.equipments || []);
+
+        sns.forEach(sn => {
+            const telemetry = (latestData as any)[sn];
+            if (telemetry?.reported) {
+                const p1 = parseFloat(telemetry.reported.P1) || 0;
+                const p2 = parseFloat(telemetry.reported.P2) || 0;
+                if (p1 > 0 || p2 > 0) {
+                    totalPower += (p1 + p2);
+                } else {
+                    const u1 = parseFloat(telemetry.reported.U1) || 0;
+                    const i1 = parseFloat(telemetry.reported.I1) || 0;
+                    totalPower += (u1 * i1) / 1000;
+                }
+            }
+        });
+    });
+
+    const intensity = Math.min(1, totalPower / 10);
+    const r = Math.floor(intensity * 255);
+    const b = Math.floor((1 - intensity) * 255);
+    const g = Math.floor((1 - Math.abs(intensity - 0.5) * 2) * 200);
+
+    return {
+        power: totalPower,
+        color: `rgb(${r}, ${g}, ${b})`,
+        opacity: 0.1 + (intensity * 0.4)
     };
   };
 
@@ -579,13 +624,15 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
             >
               <Maximize2 className="w-4 h-4 scale-75" />
             </button>
-            <button
-              onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-              className="px-4 h-10 flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
-            >
-              Reset
-            </button>
           </div>
+
+          <button 
+            onClick={() => setShowHeatmap(!showHeatmap)}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border transition-all shadow-lg ${showHeatmap ? 'bg-orange-500 border-orange-400 text-white animate-pulse' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+          >
+            <Flame className={`w-4 h-4 ${showHeatmap ? 'fill-current' : ''}`} />
+            <span className="text-[10px] font-black uppercase tracking-widest">{showHeatmap ? 'Heatmap: ON' : 'Thermal View'}</span>
+          </button>
 
           {isDrafting && activeTool === 'REFERENCE_SYMBOL' && (
             <div className="flex items-center gap-3 pr-4 border-r border-white/10">
@@ -808,9 +855,21 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
                   const sm = typeof rack.spatialMetadata === 'string' ? JSON.parse(rack.spatialMetadata) : rack.spatialMetadata;
                   x = sm.x - bounds.minX + 4; y = sm.y - bounds.minY + 4; w = sm.w - 8; h = sm.h - 8;
                 } else { x = Number(rack.position || 0) * TILE_SIZE + 4; y = 4; w = TILE_SIZE - 8; h = TILE_SIZE - 8; }
+                
+                const heat = calculateRackHeat(rack);
+                
                 return (
                   <g key={rack.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); if (!isDrafting) setSelectedContainer(rack); }}>
-                    <rect x={x} y={y} width={w} height={h} rx="4" fill={isCab ? 'rgba(71, 85, 105, 0.2)' : 'rgba(16, 185, 129, 0.15)'} stroke={isCab ? '#94a3b8' : '#10b981'} strokeWidth={(isCab ? 3 : 2) / zoom} className="transition-all group-hover:stroke-white" />
+                    {/* THERMAL GLOW */}
+                    {showHeatmap && heat.power > 0 && (
+                        <rect 
+                            x={x - 20} y={y - 20} width={w + 40} height={h + 40} rx={w/2} 
+                            fill={heat.color} opacity={heat.opacity}
+                            className="transition-all duration-1000 blur-2xl"
+                        />
+                    )}
+                    
+                    <rect x={x} y={y} width={w} height={h} rx="4" fill={isCab ? 'rgba(71, 85, 105, 0.2)' : (showHeatmap && heat.power > 0 ? `${heat.color}40` : 'rgba(16, 185, 129, 0.15)')} stroke={isCab ? '#94a3b8' : (showHeatmap && heat.power > 0 ? heat.color : '#10b981')} strokeWidth={(isCab ? 3 : 2) / zoom} className="transition-all group-hover:stroke-white shadow-2xl" />
                     {isCab && <rect x={x + 2} y={y + 2} width={w - 4} height={h - 4} rx="2" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={1 / zoom} />}
                     <text x={x + w / 2} y={y + h / 2} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter drop-shadow-sm" style={{ fontSize: 12 / zoom }}>{rack.name}</text>
                   </g>

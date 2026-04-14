@@ -68,10 +68,15 @@ export async function GET(
     const substructureId = (device as any).positions?.[0]?.substructureId 
       || (device as any).container?.substructureId;
 
+    // Extract identity from the primary equipment (The actual asset)
+    const primaryEquipment = device.equipments.find(e => e.sn);
+    const mainSn = primaryEquipment?.sn || device.id;
+    const mainName = primaryEquipment?.name || device.name;
+
     const bdfbData = {
       id: device.id,
-      sn: device.sn || device.id, 
-      name: device.name,
+      sn: mainSn, 
+      name: mainName,
       location: locationName,
       substructureId: substructureId,
       telemetry: {
@@ -80,7 +85,17 @@ export async function GET(
           power: 0,
           energy: 0
       },
-      panels: allPanels
+      panels: allPanels,
+      connections: device.equipments.flatMap(eq => 
+        eq.ports.filter(p => (p as any).clientName).map(p => ({
+          id: p.id,
+          port: p.name,
+          panelName: eq.name,
+          position: parseInt(p.name.replace(/[^0-9]/g, '')) || 0,
+          status: 'Activo',
+          clientName: (p as any).clientName
+        }))
+      )
     };
 
     return NextResponse.json(bdfbData);

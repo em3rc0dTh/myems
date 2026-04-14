@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     if (id) {
       const room = await prisma.substructure.findUnique({
         where: { id },
-        include: { 
+        include: {
           level: {
             include: { structure: true }
           },

@@ -173,6 +173,11 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                         <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Nombre o Número de Breaker</label>
                         <input id="swal-port-name" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm" placeholder="Ej: Breaker-1">
                     </div>
+                    <div>
+                        <label class="text-[10px] font-black text-sky-500 uppercase tracking-widest block mb-1">Mapeo NE (Cliente/Equipo Final)</label>
+                        <input id="swal-port-client" class="w-full bg-sky-500/10 border border-sky-500/30 rounded-xl px-4 py-2 text-sky-400 text-sm font-bold" placeholder="Ej: ROUTER-01">
+                        <p class="text-[7px] text-slate-500 mt-1 uppercase font-bold tracking-widest">Esto habilitará automáticamente el Wiring Diagram</p>
+                    </div>
                 </div>
             `,
             focusConfirm: false,
@@ -185,7 +190,8 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
             preConfirm: () => {
                 return {
                     eqId: (document.getElementById('swal-port-eq') as HTMLSelectElement).value,
-                    name: (document.getElementById('swal-port-name') as HTMLInputElement).value
+                    name: (document.getElementById('swal-port-name') as HTMLInputElement).value,
+                    clientName: (document.getElementById('swal-port-client') as HTMLInputElement).value
                 }
             }
         });
@@ -198,17 +204,18 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                 const suffix = numMatch ? numMatch[0] : "0";
                 const calculatedTopic = prefix ? `${prefix}${suffix}` : null;
 
-                const res = await fetch('/telxius/api/ports', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: formValues.name,
-                        equipmentId: formValues.eqId,
-                        deviceId: device.id,
-                        type: 'POWER_OUT',
-                        sensorTopic: calculatedTopic
-                    })
-                });
+                    const res = await fetch('/telxius/api/ports', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: formValues.name,
+                            equipmentId: formValues.eqId,
+                            deviceId: device.id,
+                            type: 'POWER_OUT',
+                            sensorTopic: calculatedTopic,
+                            clientName: formValues.clientName
+                        })
+                    });
                 if (res.ok) {
                     const newPort = await res.json();
                     setPorts([...ports, newPort.data]);
@@ -402,7 +409,24 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                                             <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center border border-white/5"><Zap className={`w-4 h-4 ${port.sensorTopic ? 'text-emerald-500' : 'text-slate-600'}`} /></div>
                                             <div>
                                                 <p className="text-sm font-black text-white uppercase">{port.name}</p>
-                                                {port.sensorTopic && <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[8px] font-black rounded border border-emerald-500/20">{port.sensorTopic}</span>}
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    {port.sensorTopic && <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[8px] font-black rounded border border-emerald-500/20">{port.sensorTopic}</span>}
+                                                    <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                                                        <span className="text-[7px] font-black text-slate-500 uppercase">Mapeo NE:</span>
+                                                        <input 
+                                                            defaultValue={port.clientName || ''}
+                                                            onBlur={async (e) => {
+                                                                await fetch(`/telxius/api/ports/?id=${port.id}`, {
+                                                                    method: 'PATCH',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ clientName: e.target.value })
+                                                                });
+                                                            }}
+                                                            placeholder="Ej: ROUTER-01"
+                                                            className="bg-transparent text-[9px] text-sky-400 font-bold focus:outline-none w-24"
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

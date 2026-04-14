@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 // POST /api/ports
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, type, equipmentId, deviceId, sensorTopic } = body;
+  const { name, type, equipmentId, deviceId, sensorTopic, clientName } = body;
 
   if (!name || !deviceId) return err("name and deviceId are required");
 
@@ -43,8 +43,9 @@ export async function POST(req: NextRequest) {
       type: type || "POWER_OUT",
       sensorTopic: sensorTopic || null,
       equipmentId: equipmentId || null,
-      deviceId
-    }
+      deviceId,
+      clientName: clientName || ""
+    } as any
   });
   return ok(port);
 }
@@ -55,7 +56,7 @@ export async function PATCH(req: NextRequest) {
   if (!id) return err("id required");
 
   const body = await req.json();
-  const { name, type, sensorTopic } = body;
+  const { name, type, sensorTopic, clientName } = body;
 
   const updated = await prisma.port.update({
     where: { id },
@@ -63,7 +64,8 @@ export async function PATCH(req: NextRequest) {
       ...(name !== undefined && { name }),
       ...(type !== undefined && { type }),
       ...(sensorTopic !== undefined && { sensorTopic: sensorTopic || null }),
-    }
+      ...(clientName !== undefined && { clientName: clientName || "" }),
+    } as any
   });
   return ok(updated);
 }

@@ -33,6 +33,12 @@ const NAV_ITEMS = [
     icon: Database,
     href: '/topology/',
     description: 'Ingeniería y Carga de Red'
+  },
+  {
+    label: 'Auditoría Estructural',
+    icon: Layers,
+    href: '/inventory/tree/',
+    description: 'Vista de Árbol Jerárquico'
   }
 ];
 
@@ -62,6 +68,8 @@ export default function NavigationSidebar() {
               isActive = pathname?.startsWith('/topology/dashboard/');
             } else if (item.href === '/topology/') {
               isActive = pathname?.startsWith('/topology/') && !pathname?.startsWith('/topology/dashboard/');
+            } else if (item.href === '/inventory/tree/') {
+              isActive = pathname?.startsWith('/inventory/tree/');
             }
 
             const Icon = item.icon;
