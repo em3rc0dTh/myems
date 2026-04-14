@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 
 import { MqttProvider } from "../lib/MqttContext";
 import NavigationSidebar from "@/components/NavigationSidebar";
+import DiagnosticTerminal from "@/components/DiagnosticTerminal";
 
 export default function RootLayout({
   children,
@@ -33,6 +34,7 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-full bg-background text-foreground transition-colors duration-500">
         <MqttProvider>
+          <DiagnosticTerminal />
           <div className="flex min-h-screen">
             <NavigationSidebar />
             <div className="flex-1 flex flex-col min-w-0">
