@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@/lib/generated/client";
-
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma";
 
 // GET /telxius/api/levels?structureId=xxx
 export async function GET(req: NextRequest) {
@@ -15,8 +13,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, data: levels });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }
 

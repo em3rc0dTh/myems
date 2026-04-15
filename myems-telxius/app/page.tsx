@@ -6,6 +6,7 @@ import React, { useState, useEffect } from "react";
 import { Settings, ChevronRight, ChevronDown, Edit, Trash2, LayoutGrid, Activity, Plus, Server, FolderTree, AlertTriangle, CheckCircle2, FileDown, Inbox, Pin, PinOff, Sliders } from "lucide-react";
 import Link from 'next/link';
 import EquipmentEditorModal from "../components/EquipmentEditorModal";
+import InfrastructureExplorer from "../components/InfrastructureExplorer";
 
 export default function Home() {
     const isProd = process.env.NEXT_PUBLIC_APP_MODE === 'prod';
@@ -141,6 +142,16 @@ export default function Home() {
                                         <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-white transition-colors" />
                                     </div>
                                 </Link>
+
+                                <div className="p-1 bg-white/[0.02] border border-white/5 rounded-[2rem] flex-1 min-h-0 flex flex-col overflow-hidden">
+                                     <div className="p-4 pb-2 border-b border-white/5 flex items-center gap-3">
+                                         <div className="p-1.5 bg-fuchsia-500/10 rounded-lg"><FolderTree className="w-3.5 h-3.5 text-fuchsia-400" /></div>
+                                         <span className="text-[9px] font-black text-white uppercase tracking-widest">Auditoría Estructural</span>
+                                     </div>
+                                     <div className="flex-1 overflow-auto custom-scrollbar p-2">
+                                         <InfrastructureExplorer />
+                                     </div>
+                                </div>
                             </div>
 
                             <div className="mt-auto space-y-3 shrink-0">

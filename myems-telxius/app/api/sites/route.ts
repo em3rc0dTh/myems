@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@/lib/generated/client";
-
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
@@ -23,8 +21,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, data: sites });
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }
 

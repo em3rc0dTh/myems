@@ -1,0 +1,271 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/client"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// --- FASE 1: DOMINIO GEOGRÁFICO (ESTÁTICO) ---
+
+model Country {
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  name    String   @unique
+  regions Region[]
+}
+
+model Region {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  countryId String     @db.ObjectId
+  country   Country    @relation(fields: [countryId], references: [id])
+  provinces Province[]
+}
+
+model Province {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  regionId String @db.ObjectId
+  region   Region @relation(fields: [regionId], references: [id])
+  towns    Town[]
+}
+
+model Town {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  provinceId String     @db.ObjectId
+  province   Province   @relation(fields: [provinceId], references: [id])
+  districts  District[]
+}
+
+model District {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  name   String
+  townId String @db.ObjectId
+  town   Town   @relation(fields: [townId], references: [id])
+  sites  Site[]
+}
+
+model Site {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  districtId      String   @db.ObjectId
+  district        District @relation(fields: [districtId], references: [id])
+  address         String?
+  geoCoords       String? // Point anchor [lat, lng]
+  perimeter       String? // SVG Polygon points
+  spatialMetadata String? // Technical rules for site layout
+
+  width     Float? // Physical width anchor
+  length    Float? // Physical length/depth anchor
+  isLogical Boolean @default(false) // Flag for Almacén Central / Logical pools
+
+  structures Structure[]
+  devices    Device[]
+}
+
+// --- FASE 2: DOMINIO OPERATIVO (DINÁMICO - CRUD) ---
+
+model Structure {
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  siteId          String  @db.ObjectId
+  site            Site    @relation(fields: [siteId], references: [id])
+  perimeter       String? // SVG Polygon relative to Site
+  spatialMetadata String? // Technical blueprint rules
+  levels          Level[]
+}
+
+model Level {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  structureId     String         @db.ObjectId
+  structure       Structure      @relation(fields: [structureId], references: [id])
+  spatialMetadata String? // Schematic markers
+  rooms           Substructure[]
+}
+
+model Substructure {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  name    String
+  type    String @default("ROOM")
+  levelId String @db.ObjectId
+  level   Level  @relation(fields: [levelId], references: [id])
+
+  // -- Propiedades Físicas --
+  area            Float?
+  width           Float?
+  depth           Float?
+  length          Float?
+  measurementUnit String @default("METRIC")
+
+  gridRows        String[]
+  gridCols        Int[]
+  perimeter       String?
+  referencePoints String?
+  spatialMetadata String? // Engineering blueprint logic
+  racks           Container[]
+  positions       Position[]
+  rows            Row[]
+}
+
+model Row {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  name           String // Ej: "Fila A", "Bahía 1"
+  substructureId String       @db.ObjectId
+  substructure   Substructure @relation(fields: [substructureId], references: [id])
+
+  spatialMetadata String? // Rectángulo de la Bahía en el plano
+  containers      Container[]
+  positions       Position[]
+}
+
+model Container {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  type           String       @default("RACK")
+  substructureId String       @db.ObjectId
+  substructure   Substructure @relation(fields: [substructureId], references: [id])
+
+  parentContainerId String?     @db.ObjectId
+  parentContainer   Container?  @relation("ContainerHierarchy", fields: [parentContainerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  childContainers   Container[] @relation("ContainerHierarchy")
+
+  row    String
+  rowId  String? @db.ObjectId
+  rowRef Row?    @relation(fields: [rowId], references: [id])
+
+  position        Int
+  spatialMetadata String? // Footprint details (x, y, w, h)
+
+  width           Float?
+  depth           Float?
+  height          Float?
+  footprintArea   Float?
+  measurementUnit String @default("METRIC")
+
+  mountingWidth  Float?
+  mountingDepth  Float?
+  mountingHeight Float?
+
+  assignSpace Int?     @default(46)
+  slots       CAS[]
+  devices     Device[]
+}
+
+model CAS {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  label       String // U1, U2, Slot-01
+  containerId String    @db.ObjectId
+  container   Container @relation(fields: [containerId], references: [id])
+  ne          NE?       @relation(fields: [neId], references: [id])
+  neId        String?   @db.ObjectId
+}
+
+// --- FASE 3a: POSICIÓN FÍSICA (TILE 60x60cm) ---
+
+/// Una posición es la unidad mínima de una sala.
+/// Existe aunque esté vacía. Un Device puede ocupar varias posiciones.
+model Position {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  substructureId String       @db.ObjectId
+  substructure   Substructure @relation(fields: [substructureId], references: [id])
+
+  row    String // "A", "B", "C" — identificador de fila
+  rowId  String? @db.ObjectId
+  rowRef Row?    @relation(fields: [rowId], references: [id])
+  col    Int // 1, 2, 3 — identificador de columna
+
+  // ── Ocupación en la cuadrícula (tiles de referencia 60×60) ──
+  widthUnits Int @default(1) // cuántos tiles ocupa en columna (eje X)
+  depthUnits Int @default(1) // cuántos tiles ocupa en fila   (eje Z)
+
+  // ── Dimensiones físicas reales del device (puede ser no múltiplo de 60) ──
+  physWidthCm Float  @default(60) // ancho real: 50, 60, 90, 120...
+  physDepthCm Float  @default(60) // profundidad real: 30, 60, 90...
+  physOffsetX Float? @default(0) // Ajuste fino X en cm
+  physOffsetY Float? @default(0) // Ajuste fino Y en cm
+
+  status String  @default("EMPTY") // EMPTY | OCCUPIED | RESERVED
+  label  String? // etiqueta libre: "BDFB-01", "Rack-Norte"
+
+  deviceId String? @db.ObjectId // device que ocupa esta posición
+  device   Device? @relation(fields: [deviceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- FASE 3b: CONTEXTO FÍSICO (EQUIPMENT & WRAPPERS) ---
+
+model Device {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  name     String // BDFB-01, Cisco-Core
+  category String @default("NETWORKING") // BDFB, NE, METER
+  siteId   String @db.ObjectId
+  site     Site   @relation(fields: [siteId], references: [id])
+
+  containerId String?    @db.ObjectId
+  container   Container? @relation(fields: [containerId], references: [id])
+  uPosition   Int? // Posición inicial en el rack (U1, U2...)
+  uHeight     Int?       @default(1) // Altura en unidades (Rack Units)
+
+  positions  Position[] // Relación inversa: posiciones que ocupa
+  equipments Equipment[] // Colección de fierros que componen este dispositivo
+  ports      Port[] // Puertos maestros del dispositivo
+  ne         NE? // Si el dispositivo aloja una IA/Conciencia lógica
+}
+
+model Equipment {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  name      String // Ej: "Panel-A", "Subrack-1"
+  sn        String? // Serial Number
+  category  String // RACK, SUBRACK, CIRCUIT_PACK, CIRCUIT_BREAKER
+  slotLabel String? // Ej: "Slot-01", "Bay-A"
+
+  // -- Posicionamiento Vertical (Fase 3c) --
+  unitPosition  Int? // Posición inicial en el rack (U1, U2...)
+  unitHeight    Int?    @default(1) // Altura en Unidades de Rack (U)
+  logicalPrefix String? // Prefijo para IDs lógicos: "0_1_"
+
+  deviceId          String      @db.ObjectId
+  device            Device      @relation(fields: [deviceId], references: [id])
+  parentEquipmentId String?     @db.ObjectId
+  parent            Equipment?  @relation("Composition", fields: [parentEquipmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children          Equipment[] @relation("Composition")
+  ports             Port[]
+}
+
+model Port {
+  id                String       @id @default(auto()) @map("_id") @db.ObjectId
+  name              String // Breaker 1, Gi0/0
+  type              String       @default("POWER_OUT") // POWER_IN, POWER_OUT, DATA, SENSOR
+  sensorTopic       String? // Tópico MQTT: "telxius/dc01/posA1/p1"
+  equipmentId       String?      @db.ObjectId
+  equipment         Equipment?   @relation(fields: [equipmentId], references: [id])
+  deviceId          String       @db.ObjectId
+  device            Device       @relation(fields: [deviceId], references: [id])
+  sourceConnections Connection[] @relation("SourceConnection")
+  targetConnections Connection[] @relation("TargetConnection")
+}
+
+// --- FASE 4: CAPA LÓGICA (THE CONSCIOUSNESS - NE) ---
+
+model NE {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  name     String // Network Element Logic Name
+  deviceId String @unique @db.ObjectId
+  device   Device @relation(fields: [deviceId], references: [id])
+  slots    CAS[] // Dónde está anclado físicamente
+}
+
+model Connection {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  label        String @default("FEED")
+  sourcePortId String @db.ObjectId
+  sourcePort   Port   @relation("SourceConnection", fields: [sourcePortId], references: [id])
+  targetPortId String @db.ObjectId
+  targetPort   Port   @relation("TargetConnection", fields: [targetPortId], references: [id])
+}
