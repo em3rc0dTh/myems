@@ -112,7 +112,7 @@ export async function POST(req: Request) {
                     eqPanel = await prisma.equipment.create({
                         data: { 
                             name: panel.name, 
-                            category: "BREAKER_PANEL", 
+                            category: "CIRCUIT_BREAKER_PANEL", 
                             deviceId: device.id,
                             sn: bdfb.deviceSn, // Mapeado del serial number principal o del panel
                             unitPosition: unitPosCounter, // Ocupando la posición RU del Container AssignSpace
