@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
@@ -11,7 +9,7 @@ export async function GET() {
           include: {
             provinces: {
               include: {
-                cities: {
+                towns: {
                   include: {
                     districts: {
                       include: {
@@ -30,7 +28,5 @@ export async function GET() {
   } catch (error) {
     console.error("[API/geo] Error:", error);
     return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }
