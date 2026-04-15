@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma";
 
 function ok(data: unknown) {
   return NextResponse.json({ ok: true, data });
@@ -20,7 +18,7 @@ export async function GET(req: NextRequest) {
     ...(deviceId && { deviceId }),
   };
 
-  const ports = await prisma.port.findMany({
+  const ports = await (prisma.port as any).findMany({
     where,
     include: {
       sourceConnections: { include: { targetPort: { include: { equipment: true } } } },
@@ -33,19 +31,21 @@ export async function GET(req: NextRequest) {
 // POST /api/ports
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, type, equipmentId, deviceId, sensorTopic, clientName } = body;
+  const { name, type, equipmentId, deviceId, sensorKey, sensorTopic, clientName, maxAmperage, cableGauge } = body;
 
   if (!name || !deviceId) return err("name and deviceId are required");
 
-  const port = await prisma.port.create({
+  const port = await (prisma.port as any).create({
     data: {
       name,
-      type: type || "POWER_OUT",
-      sensorTopic: sensorTopic || null,
+      type: type || "POWER_DIST",
+      sensorKey: sensorKey || sensorTopic || null,
       equipmentId: equipmentId || null,
       deviceId,
-      clientName: clientName || ""
-    } as any
+      clientName: clientName || "",
+      maxAmperage: maxAmperage ? Number(maxAmperage) : null,
+      cableGauge: cableGauge || null
+    }
   });
   return ok(port);
 }
@@ -56,16 +56,18 @@ export async function PATCH(req: NextRequest) {
   if (!id) return err("id required");
 
   const body = await req.json();
-  const { name, type, sensorTopic, clientName } = body;
+  const { name, type, sensorKey, sensorTopic, clientName, maxAmperage, cableGauge } = body;
 
-  const updated = await prisma.port.update({
+  const updated = await (prisma.port as any).update({
     where: { id },
     data: {
       ...(name !== undefined && { name }),
       ...(type !== undefined && { type }),
-      ...(sensorTopic !== undefined && { sensorTopic: sensorTopic || null }),
+      ...( (sensorKey !== undefined || sensorTopic !== undefined) && { sensorKey: sensorKey || sensorTopic || null }),
       ...(clientName !== undefined && { clientName: clientName || "" }),
-    } as any
+      ...(maxAmperage !== undefined && { maxAmperage: Number(maxAmperage) || null }),
+      ...(cableGauge !== undefined && { cableGauge: cableGauge || null }),
+    }
   });
   return ok(updated);
 }

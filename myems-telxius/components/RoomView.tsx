@@ -582,8 +582,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
 
   return (
     <div className="w-full h-full flex flex-col bg-[#050508] font-sans selection:bg-blue-500/30">
-      {/* ... header remains same ... */}
-      <div className="h-24 px-8 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-2xl shrink-0 z-50">
+      <div className="h-20 px-8 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-2xl shrink-0 z-[100]">
         <div className="flex items-center gap-6">
           <div>
             <div className="flex items-center gap-2 text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
@@ -592,118 +591,131 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
             </div>
             <h2 className="text-xl font-black text-white italic tracking-tighter uppercase leading-none">{resolveValue(substructure.name)}</h2>
           </div>
-
-          {isDrafting && (
-            <div className="flex items-center gap-3 ml-8 bg-white/5 p-1.5 rounded-2xl border border-white/5 animate-in zoom-in-95">
-              {[
-                { id: 'CLUSTER_STAMP', label: 'Racks' },
-                { id: 'BAY_DRAFTING', label: 'Bays' },
-                { id: 'REFERENCE_SYMBOL', label: 'Icons' }
-              ].map(t => (
-                <button key={t.id} onClick={() => setActiveTool(t.id as any)} className={`px-4 py-2 text-[9px] font-black uppercase rounded-xl transition-all ${activeTool === t.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="flex items-center gap-4">
           <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/10 gap-1 mr-4">
-            <button
-              onClick={() => setZoom(prev => Math.min(5, prev * 1.2))}
-              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
-              title="Zoom In"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setZoom(prev => Math.max(0.5, prev / 1.2))}
-              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"
-              title="Zoom Out"
-            >
-              <Maximize2 className="w-4 h-4 scale-75" />
-            </button>
+            <button onClick={() => setZoom(prev => Math.min(5, prev * 1.2))} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"><Plus className="w-4 h-4" /></button>
+            <button onClick={() => setZoom(prev => Math.max(0.5, prev / 1.2))} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"><Maximize2 className="w-4 h-4 scale-75" /></button>
           </div>
 
           <button 
             onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl border transition-all shadow-lg ${showHeatmap ? 'bg-orange-500 border-orange-400 text-white animate-pulse' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+            className={`flex items-center gap-2 px-5 py-2 rounded-2xl border transition-all ${showHeatmap ? 'bg-orange-500 border-orange-400 text-white animate-pulse' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
           >
             <Flame className={`w-4 h-4 ${showHeatmap ? 'fill-current' : ''}`} />
-            <span className="text-[10px] font-black uppercase tracking-widest">{showHeatmap ? 'Heatmap: ON' : 'Thermal View'}</span>
+            <span className="text-[9px] font-black uppercase tracking-widest">{showHeatmap ? 'Heatmap' : 'Thermal'}</span>
           </button>
 
-          {isDrafting && activeTool === 'REFERENCE_SYMBOL' && (
-            <div className="flex items-center gap-3 pr-4 border-r border-white/10">
-              <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1">
-                {['DOOR', 'COLUMN', 'WINDOW', 'PANEL', 'HVAC', 'SECURITY'].map(s => (
-                  <button key={s} onClick={() => setSymbolType(s as any)} className={`px-2 py-1 text-[8px] font-black uppercase rounded-lg transition-all ${symbolType === s ? 'bg-indigo-500 text-white' : 'text-slate-500'}`}>{s}</button>
-                ))}
-              </div>
-              <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1 items-center px-3">
-                <span className="text-[8px] font-black uppercase text-slate-500 mr-2">Rot</span>
-                <select 
-                  value={symbolRotation} 
-                  onChange={e => setSymbolRotation(Number(e.target.value))}
-                  className="bg-transparent text-[10px] text-white font-black outline-none appearance-none cursor-pointer"
-                >
-                  {[0, 90, 180, 270].map(deg => <option key={deg} value={deg} className="bg-slate-900">{deg}°</option>)}
-                </select>
-              </div>
-            </div>
-          )}
-
-          {isDrafting && activeTool === 'CLUSTER_STAMP' && (
-            <div className="flex items-center gap-3 pr-4 border-r border-white/10">
-              <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1 mr-2 items-center px-3">
-                <span className="text-[8px] font-black uppercase text-slate-500 mr-2">Capacity</span>
-                <input
-                  type="number" value={uCapacity}
-                  onChange={e => setUCapacity(Number(e.target.value))}
-                  className="w-10 h-6 bg-white/5 border border-white/5 rounded text-[10px] text-center text-white font-black"
-                />
-                <span className="text-[8px] font-black uppercase text-slate-500 ml-1">U</span>
-              </div>
-              <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1 mr-2">
-                <button onClick={() => setContainerType('RACK')} className={`px-3 py-1 text-[8px] font-black uppercase rounded-lg transition-all ${containerType === 'RACK' ? 'bg-emerald-500 text-black' : 'text-slate-500'}`}>Rack</button>
-                <button onClick={() => setContainerType('CABINET')} className={`px-3 py-1 text-[8px] font-black uppercase rounded-lg transition-all ${containerType === 'CABINET' ? 'bg-slate-400 text-black' : 'text-slate-500'}`}>Cabinet</button>
-              </div>
-              {PRESET_SIZES.map(s => (
-                <button key={s.label} onClick={() => setStampSize({ w: s.w, h: s.h })} className={`w-12 h-8 flex items-center justify-center text-[8px] font-bold border rounded-lg transition-all ${stampSize.w === s.w && stampSize.h === s.h ? 'border-amber-500 bg-amber-500/10 text-white' : 'border-white/10 text-slate-500'}`}>
-                  {s.label}
-                </button>
-              ))}
-              <div className="flex gap-1 ml-2">
-                <input
-                  type="number" value={customSize.w}
-                  onChange={e => setCustomSize(prev => ({ ...prev, w: Math.min(120, Number(e.target.value)) }))}
-                  className="w-10 h-8 bg-black/40 border border-white/10 rounded-lg text-[9px] text-center text-white"
-                />
-                <input
-                  type="number" value={customSize.h}
-                  onChange={e => setCustomSize(prev => ({ ...prev, h: Math.min(120, Number(e.target.value)) }))}
-                  className="w-10 h-8 bg-black/40 border border-white/10 rounded-lg text-[9px] text-center text-white"
-                />
-                <button onClick={() => setStampSize(customSize)} className="w-8 h-8 flex items-center justify-center bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-[10px]">+</button>
-              </div>
-            </div>
-          )}
-
-          <button onClick={handleSaveEngineering} disabled={isSaving || localElements.length === 0} className="px-6 py-2.5 bg-emerald-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-xl disabled:opacity-20 flex items-center gap-2">
-            <Save className="w-3.5 h-3.5" /> {isSaving ? 'Syncing...' : 'Save Draft'}
+          <button onClick={handleSaveEngineering} disabled={isSaving || localElements.length === 0} className="px-6 py-2 bg-emerald-500 text-black text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-xl disabled:opacity-20 flex items-center gap-2">
+            <Save className="w-3.5 h-3.5" /> {isSaving ? 'Syncing' : 'Save'}
           </button>
-          <button onClick={() => setIsDrafting(!isDrafting)} className={`px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border ${isDrafting ? 'bg-amber-500 text-black border-amber-400 shadow-xl' : 'bg-white/5 text-slate-500 border-white/5 hover:text-white'}`}>
-            {isDrafting ? 'Drafting Machine ON' : 'Drafting Engine'}
+          <button onClick={() => setIsDrafting(!isDrafting)} className={`px-6 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border ${isDrafting ? 'bg-amber-500 text-black border-amber-400 shadow-xl' : 'bg-white/5 text-slate-500 border-white/5'}`}>
+            {isDrafting ? 'Drafting ON' : 'Drafting'}
           </button>
         </div>
       </div>
 
-      <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-black cursor-crosshair" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel}>
+      <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#050508] transition-all cursor-crosshair" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel}>
+        {/* FLOATING TOOLS PANEL (Only when isDrafting is true) */}
+        {isDrafting && (
+          <div className="absolute left-6 top-6 bottom-6 w-80 z-[150] flex flex-col gap-4 pointer-events-none">
+            <div className="glass-panel p-4 rounded-[32px] border border-white/10 pointer-events-auto flex flex-col gap-6 shadow-2xl bg-[#0a0a0f]/80">
+              <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                <span className="text-[10px] font-black text-white uppercase italic tracking-widest">Drafting Machine</span>
+                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-[8px] font-black rounded border border-amber-500/30">ACTIVE</span>
+              </div>
+
+              {/* Tool Category Selector */}
+              <div className="grid grid-cols-3 gap-2 bg-black/40 p-1 rounded-2xl border border-white/5">
+                {[
+                  { id: 'CLUSTER_STAMP', label: 'Racks' },
+                  { id: 'BAY_DRAFTING', label: 'Bays' },
+                  { id: 'REFERENCE_SYMBOL', label: 'Icons' }
+                ].map(t => (
+                  <button key={t.id} onClick={() => setActiveTool(t.id as any)} className={`py-2 text-[8px] font-black uppercase rounded-xl transition-all ${activeTool === t.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Contextual Tools based on Active Tool */}
+              <div className="flex flex-col gap-6 animate-in slide-in-from-left-2 duration-300">
+                {activeTool === 'CLUSTER_STAMP' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Type</label>
+                        <div className="flex bg-black/40 p-1 rounded-xl border border-white/5 gap-1">
+                          <button onClick={() => setContainerType('RACK')} className={`flex-1 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all ${containerType === 'RACK' ? 'bg-emerald-500 text-black' : 'text-slate-600'}`}>Rack</button>
+                          <button onClick={() => setContainerType('CABINET')} className={`flex-1 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all ${containerType === 'CABINET' ? 'bg-white/20 text-white' : 'text-slate-600'}`}>Cab</button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Height (U)</label>
+                        <div className="flex items-center bg-black/40 px-3 py-1 rounded-xl border border-white/5">
+                          <input type="number" value={uCapacity} onChange={e => setUCapacity(Number(e.target.value))} className="w-full bg-transparent text-[11px] text-white font-black outline-none" />
+                          <span className="text-[8px] text-slate-600 font-black">U</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Dimensions (cm)</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {PRESET_SIZES.map(s => (
+                          <button key={s.label} onClick={() => setStampSize({ w: s.w, h: s.h })} className={`py-2.5 text-[9px] font-bold border rounded-xl transition-all ${stampSize.w === s.w && stampSize.h === s.h ? 'border-amber-500 bg-amber-500/10 text-white shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 'border-white/5 bg-white/5 text-slate-500 hover:text-slate-300'}`}>
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-2 mt-4 items-center bg-black/40 p-2 rounded-2xl border border-white/5">
+                        <input type="number" value={customSize.w} onChange={e => setCustomSize(prev => ({ ...prev, w: Number(e.target.value) }))} className="w-12 bg-white/5 border border-white/5 rounded-lg py-1.5 text-[10px] text-center text-white font-black" />
+                        <span className="text-slate-600 text-xs">×</span>
+                        <input type="number" value={customSize.h} onChange={e => setCustomSize(prev => ({ ...prev, h: Number(e.target.value) }))} className="w-12 bg-white/5 border border-white/5 rounded-lg py-1.5 text-[10px] text-center text-white font-black" />
+                        <button onClick={() => setStampSize(customSize)} className="flex-1 py-1.5 bg-blue-500/20 text-blue-400 text-[9px] font-black uppercase rounded-lg border border-blue-500/20 hover:bg-blue-500 hover:text-white transition-all">Custom</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTool === 'REFERENCE_SYMBOL' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-2">
+                      {['DOOR', 'COLUMN', 'WINDOW', 'PANEL', 'HVAC', 'SECURITY'].map(s => (
+                        <button key={s} onClick={() => setSymbolType(s as any)} className={`py-2.5 text-[8px] font-black uppercase rounded-xl transition-all border ${symbolType === s ? 'bg-indigo-500 border-indigo-400 text-white' : 'bg-black/40 border-white/5 text-slate-600 hover:text-slate-400'}`}>{s}</button>
+                      ))}
+                    </div>
+                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 flex items-center justify-between">
+                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Symbol Rotation</span>
+                      <select value={symbolRotation} onChange={e => setSymbolRotation(Number(e.target.value))} className="bg-transparent text-[11px] text-white font-black outline-none appearance-none cursor-pointer">
+                        {[0, 90, 180, 270].map(deg => <option key={deg} value={deg} className="bg-slate-900">{deg}°</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {activeTool === 'BAY_DRAFTING' && (
+                  <div className="p-6 bg-blue-500/5 border border-blue-500/20 rounded-2xl text-center">
+                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed uppercase tracking-tighter italic">Click en el mapa para iniciar punto A, selecciona punto B para delimitar la bahía orientado a muros.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-white/5">
+                <div className="flex items-center gap-2 text-amber-500/50">
+                  <Activity className="w-3 h-3" />
+                  <span className="text-[7px] font-black uppercase tracking-[0.3em]">Hardware Level Drafting</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-full flex items-center gap-3">
-          <span className="text-[9px] font-black text-sky-400 uppercase tracking-widest">Nivel de Zoom: {(zoom * 100).toFixed(0)}%</span>
+          <span className="text-[9px] font-black text-sky-400 uppercase tracking-widest">Zoom: {(zoom * 100).toFixed(0)}%</span>
           <div className="h-3 w-[1px] bg-sky-500/20" />
-          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest underline decoration-sky-500/30 underline-offset-2">Click + Arrastrar para mover</span>
+          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">Click + Drag to move</span>
         </div>
 
         <svg ref={svgRef} viewBox={viewBox} onClick={handleSvgClick} className="w-full h-full p-12 transition-all duration-200 ease-out select-none">
@@ -849,29 +861,36 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
               })}
 
               {localRacks.map(rack => {
-                let x, y, w, h;
+                const sm = typeof rack.spatialMetadata === 'string' ? JSON.parse(rack.spatialMetadata) : rack.spatialMetadata;
+                if (!sm || !sm.points) return null;
+
+                const ptsString = sm.points.map((p: any) => `${p.x - bounds.minX},${p.y - bounds.minY}`).join(' ');
                 const isCab = rack.type === 'CABINET';
-                if (rack.spatialMetadata) {
-                  const sm = typeof rack.spatialMetadata === 'string' ? JSON.parse(rack.spatialMetadata) : rack.spatialMetadata;
-                  x = sm.x - bounds.minX + 4; y = sm.y - bounds.minY + 4; w = sm.w - 8; h = sm.h - 8;
-                } else { x = Number(rack.position || 0) * TILE_SIZE + 4; y = 4; w = TILE_SIZE - 8; h = TILE_SIZE - 8; }
-                
                 const heat = calculateRackHeat(rack);
                 
+                // Centro del rack para el texto
+                const labelX = (sm.points.reduce((acc: number, p: any) => acc + p.x, 0) / sm.points.length) - bounds.minX;
+                const labelY = (sm.points.reduce((acc: number, p: any) => acc + p.y, 0) / sm.points.length) - bounds.minY;
+
                 return (
                   <g key={rack.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); if (!isDrafting) setSelectedContainer(rack); }}>
                     {/* THERMAL GLOW */}
                     {showHeatmap && heat.power > 0 && (
-                        <rect 
-                            x={x - 20} y={y - 20} width={w + 40} height={h + 40} rx={w/2} 
+                        <polygon 
+                            points={ptsString}
                             fill={heat.color} opacity={heat.opacity}
                             className="transition-all duration-1000 blur-2xl"
                         />
                     )}
                     
-                    <rect x={x} y={y} width={w} height={h} rx="4" fill={isCab ? 'rgba(71, 85, 105, 0.2)' : (showHeatmap && heat.power > 0 ? `${heat.color}40` : 'rgba(16, 185, 129, 0.15)')} stroke={isCab ? '#94a3b8' : (showHeatmap && heat.power > 0 ? heat.color : '#10b981')} strokeWidth={(isCab ? 3 : 2) / zoom} className="transition-all group-hover:stroke-white shadow-2xl" />
-                    {isCab && <rect x={x + 2} y={y + 2} width={w - 4} height={h - 4} rx="2" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth={1 / zoom} />}
-                    <text x={x + w / 2} y={y + h / 2} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter drop-shadow-sm" style={{ fontSize: 12 / zoom }}>{rack.name}</text>
+                    <polygon 
+                      points={ptsString} 
+                      fill={isCab ? 'rgba(71, 85, 105, 0.2)' : (showHeatmap && heat.power > 0 ? `${heat.color}40` : 'rgba(16, 185, 129, 0.15)')} 
+                      stroke={isCab ? '#94a3b8' : (showHeatmap && heat.power > 0 ? heat.color : '#10b981')} 
+                      strokeWidth={(isCab ? 3 : 2) / zoom} 
+                      className="transition-all group-hover:stroke-white shadow-2xl" 
+                    />
+                    <text x={labelX} y={labelY} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter drop-shadow-sm" style={{ fontSize: 10 / zoom }}>{rack.name}</text>
                   </g>
                 );
               })}

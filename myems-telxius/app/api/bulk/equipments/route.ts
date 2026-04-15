@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma";
 
 export async function POST(req: Request) {
     try {
@@ -27,7 +25,7 @@ export async function POST(req: Request) {
                     data: {
                         name: item.name,
                         sn: item.sn || null, // AQUI ESTÁ EL SERIAL NUMBER
-                        category: item.category || "RACK_UNIT",
+                        category: item.category || "SUBRACK",
                         deviceId: device.id,
                         unitPosition: item.unitPosition ? parseInt(item.unitPosition) : null,
                         unitHeight: item.unitHeight ? parseInt(item.unitHeight) : null,

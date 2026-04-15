@@ -217,7 +217,7 @@ export default function Home() {
                 <div className="flex-1 flex flex-col gap-4 min-h-0 min-w-0 transition-all duration-500">
 
                     {/* BDFB Section */}
-                    <section className="flex flex-col h-[60%] min-h-0 relative">
+                    <section className="flex flex-col flex-[1.6] min-h-0 relative">
                         <div className="flex items-center justify-between mb-3 shrink-0 px-1">
                             <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Consola de BDFBs Activas</h2>
                             <span className="px-2.5 py-1 bg-white/5 rounded-full text-[9px] font-mono text-slate-600 uppercase tracking-widest border border-white/5">
@@ -247,7 +247,7 @@ export default function Home() {
                                 ) : (
                                     <div className="flex gap-6 h-full min-w-max items-center">
                                         {filteredBDFBs.map((bdfb: BDFBData) => (
-                                            <div key={bdfb.id} className="h-full py-4 flex items-center justify-center min-w-[320px]">
+                                            <div key={bdfb.id} className="h-full py-2 flex items-center justify-center min-w-[320px]">
                                                 <BDFBSummary bdfb={bdfb} />
                                             </div>
                                         ))}
@@ -258,7 +258,7 @@ export default function Home() {
                     </section>
 
                     {/* Notifications Section */}
-                    <section className="flex flex-col h-[40%] min-h-0">
+                    <section className="flex flex-col flex-1 min-h-0">
                         <div className="flex items-center gap-3 mb-3 shrink-0 px-1">
                             <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Notificaciones de Ingeniería</h2>
                             {!isSystemEmpty && <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />}

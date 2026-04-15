@@ -135,11 +135,13 @@ async function cloneDevice(templateId: string, siteId: string, containerId: stri
             await (tx as any).port.create({
               data: {
                 name: p.name,
-                type: p.type,
-                sensorTopic: p.sensorTopic,
+                type: p.type || "DATA",
+                sensorKey: p.sensorKey || p.sensorTopic,
                 equipmentId: newEq.id,
                 deviceId: d.id,
-                clientName: (p as any).clientName || ""
+                clientName: p.clientName || "",
+                maxAmperage: p.maxAmperage || null,
+                cableGauge: p.cableGauge || null
               }
             });
           }
@@ -165,9 +167,11 @@ async function cloneDevice(templateId: string, siteId: string, containerId: stri
         await tx.port.create({
           data: {
             name: p.name,
-            type: p.type,
-            sensorTopic: p.sensorTopic,
-            deviceId: d.id
+            type: p.type || "DATA",
+            sensorKey: p.sensorKey || p.sensorTopic,
+            deviceId: d.id,
+            maxAmperage: p.maxAmperage || null,
+            cableGauge: p.cableGauge || null
           }
         });
       }

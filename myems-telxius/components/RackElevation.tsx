@@ -32,7 +32,7 @@ export default function RackElevation({ equipments, selectedId, onSelect, maxUni
   const rowHeight = 25; // Altura fija por cada U para alineación mecánica
 
   // Filtrar equipos que tienen posición vertical definida
-  const placedItems = equipments.filter(e => e.unitPosition !== null && e.unitPosition > 0);
+  const placedItems = equipments.filter(e => ((e as any).uPosition || e.unitPosition) !== null && ((e as any).uPosition || e.unitPosition) > 0);
 
   return (
     <div className="rack-viewport">
@@ -50,9 +50,10 @@ export default function RackElevation({ equipments, selectedId, onSelect, maxUni
         }
         .rack-grid-container {
           display: grid;
-          grid-template-columns: 35px 300px;
+          grid-template-columns: 30px 1fr;
           gap: 0;
           position: relative;
+          width: 100%;
         }
         /* Etiquetas laterales */
         .u-label {
@@ -157,8 +158,8 @@ export default function RackElevation({ equipments, selectedId, onSelect, maxUni
 
           {/* Equipos posicionados con Absolute pero alineados al Grid */}
           {placedItems.map(item => {
-            const startU = item.unitPosition || 1;
-            const hU = item.unitHeight || 1;
+            const startU = (item as any).uPosition || item.unitPosition || 1;
+            const hU = (item as any).uHeight || item.unitHeight || 1;
             const color = CATEGORY_COLORS[item.category] || "#6366f1";
             
             // Cálculo: En el renderizado, la U42 es la de arriba (index 0).

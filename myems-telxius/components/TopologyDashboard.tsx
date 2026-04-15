@@ -35,25 +35,48 @@ export default function TopologyDashboard() {
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const fetchSites = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/telxius/api/sites/');
+      const data = await res.json();
+      if (data.ok) {
+        setAllSites(data.data);
+      }
+    } catch (e) {
+      console.error("Failed to load sites", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateSite = async (formData: any) => {
+    setIsSaving(true);
+    try {
+      const res = await fetch('/telxius/api/sites/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) {
+        await fetchSites();
+        setIsCreateModalOpen(false);
+      }
+    } catch (e) {
+      console.error("Failed to create site", e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const selectedSite = allSites.find(s => s.id === selectedSiteId);
   const isAlmacen = selectedSite?.name?.toUpperCase().includes('ALMACÉN') || selectedSite?.name?.toUpperCase().includes('ALMACEN');
 
   // Load all sites on mount
   React.useEffect(() => {
-    const fetchSites = async () => {
-      try {
-        const res = await fetch('/telxius/api/sites/');
-        const data = await res.json();
-        if (data.ok) {
-          setAllSites(data.data);
-        }
-      } catch (e) {
-        console.error("Failed to load sites", e);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchSites();
   }, []);
 
@@ -78,6 +101,75 @@ export default function TopologyDashboard() {
 
   return (
     <div className="flex flex-col h-screen bg-[#020617] text-slate-200 overflow-hidden font-sans">
+      {/* MODAL CREACION SITE */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="w-full max-w-md glass-panel rounded-[32px] border border-white/10 p-8 shadow-2xl relative overflow-hidden text-left bg-[#0f172a]">
+            <div className="absolute top-0 left-0 w-full h-1 bg-sky-500" />
+            <h2 className="text-xl font-black text-white uppercase italic tracking-[0.15em] mb-2 flex items-center gap-3">
+              <MapPin className="w-6 h-6 text-sky-500" /> New Emplacement
+            </h2>
+            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-8">Layer 1 Physical Infrastructure</p>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              handleCreateSite({
+                name: fd.get('name'),
+                address: fd.get('address')
+              });
+            }} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Site Name</label>
+                <input name="name" required className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-mono text-sm focus:border-sky-500 outline-none transition-all placeholder:text-slate-700 uppercase" placeholder="Ej: LURIN GATEWAY" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Geo Coordinates</label>
+                  <input name="geoCoords" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-mono text-sm focus:border-sky-500 outline-none transition-all placeholder:text-slate-700 uppercase" placeholder="-12.284853, -76.847167" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Geographic Address</label>
+                  <input name="address" className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-mono text-sm focus:border-sky-500 outline-none transition-all placeholder:text-slate-700 uppercase" placeholder="P583+356, Lima..." />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Width (m)</label>
+                  <input name="width" type="number" defaultValue={100} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-mono text-sm focus:border-sky-500 outline-none transition-all" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Length (m)</label>
+                  <input name="length" type="number" defaultValue={100} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-mono text-sm focus:border-sky-500 outline-none transition-all" />
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-6">
+                <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl border border-white/10 transition-all">Cancel</button>
+                <button type="submit" onClick={(e) => {
+                  const form = e.currentTarget.closest('form');
+                  if (form) {
+                    e.preventDefault();
+                    const fd = new FormData(form);
+                    handleCreateSite({
+                      name: fd.get('name'),
+                      address: fd.get('address'),
+                      geoCoords: fd.get('geoCoords'),
+                      width: parseFloat(fd.get('width') as string),
+                      length: parseFloat(fd.get('length') as string)
+                    });
+                  }
+                }} disabled={isSaving} className="flex-[2] py-4 bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-black text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)]">
+                  {isSaving ? 'Synchronizing...' : 'Create Site'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MASTER TOP BAR / BREADCRUMBS */}
       <div className="h-16 border-b border-white/5 bg-black/40 backdrop-blur-xl flex items-center justify-between px-8 relative z-[100] shadow-2xl">
         <div className="flex items-center gap-4">
@@ -145,8 +237,8 @@ export default function TopologyDashboard() {
                   <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] mt-2">Active Nodes Portfolio • Telxius Latin America</p>
                 </div>
                 <button
-                  onClick={() => window.location.href = '/topology'}
-                  className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/5 transition-all"
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="px-6 py-3 bg-sky-500 hover:bg-sky-400 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(14,165,233,0.2)]"
                 >
                   + Add New Emplacement
                 </button>

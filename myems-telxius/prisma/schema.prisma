@@ -197,12 +197,24 @@ model Position {
   updatedAt      DateTime     @updatedAt
 }
 
-// --- FASE 3b: CONTEXTO FÍSICO (EQUIPMENT & WRAPPERS) ---
+// --- FASE 3b: CONTEXTO FÍSICO (EQUIPMENT & HOLDERS) ---
+
+enum EquipmentCategory {
+  SHELF         // Chasis completo o rack mountable
+  SUBRACK       // Término legacy/alternativo para bastidor
+  SUBSHELF      // Sub-bastidor modular (ej: frame del BDFB)
+  CIRCUIT_PACK  // Tarjeta o módulo genérico
+  CIRCUIT_BREAKER_PANEL // Panel de distribución de breakers
+  MODULE_SFP    // Módulo enchufable (SFP, CFP2, etc)
+  BREAKER       // Interruptor térmico individual
+  POWER_SUPPLY  // Fuente de alimentación dedicada
+}
 
 model Device {
   id         String      @id @default(auto()) @map("_id") @db.ObjectId
   name       String      // Logical Wrapper Name (e.g. BDFB-01-WRAPPER)
   category   String      @default("NETWORKING") 
+  sn         String?     @unique // Serial Number del Chasis/Sistema (Mapeo MQTT)
   siteId     String      @db.ObjectId
   site       Site        @relation(fields: [siteId], references: [id])
   
@@ -219,61 +231,120 @@ model Device {
   isPinned    Boolean     @default(false)
 
   positions  Position[]  // Relación inversa: posiciones que ocupa
-  equipments Equipment[] // Colección de fierros que componen este dispositivo
+  equipments Equipment[] // Colección de hardware que compone este dispositivo
   ports      Port[]      // Puertos maestros del dispositivo
-  ne         NE?         // Si el dispositivo aloja una IA/Conciencia lógica
+  ne         NE?         // Capa lógica (Network Element)
 }
 
 model Equipment {
-  id                String      @id @default(auto()) @map("_id") @db.ObjectId
-  name              String      // BDFB Model Name, Router Chassis Name
-  sn                String?     // The Real Serial Number of the hardware
-  category          String      // BDFB, ROUTER, SWITCH, etc.
-  slotLabel         String?     // Ej: "Slot-01", "Bay-A"
+  id                String            @id @default(auto()) @map("_id") @db.ObjectId
+  name              String            // Ej: "ZTE-N3-PSU", "Panel-A"
+  sn                String?           // Serial Number real
+  category          EquipmentCategory @default(CIRCUIT_PACK)
   
-  // -- Posicionamiento Vertical (Fase 3c) --
-  unitPosition      Int?        // Posición inicial en el rack (U1, U2...)
-  unitHeight        Int?        @default(1) // Altura en Unidades de Rack (U)
-  logicalPrefix     String?     // Prefijo para IDs lógicos: "0_1_"
-  isPinned          Boolean     @default(false)
+  // -- Ubicación Física --
+  unitPosition      Int?              // U de inicio en el rack
+  unitHeight        Int?              // Altura en unidades de rack (U)
+  slotLabel         String?           // Etiqueta del slot (ej: "Slot 01")
 
-  deviceId          String      @db.ObjectId
-  device            Device      @relation(fields: [deviceId], references: [id])
-  parentEquipmentId String?     @db.ObjectId
-  parent            Equipment?  @relation("Composition", fields: [parentEquipmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  children          Equipment[] @relation("Composition")
+  // -- Jerarquía de Montaje Físico --
+  deviceId          String            @db.ObjectId
+  device            Device            @relation(fields: [deviceId], references: [id])
+  
+  // Si está insertado en una ranura (Holder)
+  insertedInId      String?           @unique @db.ObjectId
+  insertedIn        Holder?           @relation("SlotOccupancy", fields: [insertedInId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Las ranuras que este equipo ofrece
+  holders           Holder[]          @relation("HardwareSlots")
+
+  // -- Metadatos Técnicos --
+  expectedType      String?           // Planificación: qué modelo debe ir aquí
+  logicalPrefix     String?           // Prefijo MQTT manual: "0_1", "0_2"
+  actualTemp        Float?            // Telemetría de salud (Opcional)
+  isPinned          Boolean           @default(false)
+  
+  // Recursividad clásica (Composición)
+  parentEquipmentId String?           @db.ObjectId
+  parent            Equipment?        @relation("Composition", fields: [parentEquipmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children          Equipment[]       @relation("Composition")
+  
   ports             Port[]
+}
+
+model Holder {
+  id                String      @id @default(auto()) @map("_id") @db.ObjectId
+  name              String      // Ej: "Slot-01", "Pos-A1"
+  location          String?     // Ruta física: /sh=3/sl=8
+  
+  parentEquipmentId String      @db.ObjectId
+  parentEquipment   Equipment   @relation("HardwareSlots", fields: [parentEquipmentId], references: [id])
+  
+  // ¿Qué equipo está ocupando este slot?
+  occupiedBy        Equipment?  @relation("SlotOccupancy")
+}
+
+// --- FASE 3c: CONECTIVIDAD Y ENERGÍA ---
+
+enum PortType {
+  POWER_SUPPLY    // Fuente de energía (Feed)
+  POWER_DIST      // Distribución (Breaker output)
+  POWER_IN        // Alias heredado para entrada
+  POWER_OUT       // Alias heredado para salida
+  DATA            // Ethernet, Fibra
+  TELEMETRY       // Canales de sensores (Efecto Hall)
+}
+
+enum PortRole {
+  INPUT           // Consumidor de señal/energía
+  OUTPUT          // Proveedor de señal/energía
 }
 
 model Port {
   id                String      @id @default(auto()) @map("_id") @db.ObjectId
-  name              String      // Breaker 1, Gi0/0
-  type              String      @default("POWER_OUT") // POWER_IN, POWER_OUT, DATA, SENSOR
-  sensorTopic       String?     // Tópico MQTT: "telxius/dc01/posA1/p1"
+  name              String      // Ej: "Breaker-01", "Gi0/0"
+  type              PortType    @default(DATA)
+  role              PortRole?   @default(INPUT)
+  
+  // -- Telemetría --
+  sensorKey         String?     // Clave de sensor MQTT (Estándar 0_N_X)
+  sensorTopic       String?     // Alias/Topic legacy
+  
+  // -- Jerarquía --
   equipmentId       String?     @db.ObjectId
   equipment         Equipment?  @relation(fields: [equipmentId], references: [id])
   deviceId          String      @db.ObjectId
   device            Device      @relation(fields: [deviceId], references: [id])
+  
+  // -- Atributos de Ingeniería (Física del Cable) --
+  maxAmperage       Float?      // Capacidad nominal (ej: 63A)
+  nominalVoltage    Float?      // Voltaje (ej: 48V)
+  cableGauge        String?     // Calibre (ej: 2AWG, 4AWG)
+  cableType         String?     // Tipo (ej: Cu-Multifilar)
+  
   clientName        String?     @default("")
+  
   sourceConnections Connection[] @relation("SourceConnection")
   targetConnections Connection[] @relation("TargetConnection")
 }
 
-// --- FASE 4: CAPA LÓGICA (THE CONSCIOUSNESS - NE) ---
+// --- FASE 4: CAPA LÓGICA (CONSCIENCIA - NE) ---
 
 model NE {
   id       String @id @default(auto()) @map("_id") @db.ObjectId
-  name     String // Network Element Logic Name
+  name     String // Network Element Logic Name (ej: "Granja-Farid-01")
   deviceId String @unique @db.ObjectId
   device   Device @relation(fields: [deviceId], references: [id])
-  slots    CAS[]  // Dónde está anclado físicamente
+  slots    CAS[]  // Anclaje físico en el Rack
 }
 
 model Connection {
   id           String @id @default(auto()) @map("_id") @db.ObjectId
-  label        String @default("FEED")
+  label        String @default("CABLE_LINK")
+  
   sourcePortId String @db.ObjectId
   sourcePort   Port   @relation("SourceConnection", fields: [sourcePortId], references: [id])
+  
   targetPortId String @db.ObjectId
   targetPort   Port   @relation("TargetConnection", fields: [targetPortId], references: [id])
 }

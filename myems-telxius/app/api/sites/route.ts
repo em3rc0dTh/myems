@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, address, districtId } = body;
+    const { name, address, districtId, geoCoords, width, length, isLogical } = body;
     
     // Fallback: If no districtId is provided, we use the first available one to avoid orphans
     let targetDistrictId = districtId;
@@ -45,7 +45,15 @@ export async function POST(req: NextRequest) {
     }
 
     const site = await prisma.site.create({
-      data: { name, address, districtId: targetDistrictId },
+      data: { 
+        name, 
+        address, 
+        districtId: targetDistrictId,
+        geoCoords: geoCoords || "",
+        width: width || 0,
+        length: length || 0,
+        isLogical: !!isLogical
+      },
     });
     return NextResponse.json({ ok: true, data: site }, { status: 201 });
   } catch (e) {

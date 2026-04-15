@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma";
 
 // Script Helper para asegurar que la jerarquía base existe en DB
 async function getOrCreateBaseGeography(geo: { country: string, region: string, province: string, town: string, district: string }) {

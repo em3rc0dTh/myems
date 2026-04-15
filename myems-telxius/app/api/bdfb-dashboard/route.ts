@@ -18,33 +18,57 @@ export async function GET() {
         });
 
         const activeBDFBs = devices.map(d => {
-            return {
-                id: d.id,
-                sn: d.sn || d.id,
-                name: d.name,
-                isPinned: (d as any).isPinned || false,
-                location: d.positions[0]?.substructure?.name || 'Sala Desconocida',
-                panels: d.equipments.map(eq => ({
-                    id: eq.id,
-                    name: eq.name,
-                    isPinned: (eq as any).isPinned || false, 
-                    installedCapacity: 800, 
-                    assignedCapacity: 0,
-                    consumedCapacity: 0,
-                    reservedCapacity: 0,
-                    breakers: eq.ports.map(p => ({
-                        id: p.id,
-                        position: parseInt(p.name.replace(/[^0-9]/g, '')) || 0,
-                        status: p.sensorTopic ? 'occupied' : 'empty',
-                        label: p.sensorTopic,
-                        online: true
-                    })).sort((a,b) => a.position - b.position)
-                }))
-            };
-        });
+            try {
+                const location = d.positions?.[0]?.substructure?.name || 'Sala Desconocida';
+                
+                // Filtrar paneles soportando tanto el nuevo estándar como el anterior
+                const panels = d.equipments
+                    .filter(eq => 
+                        eq.category === 'SUBSHELF' || 
+                        eq.category === 'SUBRACK' || 
+                        eq.category === 'CIRCUIT_BREAKER_PANEL' || 
+                        (eq.ports && eq.ports.length > 0)
+                    )
+                    .map(eq => ({
+                        id: eq.id,
+                        name: eq.name,
+                        isPinned: (eq as any).isPinned || false, 
+                        installedCapacity: 800, 
+                        assignedCapacity: 0,
+                        consumedCapacity: 0,
+                        reservedCapacity: 0,
+                        breakers: (eq.ports || []).map(p => {
+                            const pos = p.sensorKey ? parseInt(p.sensorKey.split('_').pop() || '0') : (parseInt(p.name.replace(/[^0-9]/g, '')) || 0);
+                            return {
+                                id: p.id,
+                                position: pos,
+                                status: p.sensorKey ? 'occupied' : 'empty',
+                                label: p.sensorKey || 'P-' + pos,
+                                online: true
+                            };
+                        }).sort((a,b) => a.position - b.position)
+                    }));
+
+                return {
+                    id: d.id,
+                    sn: d.sn || d.id,
+                    name: d.name,
+                    isPinned: (d as any).isPinned || false,
+                    location,
+                    panels
+                };
+            } catch (err) {
+                console.error(`Error mapping device ${d.id}:`, err);
+                return null;
+            }
+        }).filter(Boolean);
 
         return NextResponse.json(activeBDFBs);
     } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        console.error("Dashboard API Critical Error:", e);
+        return NextResponse.json({ 
+            error: e.message,
+            stack: process.env.NODE_ENV === 'development' ? e.stack : undefined 
+        }, { status: 500 });
     }
 }

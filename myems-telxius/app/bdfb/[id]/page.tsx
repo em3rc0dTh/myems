@@ -11,6 +11,7 @@ import { Plus, LayoutGrid, Cpu, CheckCircle2, AlertTriangle, Activity, Inbox, Ma
 import { BDFB_MOCK_DATA } from '../../../lib/mockData';
 import { BDFBData, BreakerData, HistoryPoint } from '../../../lib/types';
 import { useMqtt } from '../../../lib/MqttContext';
+import InfrastructureExplorer from '../../../components/InfrastructureExplorer';
 
 const BDFBDetailPage: React.FC = () => {
     const { id } = useParams();
@@ -22,6 +23,7 @@ const BDFBDetailPage: React.FC = () => {
 
     // State for Navigation between Room and Device views
     const [viewMode, setViewMode] = useState<'room' | 'device'>('room');
+    const [leftSidebarMode, setLeftSidebarMode] = useState<'visual' | 'tree'>('visual');
 
     // Real state for production
     const [bdfbData, setBdfbData] = useState<BDFBData | null>(null);
@@ -59,6 +61,9 @@ const BDFBDetailPage: React.FC = () => {
     // State for selections in Device View
     const [selectedPanelId, setSelectedPanelId] = useState<string | null>(null);
     const [selectedBreaker, setSelectedBreaker] = useState<{ panelId: string, data: BreakerData } | null>(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    
     const [focusedView, setFocusedView] = useState<'none' | 'history' | 'diagram'>('none');
     const [historyRange, setHistoryRange] = useState<'24h' | '7d' | '30d'>('24h');
     const [historyLoading, setHistoryLoading] = useState(false);
@@ -138,20 +143,33 @@ const BDFBDetailPage: React.FC = () => {
         if (isProd && latestData && bdfbData?.sn && latestData[bdfbData.sn]) {
             const livePayload = latestData[bdfbData.sn].reported as any;
             if (selectedBreaker && selectedPanel) {
-                const idx = bdfbData.panels.findIndex(p => p.id === selectedPanel.id) + 1;
-                const channelKey = `0_${idx}_${selectedBreaker.data.position}`;
+                // Prioridad a sensorKey si la API la provee, sino fallback a heurística 0_idx_pos
+                const channelKey = (selectedBreaker.data as any).sensorKey || 
+                                   `0_${bdfbData.panels.findIndex(p => p.id === selectedPanel.id) + 1}_${selectedBreaker.data.position}`;
                 const channelData = livePayload[channelKey];
+                
                 if (channelData) {
+                    const current = parseFloat(channelData.I1 || "0");
+                    const capacity = (selectedBreaker.data as any).maxAmperage || 63;
+                    const loadFactor = (current / capacity) * 100;
+                    
+                    let statusColor = "text-success";
+                    if (loadFactor >= 80 && loadFactor < 95) statusColor = "text-warning";
+                    if (loadFactor >= 95) statusColor = "text-danger";
+
                     return {
                         voltage: channelData.U1 || "0.00",
-                        voltageHistory: { avg: 12.0, max: 15.0, min: 10.0, trend: 'stable' } as HistoryPoint,
-                        current: channelData.I1 || "0.00",
-                        currentHistory: { avg: 4.5, max: 12.0, min: 0.0, trend: 'stable' } as HistoryPoint,
+                        voltageHistory: { avg: 48.0, max: 48.5, min: 47.8, trend: 'stable' } as HistoryPoint,
+                        current: current.toFixed(2),
+                        currentHistory: { avg: current * 0.9, max: current * 1.1, min: current * 0.8, trend: 'stable' } as HistoryPoint,
                         power: channelData.P1 || "0.00",
                         powerHistory: { avg: 50.0, max: 150.0, min: 0.0, trend: 'stable' } as HistoryPoint,
                         energy: channelData.EP1 || "0.00",
                         energyHistory: { avg: 2.0, max: 6.0, min: 0.0, trend: 'up' } as HistoryPoint,
-                        label: `Canal Físico: ${channelKey} (PRODUCCIÓN)`,
+                        label: `Canal: ${channelKey} | Capacidad: ${capacity}A`,
+                        loadFactor,
+                        statusColor,
+                        cableGauge: (selectedBreaker.data as any).cableGauge || 'Desconocido',
                         isLive: true
                     };
                 }
@@ -211,8 +229,89 @@ const BDFBDetailPage: React.FC = () => {
         };
     }, [selectedBreaker, selectedPanel, bdfbData, isProd, latestData]);
 
+    const handleSaveEngineering = async (formData: any) => {
+        if (!selectedBreaker?.data.id) return;
+        setIsSaving(true);
+        try {
+            const res = await fetch(`/telxius/api/ports?id=${selectedBreaker.data.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            if (res.ok) {
+                const refreshRes = await fetch(`/telxius/api/bdfb/${id}`);
+                if (refreshRes.ok) {
+                    const newData = await refreshRes.json();
+                    setBdfbData(newData);
+                }
+                setIsEditModalOpen(false);
+            }
+        } catch (e) {
+            console.error("Save failed", e);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
-        <main className="h-screen w-screen overflow-hidden p-6 lg:p-8 pt-10 lg:pt-12 flex flex-col gap-6 bg-[#050508] relative">
+        <>
+        {isEditModalOpen && selectedBreaker && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 text-left">
+                <div className="w-full max-w-md glass-panel rounded-[32px] border border-white/10 p-8 shadow-2xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-accent-primary" />
+                    <h2 className="text-xl font-black text-white uppercase italic tracking-[0.15em] mb-2 flex items-center gap-3">
+                        <Cpu className="w-6 h-6 text-accent-primary" /> Mapeo de Ingeniería
+                    </h2>
+                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-8 text-left">Panel: {selectedPanel?.name} | Posición: {selectedBreaker.data.position}</p>
+                    
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const fd = new FormData(e.currentTarget);
+                        handleSaveEngineering({
+                            maxAmperage: parseFloat(fd.get('maxAmperage') as string),
+                            cableGauge: fd.get('cableGauge'),
+                            clientName: fd.get('clientName'),
+                            sensorKey: fd.get('sensorKey')
+                        });
+                    }} className="space-y-6 text-left">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Equipo Final (NE)</label>
+                            <input name="clientName" defaultValue={(selectedBreaker.data as any).clientName || ''} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-sm focus:border-accent-primary outline-none transition-all placeholder:text-slate-600 uppercase" placeholder="Ej: GRTLuren3 PSU0 A0" />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 text-left">Capacidad (Amp)</label>
+                                <input name="maxAmperage" defaultValue={(selectedBreaker.data as any).maxAmperage || 63} type="number" className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-sm focus:border-accent-primary outline-none transition-all" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Calibre Cable</label>
+                                <select name="cableGauge" defaultValue={(selectedBreaker.data as any).cableGauge || '4AWG'} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-sm focus:border-accent-primary outline-none transition-all appearance-none cursor-pointer">
+                                    <option value="2AWG">2 AWG</option>
+                                    <option value="4AWG">4 AWG</option>
+                                    <option value="8AWG">8 AWG</option>
+                                    <option value="16mm2">16 mm²</option>
+                                    <option value="35mm2">35 mm²</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">ID Sensor (MQTT)</label>
+                            <input name="sensorKey" defaultValue={(selectedBreaker.data as any).sensorKey || ''} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-xs focus:border-accent-primary outline-none transition-all uppercase" placeholder="0_1_X" />
+                        </div>
+
+                        <div className="flex gap-4 pt-6">
+                            <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl border border-white/10 transition-all">Cancelar</button>
+                            <button type="submit" disabled={isSaving} className="flex-[2] py-4 bg-accent-primary hover:bg-accent-primary/80 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-accent-primary/20">
+                                {isSaving ? 'Guardando...' : 'Guardar Ingeniería'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )}
+        <main className="h-screen w-screen overflow-hidden p-4 lg:p-6 pt-8 lg:pt-10 flex flex-col gap-4 bg-[#050508] relative">
             <div className={`absolute top-0 left-0 w-full py-1 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-center z-[100] flex items-center justify-center gap-2 ${isProd ? isConnected ? 'bg-success/20 text-[#a7f3d0] border-b border-success/30' : 'bg-warning/20 text-[#fde68a] border-b border-warning/30' : 'bg-[#1e293b] text-[#94a3b8] border-b border-white/5'}`}>
                 {isProd ? isConnected ? <><CheckCircle2 className="w-3 h-3" /> ENTORNO DE PRODUCCIÓN - CONECTADO</> : <><Activity className="w-3 h-3 animate-pulse" /> ENTORNO DE PRODUCCIÓN - ESPERANDO MQTT...</> : <><AlertTriangle className="w-3 h-3" /> MODO DE DESARROLLO (MOCK)</>}
             </div>
@@ -273,8 +372,35 @@ const BDFBDetailPage: React.FC = () => {
                     ) : (
                         <div className="flex gap-6 h-full animate-in slide-in-from-right-4 duration-500 relative">
                             {focusedView === 'none' && (
-                                <div className="w-[200px] flex flex-col h-full shrink-0">
-                                    <BDFBFrontView panels={bdfbData?.panels || []} selectedPanelId={selectedPanelId} onPanelClick={(pid) => { setSelectedPanelId(pid); setSelectedBreaker(null); }} />
+                                <div className="w-[280px] flex flex-col h-full shrink-0 gap-4">
+                                    <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 shrink-0">
+                                        <button onClick={() => setLeftSidebarMode('visual')} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${leftSidebarMode === 'visual' ? 'bg-accent-primary text-white' : 'text-slate-500'}`}>Frontal</button>
+                                        <button onClick={() => setLeftSidebarMode('tree')} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${leftSidebarMode === 'tree' ? 'bg-accent-primary text-white' : 'text-slate-500'}`}>Estructura</button>
+                                    </div>
+                                    
+                                    <div className="flex-1 overflow-hidden glass-panel rounded-3xl border border-white/5 flex flex-col">
+                                        <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+                                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Navegación Física</h3>
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto">
+                                            {leftSidebarMode === 'visual' ? (
+                                                <BDFBFrontView panels={bdfbData?.panels || []} selectedPanelId={selectedPanelId} onPanelClick={(pid) => { setSelectedPanelId(pid); setSelectedBreaker(null); }} />
+                                            ) : (
+                                                <InfrastructureExplorer equipment={bdfbData?.equipments || []} onSelect={(item) => {
+                                                    if (item.category === 'SUBSHELF') setSelectedPanelId(item.id);
+                                                    if (item.category === 'BREAKER') {
+                                                        // Encontrar el panel padre para seleccionarlo
+                                                        const panel = bdfbData?.panels.find(p => p.breakers?.some(b => b.id === item.id));
+                                                        if (panel) {
+                                                            setSelectedPanelId(panel.id);
+                                                            const breakerData = panel.breakers?.find(b => b.id === item.id);
+                                                            if (breakerData) setSelectedBreaker({ panelId: panel.id, data: breakerData });
+                                                        }
+                                                    }
+                                                }} />
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
@@ -306,7 +432,7 @@ const BDFBDetailPage: React.FC = () => {
                                     <div className="flex-1 flex flex-col h-full overflow-hidden">
                                         <BDFBRackDetail panelName={selectedPanel?.name || ''} breakers={activePanelBreakers} mappedPositions={activeConnections.map(c => c.position)} onPositionClick={(pname, b) => setSelectedBreaker({ panelId: selectedPanelId!, data: b })} />
                                     </div>
-                                    <div className="w-[400px] flex flex-col gap-6 h-full overflow-hidden">
+                                    <div className="w-[380px] flex flex-col gap-4 h-full overflow-y-auto custom-scrollbar pr-1">
                                         <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 shrink-0">
                                             <button onClick={() => setFocusedView('history')} className="flex-1 py-3 text-[9px] font-black tracking-widest uppercase text-slate-500 hover:text-white transition-all">History</button>
                                             <button onClick={() => setFocusedView('diagram')} className="flex-1 py-3 text-[9px] font-black tracking-widest uppercase text-slate-500 hover:text-white transition-all">Diagram</button>
@@ -319,14 +445,51 @@ const BDFBDetailPage: React.FC = () => {
                                                     <div className={`w-2 h-2 rounded-full ${displayTelemetry.isLive ? 'bg-accent-primary animate-pulse' : 'bg-slate-700'}`} />
                                                     {displayTelemetry.label}
                                                 </h2>
-                                                {selectedBreaker && <button onClick={() => setSelectedBreaker(null)} className="text-[8px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Reset Selection</button>}
+                                                <div className="flex gap-2">
+                                                    {selectedBreaker && (
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }}
+                                                            className="text-[8px] font-black text-accent-primary hover:text-white uppercase tracking-widest transition-all px-2 py-1 bg-accent-primary/10 rounded border border-accent-primary/20"
+                                                        >
+                                                            Ingeniería
+                                                        </button>
+                                                    )}
+                                                    {selectedBreaker && <button onClick={() => setSelectedBreaker(null)} className="text-[8px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Reset Selection</button>}
+                                                </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <MetricCard label="Voltage" value={displayTelemetry.voltage} unit="V" color="text-accent-primary" stats={displayTelemetry.voltageHistory} isLive={displayTelemetry.isLive} />
-                                                <MetricCard label="Current" value={displayTelemetry.current} unit="A" color="text-accent-secondary" stats={displayTelemetry.currentHistory} isLive={displayTelemetry.isLive} />
+                                                <MetricCard label="Current" value={displayTelemetry.current} unit="A" color={(displayTelemetry as any).statusColor || "text-accent-secondary"} stats={displayTelemetry.currentHistory} isLive={displayTelemetry.isLive} />
                                                 <MetricCard label="Power" value={displayTelemetry.power} unit="kW" color="text-success" stats={displayTelemetry.powerHistory} isLive={displayTelemetry.isLive} />
                                                 <MetricCard label="Energy" value={displayTelemetry.energy} unit="kWh" color="text-warning" stats={displayTelemetry.energyHistory} isLive={displayTelemetry.isLive} />
                                             </div>
+
+                                            {(displayTelemetry as any).loadFactor !== undefined && (
+                                                <div className="mt-8 pt-6 border-t border-white/5">
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Utilización de Capacidad</span>
+                                                        <span className={`text-[10px] font-black ${(displayTelemetry as any).statusColor}`}>{(displayTelemetry as any).loadFactor.toFixed(1)}%</span>
+                                                    </div>
+                                                    <div className="h-4 bg-white/5 rounded-full overflow-hidden p-1 border border-white/10">
+                                                        <div 
+                                                            className={`h-full rounded-full transition-all duration-1000 ${(displayTelemetry as any).statusColor?.replace('text-', 'bg-')}`}
+                                                            style={{ width: `${Math.min((displayTelemetry as any).loadFactor, 100)}%` }}
+                                                        />
+                                                    </div>
+                                                    <div className="mt-4 flex justify-between items-center">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Cable Adjunto:</span>
+                                                            <span className="text-[10px] font-mono font-black text-white">{(displayTelemetry as any).cableGauge}</span>
+                                                        </div>
+                                                        {(displayTelemetry as any).loadFactor >= 80 && (
+                                                            <div className="flex items-center gap-1.5 animate-pulse">
+                                                                <AlertTriangle className="w-3 h-3 text-warning" />
+                                                                <span className="text-[8px] font-black text-warning uppercase">Carga Elevada</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex-1 flex flex-col min-h-0 bg-black/40 rounded-3xl border border-white/5 overflow-hidden">
@@ -355,6 +518,7 @@ const BDFBDetailPage: React.FC = () => {
                 </div>
             </div>
         </main>
+        </>
     );
 };
 

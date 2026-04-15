@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma";
 
 export async function POST(req: Request) {
     try {
@@ -20,14 +18,14 @@ export async function POST(req: Request) {
                         name: item.name,
                         equipmentId: eq.id,
                         deviceId: eq.deviceId, // Heredar Lógica del Device principal
-                        type: item.type || "POWER_OUT",
-                        sensorTopic: item.sensorTopic || null  // INFLUXDB MQTT TOPIC
+                        type: item.type || "POWER_DIST",
+                        sensorKey: item.sensorKey || item.sensorTopic || null
                     }
                 });
-            } else if (item.sensorTopic && existing.sensorTopic !== item.sensorTopic) {
+            } else if ((item.sensorKey || item.sensorTopic) && existing.sensorKey !== (item.sensorKey || item.sensorTopic)) {
                 existing = await prisma.port.update({
                     where: { id: existing.id },
-                    data: { sensorTopic: item.sensorTopic }
+                    data: { sensorKey: item.sensorKey || item.sensorTopic }
                 });
             }
             

@@ -64,8 +64,8 @@ const BDFBFrontView: React.FC<BDFBFrontViewProps> = ({
 
       {/* Descriptive Footer */}
       <div className="mt-12 text-center">
-        <span className="text-[10px] font-black text-fuchsia-400 uppercase tracking-[0.2em] italic">Chassis Selector</span>
-        <p className="text-[8px] text-slate-500 font-mono uppercase mt-1">Status: Operational • All Feeds Live</p>
+        <span className="text-[10px] font-black text-fuchsia-400 uppercase tracking-[0.2em] italic">Frame Selector</span>
+        <p className="text-[8px] text-slate-500 font-mono uppercase mt-1">Status: Operational • All Panels Linked</p>
       </div>
     </div>
   );

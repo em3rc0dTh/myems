@@ -4,6 +4,7 @@ import { X, Cpu, Server, Layers, Plus, Save, Trash2, Activity, Info, ExternalLin
 import Swal from 'sweetalert2';
 import Link from 'next/link';
 import EquipmentEditorModal from './EquipmentEditorModal';
+import RackElevation from './RackElevation';
 
 interface RackElevationManagerProps {
   container: any;
@@ -158,29 +159,23 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
         <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all text-slate-400"><X /></button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 flex gap-6">
+      <div className="flex-1 overflow-hidden p-6 flex gap-6">
         {/* RACK VISUALIZATION (LEFT) */}
-        <div className="w-32 bg-black/60 rounded-2xl border border-white/5 p-2 flex flex-col-reverse relative ring-1 ring-white/5 shadow-inner">
-            {Array.from({ length: totalU }).map((_, i) => {
-              const u = i + 1;
-              const mounted = devices.find(d => d.uPosition === u);
-              const slotContent = (
-                <div 
-                  className={`h-6 w-full mb-1 rounded flex items-center justify-between px-2 text-[8px] font-bold transition-all border ${mounted ? 'bg-blue-500/20 border-blue-500/20 text-blue-300 hover:border-blue-400 hover:bg-blue-500/30 cursor-pointer' : 'bg-white/[0.02] border-white/5 text-slate-700 hover:border-white/20'}`}
-                >
-                  <span>U{u}</span>
-                  {mounted && <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />}
-                </div>
-              );
-
-              return mounted ? (
-                <Link key={u} href={`/bdfb/${mounted.id}`} title={`Ver detalles de ${mounted.name}`}>
-                  {slotContent}
-                </Link>
-              ) : (
-                <div key={u}>{slotContent}</div>
-              );
-            })}
+        <div className="w-[120px] shrink-0 bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex flex-col h-[calc(100vh-180px)]">
+            <div className="p-3 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Elevación Frontal</span>
+                <span className="text-[9px] font-black text-blue-400">{totalU}U</span>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 bg-[#050508]">
+                <RackElevation 
+                    equipments={devices} 
+                    maxUnits={totalU} 
+                    onSelect={(id) => {
+                        const dev = devices.find(d => d.id === id);
+                        if (dev) setSelectedDeviceForEdit(dev);
+                    }}
+                />
+            </div>
         </div>
 
         {/* DEVICE LIST & CONTROLS (RIGHT) */}

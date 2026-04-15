@@ -24,7 +24,7 @@ const BDFBSummary: React.FC<BDFBSummaryProps> = ({ bdfb }) => {
         <div className="absolute -top-20 -right-20 w-40 h-40 bg-fuchsia-500/5 blur-[80px] rounded-full pointer-events-none group-hover:bg-fuchsia-500/10 transition-colors" />
 
         {/* Header */}
-        <div className="flex justify-between items-start mb-6 shrink-0 relative z-10">
+        <div className="flex justify-between items-start mb-1 shrink-0 relative z-10">
           <div>
             <h3 className="text-xl font-black text-white leading-tight tracking-tight group-hover:text-fuchsia-400 transition-colors uppercase italic">
               {bdfb.name}
@@ -35,7 +35,7 @@ const BDFBSummary: React.FC<BDFBSummaryProps> = ({ bdfb }) => {
         </div>
 
         {/* MANDATORY CHASSIS REPRESENTATION (Miniature) */}
-        <div className="flex-1 flex flex-col items-center justify-center py-4 relative z-10">
+        <div className="flex-1 flex flex-col items-center justify-center py-1 relative z-10">
           <div className="relative w-24 flex flex-col items-center">
             {/* U-Frame Shell */}
             <div className="w-full aspect-[3/4] border-t border-x border-fuchsia-500/60 rounded-t-lg bg-black/40 shadow-inner group-hover:border-fuchsia-400 transition-colors">
@@ -77,7 +77,7 @@ const BDFBSummary: React.FC<BDFBSummaryProps> = ({ bdfb }) => {
         </div>
 
         {/* Capacity Metrics List */}
-        <div className="grid grid-cols-2 gap-3 mt-6 relative z-10">
+        <div className="grid grid-cols-2 gap-1 mt-1 relative z-10">
           <CapacityMetric label="Instalada" value={summary.installed} color="text-slate-300" />
           <CapacityMetric label="Consumida" value={summary.consumed} color="text-success" />
           <CapacityMetric label="Reservada" value={summary.reserved} color="text-warning" />

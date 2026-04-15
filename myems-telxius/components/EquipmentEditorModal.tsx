@@ -71,18 +71,21 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                             <input id="swal-panel-name" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm" placeholder="Ej: Panel-A1">
                         </div>
                         <div>
-                            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1 text-sky-400">Prefijo Lógico (0_N_)</label>
-                            <input id="swal-panel-prefix" class="w-full bg-black/40 border border-sky-500/30 rounded-xl px-4 py-2 text-white text-sm font-mono" placeholder="Ej: 0_1_">
+                            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1 text-sky-400">Tipo de Equipo</label>
+                            <select id="swal-panel-cat" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm">
+                                <option value="CIRCUIT_BREAKER_PANEL">PANEL (Breakers)</option>
+                                <option value="SUBSHELF">FRAME (Subshelf)</option>
+                            </select>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
+                            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1 text-sky-400">Prefijo Lógico (0_N_)</label>
+                            <input id="swal-panel-prefix" class="w-full bg-black/40 border border-sky-500/30 rounded-xl px-4 py-2 text-white text-sm font-mono" placeholder="Ej: 0_1_">
+                        </div>
+                         <div>
                             <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Posición U</label>
                             <input id="swal-panel-u" type="number" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm" value="1">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Altura (U)</label>
-                            <input id="swal-panel-h" type="number" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm" value="2">
                         </div>
                     </div>
                     <div class="p-3 bg-sky-500/5 border border-sky-500/10 rounded-xl flex items-center gap-3">
@@ -103,7 +106,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                     name: (document.getElementById('swal-panel-name') as HTMLInputElement).value,
                     prefix: (document.getElementById('swal-panel-prefix') as HTMLInputElement).value,
                     u: (document.getElementById('swal-panel-u') as HTMLInputElement).value,
-                    h: (document.getElementById('swal-panel-h') as HTMLInputElement).value,
+                    category: (document.getElementById('swal-panel-cat') as HTMLSelectElement).value,
                     autoGen: (document.getElementById('swal-panel-gen') as HTMLInputElement).checked
                 }
             }
@@ -117,10 +120,10 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                     body: JSON.stringify({
                         name: formValues.name,
                         unitPosition: parseInt(formValues.u),
-                        unitHeight: parseInt(formValues.h),
+                        unitHeight: 2,
                         logicalPrefix: formValues.prefix,
                         deviceId: device.id,
-                        category: 'SUBRACK'
+                        category: formValues.category
                     })
                 });
 
