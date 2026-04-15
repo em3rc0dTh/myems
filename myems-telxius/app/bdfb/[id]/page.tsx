@@ -8,10 +8,10 @@ import BDFBRackDetail from '../../../components/BDFBRackDetail';
 import MeteringDiagram from '../../../components/MeteringDiagram';
 import EnergyHistoryView from '../../../components/EnergyHistoryView';
 import { Plus, LayoutGrid, Cpu, CheckCircle2, AlertTriangle, Activity, Inbox, MapPin } from 'lucide-react';
-import { BDFB_MOCK_DATA } from '../../../lib/mockData';
-import { BDFBData, BreakerData, HistoryPoint } from '../../../lib/types';
-import { useMqtt } from '../../../lib/MqttContext';
-import InfrastructureExplorer from '../../../components/InfrastructureExplorer';
+import { BDFB_MOCK_DATA } from '@/lib/mockData';
+import { BDFBData, BreakerData, HistoryPoint } from '@/lib/types';
+import { useMqtt } from '@/lib/MqttContext';
+import InfrastructureExplorer from '@/components/InfrastructureExplorer';
 
 const BDFBDetailPage: React.FC = () => {
     const { id } = useParams();
