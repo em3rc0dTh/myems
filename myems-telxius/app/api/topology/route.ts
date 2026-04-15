@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma';
 
 // Script Helper para asegurar que la jerarquía base (País -> Región -> Provincia -> Ciudad -> Distrito) existe en DB
 async function getOrCreateBaseGeography() {
@@ -17,11 +15,11 @@ async function getOrCreateBaseGeography() {
     let province = await prisma.province.findFirst({ where: { name: 'Lima', regionId: region.id } });
     if (!province) province = await prisma.province.create({ data: { name: 'Lima', regionId: region.id } });
 
-    let city = await prisma.city.findFirst({ where: { name: 'Lima', provinceId: province.id } });
-    if (!city) city = await prisma.city.create({ data: { name: 'Lima', provinceId: province.id } });
+    let town = await prisma.town.findFirst({ where: { name: 'Lima', provinceId: province.id } });
+    if (!town) town = await prisma.town.create({ data: { name: 'Lima', provinceId: province.id } });
 
-    let district = await prisma.district.findFirst({ where: { name: 'Lurin', cityId: city.id } });
-    if (!district) district = await prisma.district.create({ data: { name: 'Lurin', cityId: city.id } });
+    let district = await prisma.district.findFirst({ where: { name: 'Lurin', townId: town.id } });
+    if (!district) district = await prisma.district.create({ data: { name: 'Lurin', townId: town.id } });
 
     return district.id;
 }

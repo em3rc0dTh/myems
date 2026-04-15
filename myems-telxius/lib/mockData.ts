@@ -269,7 +269,6 @@ export const RAW_MQTT_MOCK: MQTTPayload[] = [
 // TAPI & PHYSICAL INFRASTRUCTURE DATA MOCK
 // ==========================================
 import { TAPIArchitectureModel } from './types';
-
 export const MOCK_INFRASTRUCTURE_DATA: TAPIArchitectureModel = {
     infrastructure: [
         {
@@ -314,63 +313,65 @@ export const MOCK_INFRASTRUCTURE_DATA: TAPIArchitectureModel = {
                                                                                                                 {
                                                                                                                     id: 'dev-planta-rect',
                                                                                                                     name: 'PLANTA RECTIFICADORA',
-                                                                                                                    deviceCategory: 'power_source',
+                                                                                                                    category: 'POWER_SYSTEM',
                                                                                                                     equipments: [
                                                                                                                         {
-                                                                                                                            id: 'eq-plant-chassis', name: 'Chassis Principal', equipmentCategory: 'cabinet',
-                                                                                                                            equipments: [
+                                                                                                                            id: 'eq-plant-chassis', name: 'Chassis Principal', category: 'SHELF',
+                                                                                                                            children: [
                                                                                                                                 {
-                                                                                                                                    id: 'eq-batt-bank', name: 'Banco de Baterías', equipmentCategory: 'battery_bank',
+                                                                                                                                    id: 'eq-batt-bank', name: 'Banco de Baterías', category: 'SUBSHELF',
                                                                                                                                     ports: [
-                                                                                                                                        { id: 'prt-batt-vdc-pos', name: 'VDC (+)', category: 'power_supply', isPositive: true },
-                                                                                                                                        { id: 'prt-batt-vdc-neg', name: 'VDC (-)', category: 'power_supply', isPositive: false }
+                                                                                                                                        { id: 'prt-batt-vdc-pos', name: 'VDC (+)', type: 'POWER_SUPPLY', role: 'OUTPUT' },
+                                                                                                                                        { id: 'prt-batt-vdc-neg', name: 'VDC (-)', type: 'POWER_SUPPLY', role: 'OUTPUT' }
                                                                                                                                     ]
                                                                                                                                 },
                                                                                                                                 {
-                                                                                                                                    id: 'eq-rect-module', name: 'Rectificador Module', equipmentCategory: 'rectifier',
+                                                                                                                                    id: 'eq-rect-module', name: 'Rectificador Module', category: 'POWER_SUPPLY',
                                                                                                                                     ports: [
-                                                                                                                                        { id: 'prt-rect-out-pos', name: 'OUT (+)', category: 'power_supply', isPositive: true },
-                                                                                                                                        { id: 'prt-rect-out-neg', name: 'OUT (-)', category: 'power_supply', isPositive: false }
+                                                                                                                                        { id: 'prt-rect-out-pos', name: 'OUT (+)', type: 'POWER_SUPPLY', role: 'OUTPUT' },
+                                                                                                                                        { id: 'prt-rect-out-neg', name: 'OUT (-)', type: 'POWER_SUPPLY', role: 'OUTPUT' }
                                                                                                                                     ]
                                                                                                                                 }
                                                                                                                             ]
                                                                                                                         }
-                                                                                                                    ]
+                                                                                                                    ],
+                                                                                                                    ports: []
                                                                                                                 },
                                                                                                                 {
                                                                                                                     id: 'dev-bdfb-dist',
                                                                                                                     name: 'BDFB DISTRIBUTION',
-                                                                                                                    deviceCategory: 'distribution_panel',
+                                                                                                                    category: 'POWER_DISTRIBUTION',
                                                                                                                     equipments: [
                                                                                                                         {
-                                                                                                                            id: 'eq-bdfb-chassis', name: 'BDFB Chassis (Config 5)', equipmentCategory: 'cabinet',
-                                                                                                                            equipments: [
+                                                                                                                            id: 'eq-bdfb-chassis', name: 'BDFB Chassis (Config 5)', category: 'SHELF',
+                                                                                                                            children: [
                                                                                                                                 {
-                                                                                                                                    id: 'eq-bdfb-input', name: 'Input Links', equipmentCategory: 'input_block',
+                                                                                                                                    id: 'eq-bdfb-input', name: 'Input Links', category: 'SUBSHELF',
                                                                                                                                     ports: [
-                                                                                                                                        { id: 'prt-bdfb-in-pos', name: 'INPUT (+)', category: 'power_supply', isPositive: true },
-                                                                                                                                        { id: 'prt-bdfb-in-neg', name: 'INPUT (-)', category: 'power_supply', isPositive: false }
+                                                                                                                                        { id: 'prt-bdfb-in-pos', name: 'INPUT (+)', type: 'POWER_SUPPLY', role: 'INPUT' },
+                                                                                                                                        { id: 'prt-bdfb-in-neg', name: 'INPUT (-)', type: 'POWER_SUPPLY', role: 'INPUT' }
                                                                                                                                     ]
                                                                                                                                 },
                                                                                                                                 {
-                                                                                                                                    id: 'eq-bdfb-panela1', name: 'Breaker Panel A1', equipmentCategory: 'breaker_panel',
+                                                                                                                                    id: 'eq-bdfb-panela1', name: 'Breaker Panel A1', category: 'CIRCUIT_BREAKER_PANEL',
                                                                                                                                     ports: [
-                                                                                                                                        { id: 'prt-bdfb-a1-p1', name: 'Pos 1 (-)', category: 'power_supply', isPositive: false },
-                                                                                                                                        { id: 'prt-bdfb-a1-p2', name: 'Pos 2 (-)', category: 'power_supply', isPositive: false },
-                                                                                                                                        { id: 'prt-bdfb-a1-p3', name: 'Pos 3 (-)', category: 'power_supply', isPositive: false }
+                                                                                                                                        { id: 'prt-bdfb-a1-p1', name: 'Pos 1 (-)', type: 'POWER_DIST', role: 'OUTPUT' },
+                                                                                                                                        { id: 'prt-bdfb-a1-p2', name: 'Pos 2 (-)', type: 'POWER_DIST', role: 'OUTPUT' },
+                                                                                                                                        { id: 'prt-bdfb-a1-p3', name: 'Pos 3 (-)', type: 'POWER_DIST', role: 'OUTPUT' }
                                                                                                                                     ]
                                                                                                                                 },
                                                                                                                                 {
-                                                                                                                                    id: 'eq-bdfb-panelb1', name: 'Breaker Panel B1', equipmentCategory: 'breaker_panel',
+                                                                                                                                    id: 'eq-bdfb-panelb1', name: 'Breaker Panel B1', category: 'CIRCUIT_BREAKER_PANEL',
                                                                                                                                     ports: [
-                                                                                                                                        { id: 'prt-bdfb-b1-p1', name: 'Pos 1 (-)', category: 'power_supply', isPositive: false },
-                                                                                                                                        { id: 'prt-bdfb-b1-p2', name: 'Pos 2 (-)', category: 'power_supply', isPositive: false },
-                                                                                                                                        { id: 'prt-bdfb-b1-p3', name: 'Pos 3 (-)', category: 'power_supply', isPositive: false }
+                                                                                                                                        { id: 'prt-bdfb-b1-p1', name: 'Pos 1 (-)', type: 'POWER_DIST', role: 'OUTPUT' },
+                                                                                                                                        { id: 'prt-bdfb-b1-p2', name: 'Pos 2 (-)', type: 'POWER_DIST', role: 'OUTPUT' },
+                                                                                                                                        { id: 'prt-bdfb-b1-p3', name: 'Pos 3 (-)', type: 'POWER_DIST', role: 'OUTPUT' }
                                                                                                                                     ]
                                                                                                                                 }
                                                                                                                             ]
                                                                                                                         }
-                                                                                                                    ]
+                                                                                                                    ],
+                                                                                                                    ports: []
                                                                                                                 }
                                                                                                             ]
                                                                                                         }
@@ -388,21 +389,22 @@ export const MOCK_INFRASTRUCTURE_DATA: TAPIArchitectureModel = {
                                                                                                             id: 'cspace-router', name: 'U10-U25',
                                                                                                             devices: [
                                                                                                                 {
-                                                                                                                    id: 'dev-client-router', name: 'CLIENT ROUTER', deviceCategory: 'router',
+                                                                                                                    id: 'dev-client-router', name: 'CLIENT ROUTER', category: 'NETWORKING',
                                                                                                                     equipments: [
                                                                                                                         {
-                                                                                                                            id: 'eq-router-chassis', name: 'CISCO ASR 9000 Chassis', equipmentCategory: 'router_chassis',
-                                                                                                                            equipments: [
+                                                                                                                            id: 'eq-router-chassis', name: 'CISCO ASR 9000 Chassis', category: 'SHELF',
+                                                                                                                            children: [
                                                                                                                                 {
-                                                                                                                                    id: 'eq-router-psu', name: 'Power Supply Bay A', equipmentCategory: 'power_supply_unit',
+                                                                                                                                    id: 'eq-router-psu', name: 'Power Supply Bay A', category: 'POWER_SUPPLY',
                                                                                                                                     ports: [
-                                                                                                                                        { id: 'prt-router-pem1', name: 'PEM 1 In', category: 'power_supply', isPositive: false },
-                                                                                                                                        { id: 'prt-router-eth0', name: 'ETH 0/1', category: 'network_connectivity', isPositive: true }
+                                                                                                                                        { id: 'prt-router-pem1', name: 'PEM 1 In', type: 'POWER_SUPPLY', role: 'INPUT' },
+                                                                                                                                        { id: 'prt-router-eth0', name: 'ETH 0/1', type: 'DATA', role: 'INPUT' }
                                                                                                                                     ]
                                                                                                                                 }
                                                                                                                             ]
                                                                                                                         }
-                                                                                                                    ]
+                                                                                                                    ],
+                                                                                                                    ports: []
                                                                                                                 }
                                                                                                             ]
                                                                                                         }
