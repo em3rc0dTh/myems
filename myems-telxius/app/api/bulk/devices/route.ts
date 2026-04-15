@@ -73,7 +73,7 @@ export async function POST(req: Request) {
                 device = await prisma.device.create({
                     data: {
                         name: item.name,
-                        category: item.category || "GENERAL",
+                        category: (item.category || "GENERAL") as any,
                         siteId: site.id,
                         containerId: container?.id || null,
                         uPosition: item.uPosition ? Number(item.uPosition) : null,

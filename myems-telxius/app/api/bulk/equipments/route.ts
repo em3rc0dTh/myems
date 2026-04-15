@@ -25,7 +25,7 @@ export async function POST(req: Request) {
                     data: {
                         name: item.name,
                         sn: item.sn || null, // AQUI ESTÁ EL SERIAL NUMBER
-                        category: item.category || "SUBRACK",
+                        category: (item.category || "SUBRACK") as any,
                         deviceId: device.id,
                         unitPosition: item.unitPosition ? parseInt(item.unitPosition) : null,
                         unitHeight: item.unitHeight ? parseInt(item.unitHeight) : null,

@@ -28,17 +28,17 @@ async function main() {
   }
   console.log(`✅ Provincia: ${province.name}`);
 
-  // 4. Ciudad
-  let city = await prisma.city.findFirst({ where: { name: "Lima", provinceId: province.id } });
-  if (!city) {
-    city = await prisma.city.create({ data: { name: "Lima", provinceId: province.id } });
+  // 4. Ciudad/Pueblo (Town)
+  let town = await prisma.town.findFirst({ where: { name: "Lima", provinceId: province.id } });
+  if (!town) {
+    town = await prisma.town.create({ data: { name: "Lima", provinceId: province.id } });
   }
-  console.log(`✅ Ciudad: ${city.name}`);
+  console.log(`✅ Pueblo/Ciudad: ${town.name}`);
 
   // 5. Distrito
-  let district = await prisma.district.findFirst({ where: { name: "Lurín", cityId: city.id } });
+  let district = await prisma.district.findFirst({ where: { name: "Lurín", townId: town.id } });
   if (!district) {
-    district = await prisma.district.create({ data: { name: "Lurín", cityId: city.id } });
+    district = await prisma.district.create({ data: { name: "Lurín", townId: town.id } });
   }
   console.log(`✅ Distrito: ${district.name}`);
 

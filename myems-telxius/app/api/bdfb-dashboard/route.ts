@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma';
 
 export async function GET() {
     try {
@@ -23,12 +21,13 @@ export async function GET() {
                 
                 // Filtrar paneles soportando tanto el nuevo estándar como el anterior
                 const panels = d.equipments
-                    .filter(eq => 
-                        eq.category === 'SUBSHELF' || 
-                        eq.category === 'SUBRACK' || 
-                        eq.category === 'CIRCUIT_BREAKER_PANEL' || 
-                        (eq.ports && eq.ports.length > 0)
-                    )
+                    .filter(eq => {
+                        const cat = eq.category as any;
+                        return cat === 'SUBSHELF' || 
+                               cat === 'SUBRACK' || 
+                               cat === 'CIRCUIT_BREAKER_PANEL' || 
+                               (eq.ports && eq.ports.length > 0);
+                    })
                     .map(eq => ({
                         id: eq.id,
                         name: eq.name,

@@ -261,8 +261,8 @@ function EquipmentItem({ item, deviceId, onReload, telemetry, parentRU, parentPr
 
               {(p.sourceConnections?.length > 0 || p.targetConnections?.length > 0) && (
                 <div className="port-conns-row">
-                  {p.sourceConnections?.map(c => <span key={c.id}>→ {c.targetPort?.equipment?.name || "NE"}</span>)}
-                  {p.targetConnections?.map(c => <span key={c.id}>← {c.sourcePort?.equipment?.name || "SRC"}</span>)}
+                  {p.sourceConnections?.map((c: any) => <span key={c.id}>→ {c.targetPort?.equipment?.name || "NE"}</span>)}
+                  {p.targetConnections?.map((c: any) => <span key={c.id}>← {c.sourcePort?.equipment?.name || "SRC"}</span>)}
                 </div>
               )}
             </div>

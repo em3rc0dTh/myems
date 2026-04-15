@@ -85,7 +85,7 @@ export async function POST(req: Request) {
             let device = await prisma.device.findFirst({ where: { name: bdfb.deviceName, siteId: site.id } });
             if (!device) {
                 device = await prisma.device.create({ 
-                    data: { name: bdfb.deviceName, siteId: site.id, category: bdfb.deviceType }
+                    data: { name: bdfb.deviceName, siteId: site.id, category: bdfb.deviceType as any }
                 });
                 
                 // Mapear su posición física en la grilla de la sala (Tile 60x60 base ocupado por el Container)
@@ -112,7 +112,7 @@ export async function POST(req: Request) {
                     eqPanel = await prisma.equipment.create({
                         data: { 
                             name: panel.name, 
-                            category: "CIRCUIT_BREAKER_PANEL", 
+                            category: "CIRCUIT_BREAKER_PANEL" as any, 
                             deviceId: device.id,
                             sn: bdfb.deviceSn, // Mapeado del serial number principal o del panel
                             unitPosition: unitPosCounter, // Ocupando la posición RU del Container AssignSpace

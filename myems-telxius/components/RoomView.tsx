@@ -378,7 +378,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
     try {
       const bays = localElements.filter(el => el.type === 'BAY');
       const racks = localElements.filter(el => el.type === 'ZONE');
-      const savedRows = [];
+      const savedRows: any[] = [];
       
       for (const bay of bays) {
         const points = bay.points.map((p: any) => ({ x: p.x + bounds.minX, y: p.y + bounds.minY }));
@@ -397,7 +397,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
         }
       }
 
-      const newPersistedRacks = [];
+      const newPersistedRacks: any[] = [];
       for (const rack of racks) {
         const points = rack.points.map((p: any) => ({ x: p.x + bounds.minX, y: p.y + bounds.minY }));
         const minX = Math.min(...points.map((p: any) => p.x));

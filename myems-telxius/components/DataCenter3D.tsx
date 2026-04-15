@@ -4,17 +4,7 @@ import { useEffect, useRef, useCallback } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-interface Position {
-  id: string;
-  row: string;
-  col: number;
-  status: "EMPTY" | "OCCUPIED" | "RESERVED";
-  label: string | null;
-  widthUnits: number;
-  depthUnits: number;
-  physWidthCm: number;
-  physDepthCm: number;
-}
+import { Position } from "@/lib/types";
 
 interface Substructure {
   id: string; name: string;
@@ -27,14 +17,14 @@ interface Props {
   onRackClick?: (pos: Position | null) => void;
 }
 
-const TILE_SIZE = 1.0; 
-const RACK_H    = 3.6;
-const GAP       = 0.15;
+const TILE_SIZE = 1.0;
+const RACK_H = 3.6;
+const GAP = 0.15;
 
 function makeCellTexture(row: string, col: number, status: string): THREE.CanvasTexture {
   const SIZE = 256;
   const canvas = document.createElement("canvas");
-  canvas.width  = SIZE;
+  canvas.width = SIZE;
   canvas.height = SIZE;
   const ctx = canvas.getContext("2d")!;
   const isOcc = status === "OCCUPIED";
@@ -57,9 +47,9 @@ function makeCellTexture(row: string, col: number, status: string): THREE.Canvas
 
 export default function DataCenter3D({ room, positions, onRackClick }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const rafRef   = useRef<number>(0);
-  const hovered  = useRef<THREE.Mesh | null>(null);
-  const posMap   = useRef<Map<THREE.Mesh, Position>>(new Map());
+  const rafRef = useRef<number>(0);
+  const hovered = useRef<THREE.Mesh | null>(null);
+  const posMap = useRef<Map<THREE.Mesh, Position>>(new Map());
 
   const rowIndex = useCallback((row: string) => room.gridRows.indexOf(row), [room.gridRows]);
   const colIndex = useCallback((col: number) => room.gridCols.indexOf(col), [room.gridCols]);
@@ -122,14 +112,14 @@ export default function DataCenter3D({ room, positions, onRackClick }: Props) {
           // Lógica de centrado: si ocupa 4 baldosas, el centro está en (ci + 1.5)
           const midX = (ci + (posData.widthUnits - 1) / 2) * (TILE_SIZE + GAP);
           const midZ = (ri + (posData.depthUnits - 1) / 2) * (TILE_SIZE + GAP);
-          
+
           // Escala física real (cm / 60)
-          const scaleW = posData.physWidthCm / 60;
-          const scaleD = posData.physDepthCm / 60;
+          const scaleW = (posData?.physWidthCm || 60) / 60;
+          const scaleD = (posData?.physDepthCm || 60) / 60;
 
           const rack = new THREE.Mesh(
             new THREE.BoxGeometry(scaleW, RACK_H, scaleD),
-            new THREE.MeshStandardMaterial({ color: 0x1e1b4b, roughness: 0.1, metalness: 0.9, emissive: 0x6366f1, emissiveIntensity:0.15 })
+            new THREE.MeshStandardMaterial({ color: 0x1e1b4b, roughness: 0.1, metalness: 0.9, emissive: 0x6366f1, emissiveIntensity: 0.15 })
           );
           rack.position.set(midX, RACK_H / 2 + 0.05, midZ);
           rack.castShadow = true;
@@ -137,7 +127,7 @@ export default function DataCenter3D({ room, positions, onRackClick }: Props) {
           posMap.current.set(rack, posData);
 
           const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(scaleW, RACK_H, scaleD));
-          const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x818cf8, transparent:true, opacity:0.6 }));
+          const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x818cf8, transparent: true, opacity: 0.6 }));
           line.position.copy(rack.position);
           scene.add(line);
         }
@@ -157,13 +147,24 @@ export default function DataCenter3D({ room, positions, onRackClick }: Props) {
       if (hits.length > 0) {
         const m = hits[0].object as THREE.Mesh;
         if (hovered.current !== m) {
-          if (hovered.current) (hovered.current.material as any).emissiveIntensity = 0.15;
-          hovered.current = m; (m.material as any).emissiveIntensity = 1.2;
+          const prevMat = hovered.current?.material;
+          if (prevMat instanceof THREE.MeshStandardMaterial) {
+             prevMat.emissiveIntensity = 0.15;
+          }
+          hovered.current = m; 
+          const currMat = m.material;
+          if (currMat instanceof THREE.MeshStandardMaterial) {
+             currMat.emissiveIntensity = 1.2;
+          }
           el.style.cursor = "pointer";
         }
       } else {
-        if (hovered.current) (hovered.current.material as any).emissiveIntensity = 0.15;
-        hovered.current = null; el.style.cursor = "default";
+        const prevMat = hovered.current?.material;
+        if (prevMat instanceof THREE.MeshStandardMaterial) {
+           prevMat.emissiveIntensity = 0.15;
+        }
+        hovered.current = null; 
+        el.style.cursor = "default";
       }
     };
 

@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
+import { Position } from "@/lib/types";
 
 const DataCenter3D = dynamic(() => import("../../../components/DataCenter3D"), {
   ssr: false,
@@ -22,15 +23,6 @@ interface Site { id: string; name: string; }
 interface Structure { id: string; name: string; }
 interface Level { id: string; name: string; }
 interface Substructure { id: string; name: string; gridRows: string[]; gridCols: number[]; }
-interface Position {
-  id: string;
-  row: string;
-  col: number;
-  status: "EMPTY" | "OCCUPIED" | "RESERVED";
-  label: string | null;
-  physWidthCm: number;
-  physDepthCm: number;
-}
 
 async function api(path: string) {
   const res = await fetch(`${BASE}${path}`);
@@ -56,7 +48,7 @@ export default function InfrastructurePage3D() {
       const all = r.data.flatMap((c: any) =>
         c.regions.flatMap((rg: any) =>
           rg.provinces.flatMap((p: any) =>
-            p.cities.flatMap((ci: any) =>
+            p.towns.flatMap((ci: any) =>
               ci.districts.flatMap((d: any) => d.sites)))));
       setSites(all);
     });

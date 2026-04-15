@@ -119,6 +119,7 @@ export interface BDFBData {
   connections?: ConnectionMapData[];
   telemetryHistory?: HistoryDataPoint[];
   substructureId?: string;
+  equipments?: TAPIEquipment[];
 }
 
 export function getBDFBSummary(bdfb: BDFBData) {

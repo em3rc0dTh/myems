@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  ChevronRight, ChevronDown, MapPin, Building2, Layers, 
+import {
+  ChevronRight, ChevronDown, MapPin, Building2, Layers,
   DoorOpen, Database, Monitor, Cpu, Zap, Activity, Info
 } from 'lucide-react';
 
@@ -34,7 +34,7 @@ const TreeItem: React.FC<TreeItemProps> = ({ label, type, count, sn, children, i
 
   return (
     <div className="ml-4 border-l border-white/5 pl-2 mb-1">
-      <div 
+      <div
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-white/5 cursor-pointer transition-all group"
       >
@@ -43,7 +43,7 @@ const TreeItem: React.FC<TreeItemProps> = ({ label, type, count, sn, children, i
         ) : (
           <div className="w-3" />
         )}
-        
+
         <div className={`p-1.5 rounded-md bg-white/5 border border-white/5 group-hover:border-white/10`}>
           {getIcon()}
         </div>
@@ -52,7 +52,7 @@ const TreeItem: React.FC<TreeItemProps> = ({ label, type, count, sn, children, i
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-black text-slate-200 uppercase tracking-tighter italic truncate">{label}</span>
             {type && (
-                <span className="text-[7px] font-black px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-slate-500 uppercase tracking-widest">{type}</span>
+              <span className="text-[7px] font-black px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-slate-500 uppercase tracking-widest">{type}</span>
             )}
           </div>
           {sn && (
@@ -101,11 +101,11 @@ export default function MasterInventoryTree() {
     <div className="p-8 bg-black/20 rounded-3xl border border-white/5 backdrop-blur-3xl overflow-hidden max-h-[800px] overflow-y-auto custom-scrollbar">
       <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
         <div>
-           <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">Full Stack <span className="text-sky-400">Inventory</span></h2>
-           <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-1">Navegación Vertical de Activos • Milimétrica</p>
+          <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">Full Stack <span className="text-sky-400">Inventory</span></h2>
+          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-1">Navegación Vertical de Activos • Milimétrica</p>
         </div>
         <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
-            <span className="px-4 py-2 text-[8px] font-black text-slate-400 uppercase tracking-widest">Master Root: TELXIUS</span>
+          <span className="px-4 py-2 text-[8px] font-black text-slate-400 uppercase tracking-widest">Master Root: TELXIUS</span>
         </div>
       </div>
 
@@ -117,19 +117,19 @@ export default function MasterInventoryTree() {
                 {struct.levels?.map((level: any) => (
                   <TreeItem key={level.id} label={level.name} type="LEVEL">
                     {level.rooms?.map((room: any) => (
-                       <TreeItem key={room.id} label={room.name} type="ROOM" count={room.racks?.length}>
-                         {room.racks?.map((rack: any) => (
-                            <TreeItem key={rack.id} label={rack.name} type="RACK">
-                                {rack.devices?.map((dev: any) => (
-                                    <TreeItem key={dev.id} label={dev.name} type="WRAPPER">
-                                        {dev.equipments?.map((eq: any) => (
-                                            <EquipmentNode key={eq.id} equipment={eq} />
-                                        ))}
-                                    </TreeItem>
+                      <TreeItem key={room.id} label={room.name} type="ROOM" count={room.racks?.length}>
+                        {room.racks?.map((rack: any) => (
+                          <TreeItem key={rack.id} label={rack.name} type="RACK">
+                            {rack.devices?.map((dev: any) => (
+                              <TreeItem key={dev.id} label={dev.name} type="WRAPPER">
+                                {dev.equipments?.map((eq: any) => (
+                                  <EquipmentNode key={eq.id} equipment={eq} />
                                 ))}
-                            </TreeItem>
-                         ))}
-                       </TreeItem>
+                              </TreeItem>
+                            ))}
+                          </TreeItem>
+                        ))}
+                      </TreeItem>
                     ))}
                   </TreeItem>
                 ))}
@@ -143,14 +143,14 @@ export default function MasterInventoryTree() {
 }
 
 const EquipmentNode = ({ equipment }: { equipment: any }) => {
-    return (
-        <TreeItem label={equipment.name} type="EQUIPMENT" sn={equipment.sn}>
-            {equipment.ports?.map((port: any) => (
-                <TreeItem key={port.id} label={port.name} type="PORT" />
-            ))}
-            {equipment.children?.map((child: any) => (
-                <EquipmentNode key={child.id} equipment={child} />
-            ))}
-        </TreeItem>
-    );
+  return (
+    <TreeItem label={equipment.name} type="EQUIPMENT" sn={equipment.sn}>
+      {equipment.ports?.map((port: any) => (
+        <TreeItem key={port.id} label={port.name} type="PORT" />
+      ))}
+      {equipment.children?.map((child: any) => (
+        <EquipmentNode key={child.id} equipment={child} />
+      ))}
+    </TreeItem>
+  );
 };

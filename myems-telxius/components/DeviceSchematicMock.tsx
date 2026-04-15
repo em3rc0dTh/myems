@@ -49,33 +49,33 @@ const DeviceSchematicMock = () => {
 
                     {/* ====== DEVICE 1: POWER SOURCE ====== */}
                     <g transform="translate(50, 100)">
-                        <DeviceBox width="420" height="600" title={`1. ${plantaDevice.name}`} location="SITE: TX / SALA: 01" />
+                        <DeviceBox width={420} height={600} title={`1. ${plantaDevice.name}`} location="SITE: TX / SALA: 01" />
 
                         {/* Equipment Chassis */}
                         <g transform="translate(30, 80)">
-                            <EquipmentBox width="360" height="490" title={plantaDevice.equipments[0].name} />
+                            <EquipmentBox width={360} height={490} title={plantaDevice.equipments[0].name} />
 
                             {/* Equipment: Battery Bank */}
                             <g transform="translate(30, 60)">
-                                <EquipmentBox width="300" height="150" title={plantaDevice.equipments[0].equipments![0].name} fillOpacity="0.1" />
+                                <EquipmentBox width={300} height={150} title={plantaDevice.equipments[0].children![0].name} fillOpacity="0.1" />
 
                                 <g transform="translate(260, 45)">
-                                    <PortBornera port={plantaDevice.equipments[0].equipments![0].ports![0]} />
+                                    <PortBornera port={plantaDevice.equipments[0].children![0].ports![0]} />
                                 </g>
                                 <g transform="translate(260, 100)">
-                                    <PortBornera port={plantaDevice.equipments[0].equipments![0].ports![1]} />
+                                    <PortBornera port={plantaDevice.equipments[0].children![0].ports![1]} />
                                 </g>
                             </g>
 
                             {/* Equipment: Rectificador */}
                             <g transform="translate(30, 240)">
-                                <EquipmentBox width="300" height="220" title={plantaDevice.equipments[0].equipments![1].name} fillOpacity="0.1" />
+                                <EquipmentBox width={300} height={220} title={plantaDevice.equipments[0].children![1].name} fillOpacity="0.1" />
 
                                 <g transform="translate(260, 60)">
-                                    <PortBornera port={plantaDevice.equipments[0].equipments![1].ports![0]} />
+                                    <PortBornera port={plantaDevice.equipments[0].children![1].ports![0]} />
                                 </g>
                                 <g transform="translate(260, 150)">
-                                    <PortBornera port={plantaDevice.equipments[0].equipments![1].ports![1]} />
+                                    <PortBornera port={plantaDevice.equipments[0].children![1].ports![1]} />
                                 </g>
                             </g>
                         </g>
@@ -96,21 +96,21 @@ const DeviceSchematicMock = () => {
 
                     {/* ====== DEVICE 2: BDFB ====== */}
                     <g transform="translate(560, 50)">
-                        <DeviceBox width="580" height="800" title={`2. ${bdfbDevice.name}`} location={`POS: ${bdfbPosition.name}`} />
+                        <DeviceBox width={580} height={800} title={`2. ${bdfbDevice.name}`} location={`POS: ${bdfbPosition.name}`} />
 
                         {/* Main Chassis Equipment */}
                         <g transform="translate(30, 80)">
-                            <EquipmentBox width="520" height="690" title={bdfbDevice.equipments[0].name} />
+                            <EquipmentBox width={520} height={690} title={bdfbDevice.equipments[0].name} />
 
                             {/* Equipment: INPUT & SHUNT */}
                             <g transform="translate(30, 260)">
-                                <EquipmentBox width="140" height="250" title={bdfbDevice.equipments[0].equipments![0].name} fillOpacity="0.1" />
+                                <EquipmentBox width={140} height={250} title={bdfbDevice.equipments[0].children![0].name} fillOpacity="0.1" />
 
                                 <g transform="translate(0, 90)">
-                                    <PortBornera port={bdfbDevice.equipments[0].equipments![0].ports![0]} isLeft={true} />
+                                    <PortBornera port={bdfbDevice.equipments[0].children![0].ports![0]} isLeft={true} />
                                 </g>
                                 <g transform="translate(0, 150)">
-                                    <PortBornera port={bdfbDevice.equipments[0].equipments![0].ports![1]} isLeft={true} />
+                                    <PortBornera port={bdfbDevice.equipments[0].children![0].ports![1]} isLeft={true} />
                                 </g>
 
                                 {/* Shunt abstraction as internal visual */}
@@ -130,11 +130,11 @@ const DeviceSchematicMock = () => {
 
                             {/* Equipment: Panel A1 */}
                             <g transform="translate(220, 60)">
-                                <EquipmentBox width="260" height="270" title={bdfbDevice.equipments[0].equipments![1].name} fillOpacity="0.1" />
+                                <EquipmentBox width={260} height={270} title={bdfbDevice.equipments[0].children![1].name} fillOpacity="0.1" />
                                 <text x="130" y="50" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="bold">Apilamiento de Equipos</text>
 
                                 {/* Ports */}
-                                {bdfbDevice.equipments[0].equipments![1].ports!.map((port, i) => (
+                                {bdfbDevice.equipments[0].children![1].ports!.map((port, i) => (
                                     <g transform={`translate(220, ${100 + i * 60})`} key={port.id}>
                                         <PortBornera port={port} />
                                     </g>
@@ -143,11 +143,11 @@ const DeviceSchematicMock = () => {
 
                             {/* Equipment: Panel B1 */}
                             <g transform="translate(220, 360)">
-                                <EquipmentBox width="260" height="270" title={bdfbDevice.equipments[0].equipments![2].name} fillOpacity="0.1" />
+                                <EquipmentBox width={260} height={270} title={bdfbDevice.equipments[0].children![2].name} fillOpacity="0.1" />
                                 <text x="130" y="50" textAnchor="middle" fill="#64748b" fontSize="12" fontWeight="bold">Apilamiento de Equipos</text>
 
                                 {/* Ports */}
-                                {bdfbDevice.equipments[0].equipments![2].ports!.map((port, i) => (
+                                {bdfbDevice.equipments[0].children![2].ports!.map((port, i) => (
                                     <g transform={`translate(220, ${100 + i * 60})`} key={port.id}>
                                         <PortBornera port={port} />
                                     </g>
@@ -167,21 +167,21 @@ const DeviceSchematicMock = () => {
 
                     {/* ====== DEVICE 3: CLIENT ROUTER ====== */}
                     <g transform="translate(1330, 200)">
-                        <DeviceBox width="380" height="450" title={`3. ${routerDevice.name}`} location={`POS: ${routerPosition.name}`} />
+                        <DeviceBox width={380} height={450} title={`3. ${routerDevice.name}`} location={`POS: ${routerPosition.name}`} />
 
                         {/* Equipment Changer */}
                         <g transform="translate(30, 80)">
-                            <EquipmentBox width="320" height="340" title={routerDevice.equipments[0].name} />
+                            <EquipmentBox width={320} height={340} title={routerDevice.equipments[0].name} />
 
                             <g transform="translate(30, 60)">
-                                <EquipmentBox width="260" height="240" title={routerDevice.equipments[0].equipments![0].name} fillOpacity="0.1" />
+                                <EquipmentBox width={260} height={240} title={routerDevice.equipments[0].children![0].name} fillOpacity="0.1" />
 
                                 <g transform="translate(0, 110)">
-                                    <PortBornera port={routerDevice.equipments[0].equipments![0].ports![0]} isLeft={true} />
+                                    <PortBornera port={routerDevice.equipments[0].children![0].ports![0]} isLeft={true} />
                                 </g>
 
                                 <g transform="translate(220, 110)">
-                                    <PortBornera port={routerDevice.equipments[0].equipments![0].ports![1]} />
+                                    <PortBornera port={routerDevice.equipments[0].children![0].ports![1]} />
                                 </g>
                             </g>
                         </g>
@@ -194,15 +194,28 @@ const DeviceSchematicMock = () => {
 };
 
 // Reusable UI Components for the specific TAPI Modeling
+interface LegendProps {
+    badge: string;
+    color: string;
+    borderColor?: string;
+    label: string;
+}
 
-const Legend = ({ badge, color, borderColor = color, label }: any) => (
+const Legend = ({ badge, color, borderColor = color, label }: LegendProps) => (
     <div className="flex items-center gap-3 bg-white/5 pr-4 pl-1 py-1 rounded-full border border-white/10">
         <span className="px-3 py-1 text-[10px] uppercase font-black rounded-full border border-opacity-50" style={{ backgroundColor: `${color}33`, color: color === '#1e293b' ? '#f59e0b' : color, borderColor }}>{badge}</span>
         <span className="text-slate-300 text-xs font-bold uppercase tracking-wider">{label}</span>
     </div>
 );
 
-const DeviceBox = ({ width, height, title, location }: any) => (
+interface DeviceBoxProps {
+    width: number;
+    height: number;
+    title: string;
+    location: string;
+}
+
+const DeviceBox = ({ width, height, title, location }: DeviceBoxProps) => (
     <>
         <rect x="0" y="0" width={width} height={height} rx="24" fill="rgba(34, 197, 94, 0.03)" stroke="#22c55e" strokeWidth="3" strokeDasharray="12 12" />
         <rect x="30" y="-15" width="100" height="30" rx="15" fill="#22c55e" />
@@ -212,7 +225,14 @@ const DeviceBox = ({ width, height, title, location }: any) => (
     </>
 );
 
-const EquipmentBox = ({ width, height, title, fillOpacity = "0.05" }: any) => (
+interface EquipmentBoxProps {
+    width: number;
+    height: number;
+    title: string;
+    fillOpacity?: string;
+}
+
+const EquipmentBox = ({ width, height, title, fillOpacity = "0.05" }: EquipmentBoxProps) => (
     <>
         <rect x="0" y="0" width={width} height={height} rx="16" fill={`rgba(59, 130, 246, ${fillOpacity})`} stroke="#3b82f6" strokeWidth="2" />
         <rect x="20" y="-12" width="100" height="24" rx="12" fill="#3b82f6" />

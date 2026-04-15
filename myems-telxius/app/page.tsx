@@ -149,7 +149,7 @@ export default function Home() {
                                          <span className="text-[9px] font-black text-white uppercase tracking-widest">Auditoría Estructural</span>
                                      </div>
                                      <div className="flex-1 overflow-auto custom-scrollbar p-2">
-                                         <InfrastructureExplorer />
+                                         <InfrastructureExplorer equipment={[]} />
                                      </div>
                                 </div>
                             </div>
