@@ -1,11 +1,11 @@
 "use client"
-import BDFBSummary from "@/components/BDFBSummary";
-import { BDFBData, PanelData, BreakerData } from "@/lib/types";
-import { BDFB_MOCK_DATA } from "@/lib/mockData";
+import BDFBSummary from "../components/BDFBSummary";
+import { BDFBData, PanelData, BreakerData } from "../lib/types";
+import { BDFB_MOCK_DATA } from "../lib/mockData";
 import React, { useState, useEffect } from "react";
 import { Settings, ChevronRight, ChevronDown, Edit, Trash2, LayoutGrid, Activity, Plus, Server, FolderTree, AlertTriangle, CheckCircle2, FileDown, Inbox, Pin, PinOff, Sliders } from "lucide-react";
 import Link from 'next/link';
-import EquipmentEditorModal from "@/components/EquipmentEditorModal";
+import EquipmentEditorModal from "../components/EquipmentEditorModal";
 
 export default function Home() {
     const isProd = process.env.NEXT_PUBLIC_APP_MODE === 'prod';

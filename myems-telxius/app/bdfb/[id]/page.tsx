@@ -2,15 +2,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import RoomView from '@/components/RoomView';
-import BDFBFrontView from '@/components/BDFBFrontView';
-import BDFBRackDetail from '@/components/BDFBRackDetail';
-import MeteringDiagram from '@/components/MeteringDiagram';
-import EnergyHistoryView from '@/components/EnergyHistoryView';
+import RoomView from '../../../components/RoomView';
+import BDFBFrontView from '../../../components/BDFBFrontView';
+import BDFBRackDetail from '../../../components/BDFBRackDetail';
+import MeteringDiagram from '../../../components/MeteringDiagram';
+import EnergyHistoryView from '../../../components/EnergyHistoryView';
 import { Plus, LayoutGrid, Cpu, CheckCircle2, AlertTriangle, Activity, Inbox, MapPin } from 'lucide-react';
-import { BDFB_MOCK_DATA } from '@/lib/mockData';
-import { BDFBData, BreakerData, HistoryPoint } from '@/lib/types';
-import { useMqtt } from '@/lib/MqttContext';
+import { BDFB_MOCK_DATA } from '../../../lib/mockData';
+import { BDFBData, BreakerData, HistoryPoint } from '../../../lib/types';
+import { useMqtt } from '../../../lib/MqttContext';
 
 const BDFBDetailPage: React.FC = () => {
     const { id } = useParams();

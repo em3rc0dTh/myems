@@ -1,6 +1,6 @@
 "use client"
 import React from 'react';
-import { MOCK_INFRASTRUCTURE_DATA } from '@/lib/mockData';
+import { MOCK_INFRASTRUCTURE_DATA } from '../lib/mockData';
 
 const DeviceSchematicMock = () => {
     // Navigating the massive mock structure precisely to the devices.
