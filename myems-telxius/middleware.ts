@@ -53,7 +53,17 @@ export async function middleware(request: NextRequest) {
 
   // --- SECCIÓN DE AUTORIZACIÓN POR ROL ---
   const userRole = (payload.role as string) || 'TECHNICIAN';
-  
+  const mustChange = payload.mustChangePassword as boolean;
+
+  // FORZADO DE CAMBIO DE CONTRASEÑA
+  const isAccountSetupPage = normalizedPathname === '/config/account/setup';
+  if (mustChange && !isAccountSetupPage && !isPublicRoute && !pathname.startsWith('/api/auth')) {
+    console.warn(`[AUTH-DEBUG] User ${payload.username} forced to password change`);
+    const url = request.nextUrl.clone();
+    url.pathname = '/config/account/setup/';
+    return NextResponse.redirect(url);
+  }
+
   // Definir rutas que requieren ser ADMIN
   const isAdminRoute = 
     (normalizedPathname.startsWith('/topology') && !normalizedPathname.startsWith('/topology/dashboard')) ||
@@ -70,8 +80,9 @@ export async function middleware(request: NextRequest) {
   // BLOQUEO GLOBAL DE ESCRITURA PARA TÉCNICOS
   const isWriteMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method);
   const isLogoutRequest = pathname.startsWith('/api/auth/logout/');
+  const isAccountSetup = pathname.startsWith('/api/account/setup/');
 
-  if (isWriteMethod && userRole !== 'ADMIN' && !isLogoutRequest) {
+  if (isWriteMethod && userRole !== 'ADMIN' && !isLogoutRequest && !isAccountSetup) {
     // Permitir POST a logout y otras rutas públicas si las hubiera (ya manejadas arriba por isPublicRoute)
     if (!isPublicRoute) {
       console.warn(`[AUTH-DEBUG] User ${payload.username} [${userRole}] blocked writing to ${pathname}`);

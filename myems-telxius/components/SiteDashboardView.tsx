@@ -164,8 +164,9 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
       <div className="h-14 border-b border-white/5 bg-black/40 flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
           <div
-            className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all"
+            className={`p-2 rounded-lg border transition-all ${isAdmin ? 'bg-emerald-500/10 border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20' : 'bg-slate-500/5 border-white/5 cursor-default'}`}
             onClick={async () => {
+              if (!isAdmin) return;
               const { value: formValues } = await Swal.fire({
                 title: 'Geo-Localización del Site',
                 html: `

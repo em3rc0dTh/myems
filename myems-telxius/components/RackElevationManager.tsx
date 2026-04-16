@@ -2,9 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Cpu, Server, Layers, Plus, Save, Trash2, Activity, Info, ExternalLink, Settings, FileJson } from 'lucide-react';
 import Swal from 'sweetalert2';
-import Link from 'next/link';
-import EquipmentEditorModal from './EquipmentEditorModal';
-import RackElevation from './RackElevation';
+import { useAuth } from '@/lib/AuthContext';
 
 interface RackElevationManagerProps {
   container: any;
@@ -14,6 +12,7 @@ interface RackElevationManagerProps {
 }
 
 const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, siteId, onClose, onUpdate }) => {
+  const { isAdmin } = useAuth();
   const [devices, setDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableDevices, setAvailableDevices] = useState<any[]>([]);
@@ -194,12 +193,14 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
            <div className="flex-1 flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Equipos Montados</h4>
-                <button 
-                    onClick={() => setShowAddModal(true)}
-                    className="p-1.5 bg-blue-500 rounded-lg text-black hover:bg-blue-400 transition-all shadow-lg"
-                >
-                    <Plus className="w-3.5 h-3.5" />
-                </button>
+                {isAdmin && (
+                  <button 
+                      onClick={() => setShowAddModal(true)}
+                      className="p-1.5 bg-blue-500 rounded-lg text-black hover:bg-blue-400 transition-all shadow-lg"
+                  >
+                      <Plus className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
               <div className="space-y-3 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
@@ -223,22 +224,24 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
                                     <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">U{dev.uPosition} • {dev.category || dev.type}</p>
                                 </div>
                             </Link>
-                            <div className="flex items-center gap-1">
-                                <button 
-                                    onClick={() => setSelectedDeviceForEdit(dev)}
-                                    title="Configurar Componentes"
-                                    className="p-2 opacity-0 group-hover:opacity-100 hover:text-blue-400 transition-all"
-                                >
-                                    <Settings className="w-4 h-4" />
-                                </button>
-                                <button 
-                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnmount(dev.id); }}
-                                    title="Desmontar"
-                                    className="p-2 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all relative z-10"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
+                            {isAdmin && (
+                              <div className="flex items-center gap-1">
+                                  <button 
+                                      onClick={() => setSelectedDeviceForEdit(dev)}
+                                      title="Configurar Componentes"
+                                      className="p-2 opacity-0 group-hover:opacity-100 hover:text-blue-400 transition-all"
+                                  >
+                                      <Settings className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnmount(dev.id); }}
+                                      title="Desmontar"
+                                      className="p-2 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all relative z-10"
+                                  >
+                                      <Trash2 className="w-4 h-4" />
+                                  </button>
+                              </div>
+                            )}
                         </div>
                     ))
                 )}
