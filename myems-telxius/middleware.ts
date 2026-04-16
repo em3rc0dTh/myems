@@ -79,8 +79,8 @@ export async function middleware(request: NextRequest) {
 
   // BLOQUEO GLOBAL DE ESCRITURA PARA TÉCNICOS
   const isWriteMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method);
-  const isLogoutRequest = pathname.startsWith('/api/auth/logout/');
-  const isAccountSetup = pathname.startsWith('/api/account/setup/');
+  const isLogoutRequest = normalizedPathname.startsWith('/api/auth/logout');
+  const isAccountSetup = normalizedPathname.startsWith('/api/account/setup');
 
   if (isWriteMethod && userRole !== 'ADMIN' && !isLogoutRequest && !isAccountSetup) {
     // Permitir POST a logout y otras rutas públicas si las hubiera (ya manejadas arriba por isPublicRoute)
