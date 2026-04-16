@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { signJwt } from "@/lib/auth";
-
-const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,10 +35,7 @@ export async function POST(req: NextRequest) {
     };
 
     const isProdMode = process.env.NEXT_PUBLIC_APP_MODE === 'prod';
-    console.log("[AUTH-DEBUG] Environment Mode:", isProdMode ? 'PROD' : 'DEV');
-
     const token = await signJwt(payload);
-    console.log("[AUTH-DEBUG] Token generated successfully for:", username);
 
     const response = NextResponse.json({
       success: true,
@@ -48,24 +43,23 @@ export async function POST(req: NextRequest) {
     });
 
     // Set cookie HTTP Only
-    // IMPORTANTE: secure debe ser false si accedemos por IP/HTTP, incluso en PROD
     const isHttps = req.nextUrl.protocol === 'https:';
 
     response.cookies.set("auth_token", token, {
       httpOnly: true,
       secure: isHttps && isProdMode, 
-      sameSite: "strict",
+      sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: "/",
+      path: "/telxius", 
     });
 
-    console.log(`[AUTH-DEBUG] Login successful. Cookie Secure: ${isHttps && isProdMode}`);
     return response;
   } catch (error: any) {
-    console.error("CRITICAL LOGIN ERROR:", error.message, error.stack);
+    console.error("CRITICAL LOGIN ERROR:", error.message);
     return NextResponse.json({ 
       error: "Error interno del servidor",
-      details: error.message 
+      message: error.message,
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
     }, { status: 500 });
   }
 }
