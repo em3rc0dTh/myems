@@ -41,7 +41,7 @@ const BDFBDetailPage: React.FC = () => {
 
         const fetchDetail = async () => {
             try {
-                const res = await fetch(`/telxius/api/bdfb/${id}`);
+                const res = await fetch(`/telxius/api/bdfb/${id}/`);
                 if (res.ok) {
                     const data = await res.json();
                     setBdfbData(data);
@@ -233,13 +233,13 @@ const BDFBDetailPage: React.FC = () => {
         if (!selectedBreaker?.data.id) return;
         setIsSaving(true);
         try {
-            const res = await fetch(`/telxius/api/ports?id=${selectedBreaker.data.id}`, {
+            const res = await fetch(`/telxius/api/ports/?id=${selectedBreaker.data.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
             if (res.ok) {
-                const refreshRes = await fetch(`/telxius/api/bdfb/${id}`);
+                const refreshRes = await fetch(`/telxius/api/bdfb/${id}/`);
                 if (refreshRes.ok) {
                     const newData = await refreshRes.json();
                     setBdfbData(newData);

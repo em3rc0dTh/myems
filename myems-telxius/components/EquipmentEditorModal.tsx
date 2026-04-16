@@ -34,7 +34,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
 
                 if (config.equipments) {
                     const eqPayload = config.equipments.map((e: any) => ({ ...e, deviceName: device.name }));
-                    await fetch('/telxius/api/bulk/equipments', {
+                    await fetch('/telxius/api/bulk/equipments/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(eqPayload)
@@ -42,7 +42,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                 }
 
                 if (config.ports) {
-                    await fetch('/telxius/api/bulk/ports', {
+                    await fetch('/telxius/api/bulk/ports/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(config.ports)
@@ -114,7 +114,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
 
         if (formValues && formValues.name) {
             try {
-                const res = await fetch('/telxius/api/equipments', {
+                const res = await fetch('/telxius/api/equipments/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -140,7 +140,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                             deviceId: device.id
                         }));
 
-                        await fetch('/telxius/api/bulk/ports', {
+                        await fetch('/telxius/api/bulk/ports/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(portsToCreate)
@@ -207,7 +207,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                 const suffix = numMatch ? numMatch[0] : "0";
                 const calculatedTopic = prefix ? `${prefix}${suffix}` : null;
 
-                    const res = await fetch('/telxius/api/ports', {
+                    const res = await fetch('/telxius/api/ports/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -245,7 +245,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
 
         if (result.isConfirmed) {
             try {
-                const res = await fetch(`/telxius/api/equipments?id=${id}`, {
+                const res = await fetch(`/telxius/api/equipments/?id=${id}`, {
                     method: 'DELETE'
                 });
                 if (res.ok) {

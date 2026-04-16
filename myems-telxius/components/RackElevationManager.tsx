@@ -90,7 +90,7 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
               // 1. Process Equipments
               if (config.equipments && Array.isArray(config.equipments)) {
                 const eqPayload = config.equipments.map((e: any) => ({ ...e, deviceName: createdDevice.name }));
-                await fetch('/telxius/api/bulk/equipments', {
+                await fetch('/telxius/api/bulk/equipments/', {
                    method: 'POST',
                    headers: { 'Content-Type': 'application/json' },
                    body: JSON.stringify(eqPayload)
@@ -99,7 +99,7 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
 
               // 2. Process Ports
               if (config.ports && Array.isArray(config.ports)) {
-                await fetch('/telxius/api/bulk/ports', {
+                await fetch('/telxius/api/bulk/ports/', {
                    method: 'POST',
                    headers: { 'Content-Type': 'application/json' },
                    body: JSON.stringify(config.ports)
@@ -147,7 +147,7 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[450px] bg-[#020617]/95 backdrop-blur-3xl border-l border-white/10 shadow-2xl z-[100] flex flex-col animate-in slide-in-from-right duration-300">
+    <div className="fixed inset-y-0 right-0 w-full sm:w-[500px] md:w-[650px] bg-[#020617]/95 backdrop-blur-3xl border-l border-white/10 shadow-2xl z-[100] flex flex-col animate-in slide-in-from-right duration-300">
       <div className="h-20 px-6 border-b border-white/5 flex items-center justify-between bg-black/40">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">
@@ -159,9 +159,9 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
         <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all text-slate-400"><X /></button>
       </div>
 
-      <div className="flex-1 overflow-hidden p-6 flex gap-6">
-        {/* RACK VISUALIZATION (LEFT) */}
-        <div className="w-[120px] shrink-0 bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex flex-col h-[calc(100vh-180px)]">
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col sm:flex-row gap-6 custom-scrollbar">
+        {/* RACK VISUALIZATION (LEFT/TOP) */}
+        <div className="w-full sm:w-[130px] shrink-0 bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex flex-col h-[600px] sm:h-[calc(100vh-180px)]">
             <div className="p-3 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Elevación Frontal</span>
                 <span className="text-[9px] font-black text-blue-400">{totalU}U</span>
@@ -186,7 +186,7 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
              </h4>
              <div className="space-y-2">
                 <InfoLine label="Tipo" value={container.type} />
-                <InfoLine label="Dimensiones" value={`${container.width}x${container.depth} cm`} />
+                <InfoLine label="Dimensiones" value={`${Number(container.width || 0).toFixed(1)} x ${Number(container.depth || 0).toFixed(1)} cm`} />
                 <InfoLine label="Ocupación" value={`${Math.round((devices.length / totalU) * 100)}%`} />
              </div>
            </div>

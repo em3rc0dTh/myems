@@ -12,8 +12,11 @@ import {
   Zap,
   LayoutDashboard,
   ChevronRight,
-  HelpCircle
+  HelpCircle,
+  Users,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 
 const NAV_ITEMS = [
   {
@@ -32,19 +35,36 @@ const NAV_ITEMS = [
     label: 'Gestión de Activos',
     icon: Database,
     href: '/topology/',
-    description: 'Ingeniería y Carga de Red'
+    description: 'Ingeniería y Carga de Red',
+    adminOnly: true
   },
   {
     label: 'Auditoría Estructural',
     icon: Layers,
     href: '/inventory/tree/',
-    description: 'Vista de Árbol Jerárquico'
+    description: 'Vista de Árbol Jerárquico',
+    adminOnly: true
+  },
+  {
+    label: 'Gestión de Accesos',
+    icon: Users,
+    href: '/config/users/',
+    description: 'Administración de Usuarios',
+    adminOnly: true
   }
 ];
 
 export default function NavigationSidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(true);
+  const { isAdmin, logout } = useAuth();
+
+  const isLoginPage = pathname === '/login' || pathname === '/login/';
+  const isSetupPage = pathname?.startsWith('/config/account/setup');
+
+  if (isLoginPage || isSetupPage) {
+    return null;
+  }
 
   return (
     <>
@@ -74,6 +94,10 @@ export default function NavigationSidebar() {
 
             const Icon = item.icon;
 
+            if (item.adminOnly && !isAdmin) {
+              return null;
+            }
+
             return (
               <Link
                 key={item.href}
@@ -101,8 +125,23 @@ export default function NavigationSidebar() {
           })}
 
           <button
+            onClick={logout}
+            className="group relative flex items-center justify-center p-4 rounded-2xl transition-all duration-500 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 mt-2"
+            title="Cerrar Sesión"
+          >
+            <LogOut className="w-5 h-5 transition-transform duration-500 group-hover:scale-110" />
+            
+            <div className="absolute left-full ml-6 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 translate-x-4 group-hover:translate-x-0 z-[110]">
+              <div className="bg-slate-900 border border-white/10 p-3 rounded-2xl shadow-2xl relative">
+                <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-900 border-l border-b border-white/10 rotate-45" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-white">Cerrar Sesión</p>
+              </div>
+            </div>
+          </button>
+
+          <button
             onClick={() => setIsOpen(false)}
-            className="p-4 mt-2 rounded-2xl text-slate-600 hover:text-rose-500 hover:bg-rose-500/10 transition-all group relative border-t border-white/5"
+            className="p-4 mt-2 rounded-2xl text-slate-600 hover:text-white hover:bg-white/5 transition-all group relative border-t border-white/5"
             title="Ocultar Navegación"
           >
             <ChevronRight className="w-5 h-5 rotate-180" />

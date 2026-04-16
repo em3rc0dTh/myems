@@ -25,7 +25,11 @@ interface Level { id: string; name: string; }
 interface Substructure { id: string; name: string; gridRows: string[]; gridCols: number[]; }
 
 async function api(path: string) {
-  const res = await fetch(`${BASE}${path}`);
+  const [url, query] = path.split('?');
+  const normalizedUrl = url.endsWith('/') ? url : `${url}/`;
+  const finalPath = query ? `${normalizedUrl}?${query}` : normalizedUrl;
+  
+  const res = await fetch(`${BASE}${finalPath}`);
   return res.json();
 }
 

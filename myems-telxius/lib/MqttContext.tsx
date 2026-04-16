@@ -19,27 +19,22 @@ const MqttContext = createContext<MqttContextType>({
 export const useMqtt = () => useContext(MqttContext);
 
 export const MqttProvider = ({ children }: { children: React.ReactNode }) => {
-    const [latestData, setLatestData] = useState<Record<string, Record<string, unknown>>>(() => {
-        if (typeof window !== 'undefined') {
-            try {
-                const saved = localStorage.getItem('telxius_latest_data');
-                return saved ? JSON.parse(saved) : {};
-            } catch { return {}; }
-        }
-        return {};
-    });
-
-    const [rawLogs, setRawLogs] = useState<string[]>(() => {
-        if (typeof window !== 'undefined') {
-            try {
-                const saved = localStorage.getItem('telxius_raw_logs');
-                return saved ? JSON.parse(saved) : [];
-            } catch { return []; }
-        }
-        return [];
-    });
-
+    const [latestData, setLatestData] = useState<Record<string, Record<string, unknown>>>({});
+    const [rawLogs, setRawLogs] = useState<string[]>([]);
     const [isConnected, setIsConnected] = useState(false);
+
+    // Initial Load from LocalStorage
+    useEffect(() => {
+        try {
+            const savedData = localStorage.getItem('telxius_latest_data');
+            if (savedData) setLatestData(JSON.parse(savedData));
+            
+            const savedLogs = localStorage.getItem('telxius_raw_logs');
+            if (savedLogs) setRawLogs(JSON.parse(savedLogs));
+        } catch (e) {
+            console.warn("Failed to load from localStorage", e);
+        }
+    }, []);
 
     // Backup to LocalStorage whenever data changes
     useEffect(() => {
@@ -58,7 +53,7 @@ export const MqttProvider = ({ children }: { children: React.ReactNode }) => {
             try {
                 // Iniciar la conexión usando Server-Sent Events (SSE) hacia nuestro túnel API en Next.js
                 // Esto bypassa las bloqueos del navegador hacia servidores MQTT TCP puros (puerto 1883)
-                evtSource = new EventSource('/telxius/api/telemetry/stream');
+                evtSource = new EventSource('/telxius/api/telemetry/stream/');
                 
                 evtSource.onopen = () => {
                     setIsConnected(true);

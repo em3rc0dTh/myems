@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 import { MqttProvider } from "../lib/MqttContext";
+import { AuthProvider } from "@/lib/AuthContext";
 import NavigationSidebar from "@/components/NavigationSidebar";
 import DiagnosticTerminal from "@/components/DiagnosticTerminal";
 
@@ -33,15 +34,17 @@ export default function RootLayout({
       className={`${inter.variable} ${mono.variable} h-full antialiased`}
     >
       <body suppressHydrationWarning className="min-h-full bg-background text-foreground transition-colors duration-500">
-        <MqttProvider>
-          <DiagnosticTerminal />
-          <div className="flex min-h-screen">
-            <NavigationSidebar />
-            <div className="flex-1 flex flex-col min-w-0">
-               {children}
+        <AuthProvider>
+          <MqttProvider>
+            <DiagnosticTerminal />
+            <div className="flex min-h-screen">
+              <NavigationSidebar />
+              <div className="flex-1 flex flex-col min-w-0">
+                {children}
+              </div>
             </div>
-          </div>
-        </MqttProvider>
+          </MqttProvider>
+        </AuthProvider>
       </body>
     </html>
   );

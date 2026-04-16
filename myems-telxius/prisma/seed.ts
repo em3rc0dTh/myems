@@ -1,11 +1,31 @@
 import { config } from "dotenv";
 config();
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌍 Iniciando SEED - Fase 1: Dominio Geográfico...\n");
+  console.log("🛡️ Iniciando SEED - Fase 0: Seguridad (Admin por defecto)...");
+  
+  const userCount = await prisma.user.count();
+  if (userCount === 0) {
+    const hash = await bcrypt.hash("admin123", 10);
+    const admin = await prisma.user.create({
+      data: {
+        username: "admin",
+        password: hash,
+        name: "Administrador General",
+        role: "ADMIN",
+        mustChangePassword: true,
+      },
+    });
+    console.log(`✅ Usuario Maestro Creado: ${admin.username} (Contraseña a cambiar en 1er login)`);
+  } else {
+    console.log(`✅ Usuarios ya existen en base de datos. Saltando semilla de seguridad.`);
+  }
+
+  console.log("\n🌍 Iniciando SEED - Fase 1: Dominio Geográfico...\n");
 
   // 1. País — findFirst para evitar duplicados sin upsert (no requiere replica set)
   let country = await prisma.country.findFirst({ where: { name: "Perú" } });

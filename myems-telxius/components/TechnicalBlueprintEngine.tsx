@@ -1,6 +1,7 @@
 "use client"
 import React, { useMemo, useState, useRef } from 'react';
 import { Plus, Maximize2 } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 interface Point {
   x: number;
   y: number;
@@ -44,6 +45,9 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
   activeTool = 'POLYGON',
   stampSize = { w: 60, h: 60 }
 }) => {
+  const { isTechnician } = useAuth();
+  const internalEditable = isEditable && !isTechnician;
+  
   const [activePoints, setActivePoints] = useState<Point[]>([]);
   const [previewStamp, setPreviewStamp] = useState<Point | null>(null);
   const [draggingElement, setDraggingElement] = useState<{ id: string, initialX: number, initialY: number, startX: number, startY: number } | null>(null);
@@ -70,7 +74,7 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isEditable || activeTool === 'MOVE' || activeTool === null) {
+    if (!internalEditable || activeTool === 'MOVE' || activeTool === null) {
       if (e.button === 0 || e.button === 1) { // Left or middle click for pan
         setIsPanning(true);
         setLastMouse({ x: e.clientX, y: e.clientY });
@@ -87,7 +91,7 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
       return;
     }
 
-    if (!isEditable) return;
+    if (!internalEditable) return;
     const coords = getSvgCoords(e);
     if (!coords) return;
     // ... rest of logic for drafting ...
@@ -102,7 +106,7 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
   };
 
   const handleDragStart = (e: React.MouseEvent, el: any) => {
-    if (!isEditable || activeTool !== 'MOVE' || !el.points || el.points.length === 0) return;
+    if (!internalEditable || activeTool !== 'MOVE' || !el.points || el.points.length === 0) return;
     e.stopPropagation();
     const coords = getSvgCoords(e);
     if (!coords) return;
@@ -145,7 +149,7 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
   // };
 
   const handleSvgClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!isEditable || draggingElement || isPanning) return;
+    if (!internalEditable || draggingElement || isPanning) return;
     const coords = getSvgCoords(e);
     if (!coords) return;
 
@@ -192,7 +196,7 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
       return;
     }
 
-    if (!isEditable) return;
+    if (!internalEditable) return;
 
     const coords = getSvgCoords(e);
     if (!coords) return;
@@ -277,7 +281,7 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
         </div>
       </div>
 
-      {isEditable && activeTool === 'POLYGON' && (
+      {internalEditable && activeTool === 'POLYGON' && (
         <div className="absolute top-8 left-8 z-[100] flex gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
           <button onClick={handleFinishDrawing} className="bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-2xl shadow-xl shadow-emerald-500/20">
             Completar Perímetro ({activePoints.length})
@@ -292,7 +296,7 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
         ref={svgRef}
         viewBox={dynamicViewBox}
         onClick={handleSvgClick}
-        className={`w-full h-full drop-shadow-2xl transition-viewbox duration-200 ease-out ${isEditable ? (activeTool === 'MOVE' ? 'cursor-grab' : 'cursor-crosshair') : (isPanning ? 'cursor-grabbing' : 'cursor-grab')}`}
+        className={`w-full h-full drop-shadow-2xl transition-viewbox duration-200 ease-out ${internalEditable ? (activeTool === 'MOVE' ? 'cursor-grab' : 'cursor-crosshair') : (isPanning ? 'cursor-grabbing' : 'cursor-grab')}`}
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
@@ -319,7 +323,7 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
           const pointsStr = zone.points?.map((p: any) => `${p.x},${p.y}`).join(' ');
           
           return (
-            <g key={zone.id} onMouseDown={(e) => handleDragStart(e, zone)} className={`${isEditable && activeTool === 'MOVE' ? 'cursor-grab active:cursor-grabbing hover:filter hover:brightness-125' : ''}`}>
+            <g key={zone.id} onMouseDown={(e) => handleDragStart(e, zone)} className={`${internalEditable && activeTool === 'MOVE' ? 'cursor-grab active:cursor-grabbing hover:filter hover:brightness-125' : ''}`}>
               {zone.points && (
                 <polygon 
                   points={pointsStr} 

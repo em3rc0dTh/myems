@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Layout, Save, MousePointer2, PenTool, DoorOpen } from 'lucide-react';
 import TechnicalBlueprintEngine from './TechnicalBlueprintEngine';
+import { useAuth } from '@/lib/AuthContext';
 
 interface StructureDashboardViewProps {
   structureId: string;
@@ -10,6 +11,7 @@ interface StructureDashboardViewProps {
 }
 
 export default function StructureDashboardView({ structureId, onRoomSelect }: StructureDashboardViewProps) {
+  const { isAdmin } = useAuth();
   const [structure, setStructure] = useState<any>(null);
   const [rooms, setRooms] = useState<any[]>([]);
   const [isDrafting, setIsDrafting] = useState(false);
@@ -35,7 +37,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
       const res = await fetch(`/telxius/api/structures/?id=${structureId}&t=${Date.now()}`);
       const data = await res.json();
       console.log("FETCH: API Raw Response:", data);
-      
+
       const obj = Array.isArray(data.data) ? data.data[0] : data.data;
       if (obj) {
         setStructure(obj);
@@ -47,7 +49,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
           try {
             const sm = typeof obj.spatialMetadata === 'string' ? JSON.parse(obj.spatialMetadata) : obj.spatialMetadata;
             if (sm.references) setLocalElements(prev => [...prev.filter(el => el.type !== 'REFERENCE'), ...(sm.references || [])]);
-          } catch(e) {}
+          } catch (e) { }
         }
       }
     } catch (e) {
@@ -106,7 +108,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
         const ys = poly.points.map((p: any) => p.y);
         const width = (Math.max(...xs) - Math.min(...xs)) / 100;
         const length = (Math.max(...ys) - Math.min(...ys)) / 100;
-        
+
         await fetch('/telxius/api/substructures/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -124,7 +126,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
       // PERSIST REFERENCE ICONS TO STRUCTURE
       const refs = localElements.filter(el => el.type === 'REFERENCE');
       const existingMetadata = structure.spatialMetadata ? (typeof structure.spatialMetadata === 'string' ? JSON.parse(structure.spatialMetadata) : structure.spatialMetadata) : {};
-      
+
       await fetch(`/telxius/api/structures/?id=${structureId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -183,26 +185,28 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/5">
-            <button 
-              onClick={() => { setIsDrafting(false); setActiveTool('POLYGON'); }}
-              className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${!isDrafting ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              Inspect
-            </button>
-            <button 
-              onClick={() => { setIsDrafting(true); setActiveTool('POLYGON'); }}
-              className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'POLYGON' ? 'bg-amber-500 text-black' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              Draw Room
-            </button>
-            <button 
-              onClick={() => { setIsDrafting(true); setActiveTool('REFERENCE_SYMBOL'); }}
-              className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'REFERENCE_SYMBOL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              Add Icon
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/5">
+              <button
+                onClick={() => { setIsDrafting(false); setActiveTool('POLYGON'); }}
+                className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${!isDrafting ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Inspect
+              </button>
+              <button
+                onClick={() => { setIsDrafting(true); setActiveTool('POLYGON'); }}
+                className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'POLYGON' ? 'bg-amber-500 text-black' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Draw Room
+              </button>
+              <button
+                onClick={() => { setIsDrafting(true); setActiveTool('REFERENCE_SYMBOL'); }}
+                className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'REFERENCE_SYMBOL' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Add Icon
+              </button>
+            </div>
+          )}
 
           {isDrafting && activeTool === 'REFERENCE_SYMBOL' && (
             <div className="flex bg-white/5 p-1 rounded-lg border border-white/5 gap-1 mr-4">
@@ -213,7 +217,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
           )}
 
           {activeTool === 'MOVE' && (
-            <button 
+            <button
               onClick={handleSaveRooms}
               className="px-4 py-1.5 bg-blue-600 text-white text-[8px] font-black uppercase tracking-widest rounded-lg shadow-lg shadow-blue-500/20 hover:bg-blue-500 transition-all border border-blue-400/30"
             >
@@ -226,29 +230,29 @@ export default function StructureDashboardView({ structureId, onRoomSelect }: St
       <div className="flex-1 flex min-h-0 min-w-0 overflow-hidden">
         {/* SIDEBAR MÁS COMPACTO */}
         <div className="w-64 border-r border-white/5 p-4 space-y-4 bg-black/20">
-            <h3 className="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] px-2 italic">Rooms in this Building</h3>
-            <div className="space-y-1.5">
-              {rooms.map(r => (
-                <button key={r.id} onClick={() => onRoomSelect(r.id)} className="w-full flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/5 transition-all text-left group">
-                  <div className="p-1.5 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
-                    <DoorOpen className="w-3 h-3 text-blue-500" />
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-white uppercase tracking-tight">{r.name}</p>
-                    <p className="text-[7px] text-slate-500 font-bold uppercase tracking-tighter">Enter Room</p>
-                  </div>
-                </button>
-              ))}
-              {rooms.length === 0 && <div className="p-6 text-center border border-dashed border-white/5 rounded-2xl opacity-30"><p className="text-[7px] font-bold text-slate-500 uppercase">Empty Building</p></div>}
-            </div>
+          <h3 className="text-[7px] font-black text-slate-600 uppercase tracking-[0.2em] px-2 italic">Rooms in this Building</h3>
+          <div className="space-y-1.5">
+            {rooms.map(r => (
+              <button key={r.id} onClick={() => onRoomSelect(r.id)} className="w-full flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/5 transition-all text-left group">
+                <div className="p-1.5 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
+                  <DoorOpen className="w-3 h-3 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-white uppercase tracking-tight">{r.name}</p>
+                  <p className="text-[7px] text-slate-500 font-bold uppercase tracking-tighter">Enter Room</p>
+                </div>
+              </button>
+            ))}
+            {rooms.length === 0 && <div className="p-6 text-center border border-dashed border-white/5 rounded-2xl opacity-30"><p className="text-[7px] font-bold text-slate-500 uppercase">Empty Building</p></div>}
+          </div>
         </div>
 
         {/* CANVAS CON MEJOR ESCALA */}
         <div className="flex-1 bg-[#01040a] relative overflow-hidden flex items-center justify-center p-8 min-h-0 min-w-0">
-          <div 
+          <div
             className="flex-1 w-full h-full relative shadow-[0_0_100px_rgba(30,58,138,0.1)] rounded-[40px] border border-white/5 bg-slate-900/40 p-1"
           >
-            <TechnicalBlueprintEngine 
+            <TechnicalBlueprintEngine
               widthCm={Math.max(maxX - minX + 1000, 3000)}
               heightCm={Math.max(maxY - minY + 1000, 3000)}
               viewBoxX={minX - 500}

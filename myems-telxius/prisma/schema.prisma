@@ -7,6 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- FASE 0: SEGURIDAD Y USUARIOS ---
+
+enum Role {
+  ADMIN
+  TECHNICIAN
+}
+
+model User {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  username           String   @unique
+  password           String   // Encriptada (bcrypt)
+  name               String
+  role               Role     @default(TECHNICIAN)
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
 // --- FASE 1: DOMINIO GEOGRÁFICO (ESTÁTICO) ---
 
 model Country {

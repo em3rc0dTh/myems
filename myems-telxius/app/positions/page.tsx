@@ -7,7 +7,12 @@ import RackElevation from "@/components/RackElevation";
 
 const BASE = "/telxius";
 async function api(path: string, opts?: RequestInit) {
-  const res = await fetch(`${BASE}${path}`, opts);
+  // Aseguramos slash final antes de query params si no existe
+  const [url, query] = path.split('?');
+  const normalizedUrl = url.endsWith('/') ? url : `${url}/`;
+  const finalPath = query ? `${normalizedUrl}?${query}` : normalizedUrl;
+  
+  const res = await fetch(`${BASE}${finalPath}`, opts);
   return res.json();
 }
 

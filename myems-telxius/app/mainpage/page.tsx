@@ -130,7 +130,7 @@ export default function UltraIntelligenceDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const r = await fetch('/api/history?field=P1&range=24h');
+        const r = await fetch('/telxius/api/history/?field=P1&range=24h');
         const d = await r.json();
         if (Array.isArray(d)) setHistory(d.map(p => p.value).slice(-50));
       } catch (e) { console.error(e); }

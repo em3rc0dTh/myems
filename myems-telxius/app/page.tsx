@@ -7,6 +7,7 @@ import { Settings, ChevronRight, ChevronDown, Edit, Trash2, LayoutGrid, Activity
 import Link from 'next/link';
 import EquipmentEditorModal from "../components/EquipmentEditorModal";
 import InfrastructureExplorer from "../components/InfrastructureExplorer";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Home() {
     const isProd = process.env.NEXT_PUBLIC_APP_MODE === 'prod';
@@ -15,6 +16,8 @@ export default function Home() {
     const [isLoading, setIsLoading] = useState(isProd);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [editingDevice, setEditingDevice] = useState<any>(null);
+
+    const { user, loading: authLoading, isAdmin } = useAuth();
 
     useEffect(() => {
         if (!isProd) {
@@ -25,13 +28,17 @@ export default function Home() {
 
         const fetchBDFBs = async () => {
             try {
-                const res = await fetch('/telxius/api/bdfb-dashboard');
+                const res = await fetch('/telxius/api/bdfb-dashboard/');
                 if (res.ok) {
                     const data = await res.json();
-                    setActiveBDFBs(data);
-                    // Initialize selection from DB pinned state
-                    const pinnedIds = data.filter((b: any) => b.isPinned).map((b: any) => b.id);
-                    setSelectedIds(pinnedIds);
+                    if (Array.isArray(data)) {
+                        setActiveBDFBs(data);
+                        const pinnedIds = data.filter((b: any) => b.isPinned).map((b: any) => b.id);
+                        setSelectedIds(pinnedIds);
+                    } else {
+                        console.error("Dashboard data is not an array:", data);
+                        setActiveBDFBs([]);
+                    }
                 }
             } catch (error) {
                 console.error("Failed to load DB BDFBs", error);
@@ -40,10 +47,15 @@ export default function Home() {
             }
         };
 
-        fetchBDFBs();
-    }, [isProd]);
+        if (user) {
+            fetchBDFBs();
+        } else if (!authLoading) {
+            setIsLoading(false);
+        }
+    }, [isProd, user, authLoading]);
 
     const toggleSelection = async (id: string) => {
+        if (!isAdmin) return;
         const isCurrentlyPinned = selectedIds.includes(id);
         const newState = !isCurrentlyPinned;
 
@@ -54,7 +66,7 @@ export default function Home() {
 
         if (isProd) {
             try {
-                await fetch(`/telxius/api/devices/?id=${id}`, {
+                await fetch(`/telxius/api/devices/${id}/`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ isPinned: newState })
@@ -74,6 +86,17 @@ export default function Home() {
 
     const filteredBDFBs = activeBDFBs.filter(b => selectedIds.includes(b.id));
     const hasActivePins = selectedIds.length > 0;
+
+    if (authLoading || (isProd && isLoading)) {
+        return (
+            <div className="h-screen w-full flex flex-col items-center justify-center bg-[#020617]">
+                <div className="w-12 h-12 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin mb-6" />
+                <h2 className="text-sky-400 font-black uppercase tracking-[0.4em] text-xs animate-pulse italic">
+                    Restableciendo Conexión de Datos...
+                </h2>
+            </div>
+        );
+    }
 
     return (
         <main className="h-screen w-full overflow-hidden p-4 lg:p-6 flex flex-col pt-12 relative bg-[#020617]">
@@ -144,13 +167,13 @@ export default function Home() {
                                 </Link>
 
                                 <div className="p-1 bg-white/[0.02] border border-white/5 rounded-[2rem] flex-1 min-h-0 flex flex-col overflow-hidden">
-                                     <div className="p-4 pb-2 border-b border-white/5 flex items-center gap-3">
-                                         <div className="p-1.5 bg-fuchsia-500/10 rounded-lg"><FolderTree className="w-3.5 h-3.5 text-fuchsia-400" /></div>
-                                         <span className="text-[9px] font-black text-white uppercase tracking-widest">Auditoría Estructural</span>
-                                     </div>
-                                     <div className="flex-1 overflow-auto custom-scrollbar p-2">
-                                         <InfrastructureExplorer equipment={[]} />
-                                     </div>
+                                    <div className="p-4 pb-2 border-b border-white/5 flex items-center gap-3">
+                                        <div className="p-1.5 bg-fuchsia-500/10 rounded-lg"><FolderTree className="w-3.5 h-3.5 text-fuchsia-400" /></div>
+                                        <span className="text-[9px] font-black text-white uppercase tracking-widest">Auditoría Estructural</span>
+                                    </div>
+                                    <div className="flex-1 overflow-auto custom-scrollbar p-2">
+                                        <InfrastructureExplorer equipment={[]} />
+                                    </div>
                                 </div>
                             </div>
 
@@ -162,13 +185,15 @@ export default function Home() {
                                     </div>
                                     <Activity className="w-3.5 h-3.5 text-emerald-500/50" />
                                 </div>
-                                <button
-                                    onClick={() => setShowConfig(true)}
-                                    className="w-full px-4 py-4 bg-sky-600 hover:bg-sky-500 rounded-2xl border border-sky-400/30 transition-all font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 text-white shadow-lg shadow-sky-900/20"
-                                >
-                                    <Sliders className="w-4 h-4" />
-                                    System Configuration
-                                </button>
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => setShowConfig(true)}
+                                        className="w-full px-4 py-4 bg-sky-600 hover:bg-sky-500 rounded-2xl border border-sky-400/30 transition-all font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 text-white shadow-lg shadow-sky-900/20"
+                                    >
+                                        <Sliders className="w-4 h-4" />
+                                        System Configuration
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}
@@ -207,12 +232,14 @@ export default function Home() {
                                 );
                             })()}
 
-                            <div className="flex items-center gap-3 border-l border-white/5 pl-6">
-                                <button onClick={() => setShowConfig(true)} className="flex items-center gap-2 hover:bg-white/5 p-2 rounded-xl transition-all group">
-                                    <Settings className="w-4 h-4 text-slate-500 group-hover:text-white" />
-                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest group-hover:text-white">Settings</span>
-                                </button>
-                            </div>
+                            {isAdmin && (
+                                <div className="flex items-center gap-3 border-l border-white/5 pl-6">
+                                    <button onClick={() => setShowConfig(true)} className="flex items-center gap-2 hover:bg-white/5 p-2 rounded-xl transition-all group">
+                                        <Settings className="w-4 h-4 text-slate-500 group-hover:text-white" />
+                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest group-hover:text-white">Settings</span>
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {!isSystemEmpty && (
@@ -422,7 +449,7 @@ export default function Home() {
                     onUpdate={() => {
                         // Refresh data
                         if (isProd) {
-                            fetch('/telxius/api/bdfb-dashboard')
+                            fetch('/telxius/api/bdfb-dashboard/')
                                 .then(res => res.json())
                                 .then(data => setActiveBDFBs(data));
                         }
@@ -434,6 +461,7 @@ export default function Home() {
 }
 
 function ConfigBDFBItem({ bdfb, isSelected, onToggleSelect, onEdit }: { bdfb: BDFBData, isSelected?: boolean, onToggleSelect?: () => void, onEdit?: () => void }) {
+    const { isAdmin } = useAuth();
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
@@ -452,12 +480,14 @@ function ConfigBDFBItem({ bdfb, isSelected, onToggleSelect, onEdit }: { bdfb: BD
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
-                        className="p-2 hover:bg-white/10 rounded-lg text-slate-500 hover:text-sky-400 transition-all"
-                    >
-                        <Edit className="w-4 h-4" />
-                    </button>
+                    {isAdmin && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
+                            className="p-2 hover:bg-white/10 rounded-lg text-slate-500 hover:text-sky-400 transition-all"
+                        >
+                            <Edit className="w-4 h-4" />
+                        </button>
+                    )}
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isExpanded ? 'bg-slate-700/50 text-white' : 'text-slate-500'}`}>
                         {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </div>
@@ -478,15 +508,17 @@ function ConfigBDFBItem({ bdfb, isSelected, onToggleSelect, onEdit }: { bdfb: BD
 }
 
 function ConfigPanelItem({ panel }: { panel: any }) {
+    const { isAdmin } = useAuth();
     const [isExpanded, setIsExpanded] = useState(false);
     const [isPinned, setIsPinned] = useState(panel.isPinned);
 
     const togglePin = async (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (!isAdmin) return;
         const newState = !isPinned;
         setIsPinned(newState);
         try {
-            await fetch(`/telxius/api/equipments?id=${panel.id}`, {
+            await fetch(`/telxius/api/equipments/${panel.id}/`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ isPinned: newState })
@@ -511,7 +543,7 @@ function ConfigPanelItem({ panel }: { panel: any }) {
                     </div>
                     <span className="text-xs font-black text-slate-300 uppercase tracking-widest">{panel.name}</span>
                 </div>
-                <button className="p-1.5 hover:bg-white/5 rounded text-slate-600 hover:text-white transition-all"><Edit className="w-3.5 h-3.5" /></button>
+                {isAdmin && <button className="p-1.5 hover:bg-white/5 rounded text-slate-600 hover:text-white transition-all"><Edit className="w-3.5 h-3.5" /></button>}
             </div>
 
             {isExpanded && (

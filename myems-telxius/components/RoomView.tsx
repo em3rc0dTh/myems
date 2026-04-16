@@ -5,6 +5,7 @@ import { ChevronRight, Globe, MousePointer2, Layers, Cpu, CheckCircle2, AlertTri
 import Swal from 'sweetalert2';
 import RackElevationManager from './RackElevationManager';
 import { useMqtt } from '@/lib/MqttContext';
+import { useAuth } from '@/lib/AuthContext';
 
 interface RoomViewProps {
   substructureId: string;
@@ -34,6 +35,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
   const [persistedRows, setPersistedRows] = useState<any[]>([]);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const { latestData } = useMqtt();
+  const { isAdmin } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -151,31 +153,31 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
   const calculateRackHeat = (rack: any) => {
     let totalPower = 0;
     const devices = rack.devices || [];
-    
-    devices.forEach((dev: any) => {
-        const sns: string[] = [];
-        const findSns = (eqs: any[]) => {
-            eqs.forEach(eq => {
-                if (eq.sn) sns.push(eq.sn);
-                if (eq.children) findSns(eq.children);
-            });
-        };
-        findSns(dev.equipments || []);
 
-        sns.forEach(sn => {
-            const telemetry = (latestData as any)[sn];
-            if (telemetry?.reported) {
-                const p1 = parseFloat(telemetry.reported.P1) || 0;
-                const p2 = parseFloat(telemetry.reported.P2) || 0;
-                if (p1 > 0 || p2 > 0) {
-                    totalPower += (p1 + p2);
-                } else {
-                    const u1 = parseFloat(telemetry.reported.U1) || 0;
-                    const i1 = parseFloat(telemetry.reported.I1) || 0;
-                    totalPower += (u1 * i1) / 1000;
-                }
-            }
+    devices.forEach((dev: any) => {
+      const sns: string[] = [];
+      const findSns = (eqs: any[]) => {
+        eqs.forEach(eq => {
+          if (eq.sn) sns.push(eq.sn);
+          if (eq.children) findSns(eq.children);
         });
+      };
+      findSns(dev.equipments || []);
+
+      sns.forEach(sn => {
+        const telemetry = (latestData as any)[sn];
+        if (telemetry?.reported) {
+          const p1 = parseFloat(telemetry.reported.P1) || 0;
+          const p2 = parseFloat(telemetry.reported.P2) || 0;
+          if (p1 > 0 || p2 > 0) {
+            totalPower += (p1 + p2);
+          } else {
+            const u1 = parseFloat(telemetry.reported.U1) || 0;
+            const i1 = parseFloat(telemetry.reported.I1) || 0;
+            totalPower += (u1 * i1) / 1000;
+          }
+        }
+      });
     });
 
     const intensity = Math.min(1, totalPower / 10);
@@ -184,9 +186,9 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
     const g = Math.floor((1 - Math.abs(intensity - 0.5) * 2) * 200);
 
     return {
-        power: totalPower,
-        color: `rgb(${r}, ${g}, ${b})`,
-        opacity: 0.1 + (intensity * 0.4)
+      power: totalPower,
+      color: `rgb(${r}, ${g}, ${b})`,
+      opacity: 0.1 + (intensity * 0.4)
     };
   };
 
@@ -266,7 +268,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
         const ruMaxX = Math.max(...ruXS);
         const ruMinY = Math.min(...ruYS);
         const ruMaxY = Math.max(...ruYS);
-        
+
         return (uCoords.x < ruMaxX && uCoords.x + w > ruMinX && uBayTopY < ruMaxY && uBayTopY + h > ruMinY);
       });
 
@@ -308,16 +310,16 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
         SECURITY: { w: 20, h: 20 }
       };
       const s = sizes[symbolType];
-      
+
       // Calculate 4 points in Aligned Space (centered at click)
       const uClick = rotatePoint(coords.x, coords.y, -alignmentData.angle, alignmentData.centerX, alignmentData.centerY);
-      
+
       // Rotation within aligned space (0, 90, 180, 270)
       const uPts = [
-        { x: uClick.x - s.w/2, y: uClick.y - s.h/2 },
-        { x: uClick.x + s.w/2, y: uClick.y - s.h/2 },
-        { x: uClick.x + s.w/2, y: uClick.y + s.h/2 },
-        { x: uClick.x - s.w/2, y: uClick.y + s.h/2 }
+        { x: uClick.x - s.w / 2, y: uClick.y - s.h / 2 },
+        { x: uClick.x + s.w / 2, y: uClick.y - s.h / 2 },
+        { x: uClick.x + s.w / 2, y: uClick.y + s.h / 2 },
+        { x: uClick.x - s.w / 2, y: uClick.y + s.h / 2 }
       ];
 
       // Apply symbol rotation around uClick
@@ -358,11 +360,11 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
         // 3. Un-rotate back to World Space
         const worldPoints = alignedPoints.map(p => rotatePoint(p.x, p.y, alignmentData.angle, alignmentData.centerX, alignmentData.centerY));
 
-        setLocalElements(prev => [...prev, { 
-          id: `bay-${Date.now()}`, 
-          type: 'BAY', 
-          label: `BAY ${prev.filter(x => x.type === 'BAY').length + 1}`, 
-          points: worldPoints 
+        setLocalElements(prev => [...prev, {
+          id: `bay-${Date.now()}`,
+          type: 'BAY',
+          label: `BAY ${prev.filter(x => x.type === 'BAY').length + 1}`,
+          points: worldPoints
         }]);
         setActivePoints([]);
       } else {
@@ -379,7 +381,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
       const bays = localElements.filter(el => el.type === 'BAY');
       const racks = localElements.filter(el => el.type === 'ZONE');
       const savedRows: any[] = [];
-      
+
       for (const bay of bays) {
         const points = bay.points.map((p: any) => ({ x: p.x + bounds.minX, y: p.y + bounds.minY }));
         const res = await fetch('/telxius/api/rows/', {
@@ -391,9 +393,9 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
             spatialMetadata: JSON.stringify({ points, metric: 'cm' })
           })
         });
-        if (res.ok) { 
-          const data = await res.json(); 
-          savedRows.push({ ...data.data, localId: bay.id }); 
+        if (res.ok) {
+          const data = await res.json();
+          savedRows.push({ ...data.data, localId: bay.id });
         }
       }
 
@@ -413,7 +415,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
           body: JSON.stringify({
             name: rack.label,
             substructureId: roomId,
-            row: "A", 
+            row: "A",
             position: 0,
             type: rack.cType || 'RACK',
             width: w,
@@ -422,18 +424,18 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
             spatialMetadata: JSON.stringify({ points, x: minX, y: minY, w, h, uCapacity: rack.uCapacity || 42, metric: 'cm' })
           })
         });
-        if (res.ok) { 
-          const data = await res.json(); 
-          newPersistedRacks.push(data.data); 
+        if (res.ok) {
+          const data = await res.json();
+          newPersistedRacks.push(data.data);
         }
       }
 
       setLocalRacks(prev => [...prev, ...newPersistedRacks]);
-      
+
       // PERSIST REFERENCE ICONS
       const refs = localElements.filter(el => el.type === 'REFERENCE');
       const existingMetadata = substructure.spatialMetadata ? (typeof substructure.spatialMetadata === 'string' ? JSON.parse(substructure.spatialMetadata) : substructure.spatialMetadata) : {};
-      
+
       await fetch(`/telxius/api/substructures/?id=${roomId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -446,7 +448,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
       });
 
       setLocalElements([]);
-      
+
       // RE-FETCH ALL ROOM DATA (including spatialMetadata with the new references/icons)
       const roomRes = await fetch(`/telxius/api/substructures/?id=${roomId}&t=${Date.now()}`);
       const roomData = await roomRes.json();
@@ -475,10 +477,10 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
         confirmButtonColor: '#2563eb',
         backdrop: `rgba(0,0,0,0.8) backdrop-blur-sm`
       });
-    } catch (e) { 
-      console.error(e); 
-    } finally { 
-      setIsSaving(false); 
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -535,10 +537,10 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
 
     const pA = roomPoints[topWallIndex];
     const pB = roomPoints[(topWallIndex + 1) % roomPoints.length];
-    
+
     // 2. Calculate Angle (Ensuring it flows somewhat left-to-right)
-    let angle = Math.atan2(pB.y - pA.y, pB.x - pA.x) * (180 / Math.PI);
-    
+    const angle = Math.atan2(pB.y - pA.y, pB.x - pA.x) * (180 / Math.PI);
+
     // 3. Find Global Extents in Oriented Space
     const rad = (-angle * Math.PI) / 180;
     const cos = Math.cos(rad);
@@ -587,7 +589,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
           <div>
             <div className="flex items-center gap-2 text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
               <Globe className="w-2.5 h-2.5" />
-              <span>Infrastructure Digital Twin</span>
+              <span>{isAdmin ? 'Infrastructure Digital Twin' : 'Infrastructure Monitoring'}</span>
             </div>
             <h2 className="text-xl font-black text-white italic tracking-tighter uppercase leading-none">{resolveValue(substructure.name)}</h2>
           </div>
@@ -599,7 +601,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
             <button onClick={() => setZoom(prev => Math.max(0.5, prev / 1.2))} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"><Maximize2 className="w-4 h-4 scale-75" /></button>
           </div>
 
-          <button 
+          <button
             onClick={() => setShowHeatmap(!showHeatmap)}
             className={`flex items-center gap-2 px-5 py-2 rounded-2xl border transition-all ${showHeatmap ? 'bg-orange-500 border-orange-400 text-white animate-pulse' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
           >
@@ -607,12 +609,16 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
             <span className="text-[9px] font-black uppercase tracking-widest">{showHeatmap ? 'Heatmap' : 'Thermal'}</span>
           </button>
 
-          <button onClick={handleSaveEngineering} disabled={isSaving || localElements.length === 0} className="px-6 py-2 bg-emerald-500 text-black text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-xl disabled:opacity-20 flex items-center gap-2">
-            <Save className="w-3.5 h-3.5" /> {isSaving ? 'Syncing' : 'Save'}
-          </button>
-          <button onClick={() => setIsDrafting(!isDrafting)} className={`px-6 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border ${isDrafting ? 'bg-amber-500 text-black border-amber-400 shadow-xl' : 'bg-white/5 text-slate-500 border-white/5'}`}>
-            {isDrafting ? 'Drafting ON' : 'Drafting'}
-          </button>
+          {isAdmin && (
+            <>
+              <button onClick={handleSaveEngineering} disabled={isSaving || localElements.length === 0} className="px-6 py-2 bg-emerald-500 text-black text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-xl disabled:opacity-20 flex items-center gap-2">
+                <Save className="w-3.5 h-3.5" /> {isSaving ? 'Syncing' : 'Save'}
+              </button>
+              <button onClick={() => setIsDrafting(!isDrafting)} className={`px-6 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border ${isDrafting ? 'bg-amber-500 text-black border-amber-400 shadow-xl' : 'bg-white/5 text-slate-500 border-white/5'}`}>
+                {isDrafting ? 'Drafting ON' : 'Drafting'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -622,7 +628,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
           <div className="absolute left-6 top-6 bottom-6 w-80 z-[150] flex flex-col gap-4 pointer-events-none">
             <div className="glass-panel p-4 rounded-[32px] border border-white/10 pointer-events-auto flex flex-col gap-6 shadow-2xl bg-[#0a0a0f]/80">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                <span className="text-[10px] font-black text-white uppercase italic tracking-widest">Drafting Machine</span>
+                <span className="text-[10px] font-black text-white uppercase italic tracking-widest">{isAdmin ? 'Drafting Machine' : 'Telemetry Monitor'}</span>
                 <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-[8px] font-black rounded border border-amber-500/30">ACTIVE</span>
               </div>
 
@@ -687,7 +693,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
                       ))}
                     </div>
                     <div className="p-4 bg-black/40 rounded-2xl border border-white/5 flex items-center justify-between">
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">Symbol Rotation</span>
+                      <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest italic">{isAdmin ? 'Substructure Engineering' : 'Substructure Visualizer'}</p>
                       <select value={symbolRotation} onChange={e => setSymbolRotation(Number(e.target.value))} className="bg-transparent text-[11px] text-white font-black outline-none appearance-none cursor-pointer">
                         {[0, 90, 180, 270].map(deg => <option key={deg} value={deg} className="bg-slate-900">{deg}°</option>)}
                       </select>
@@ -749,10 +755,10 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
                 const rows = Math.ceil(alignmentData.h / 60);
                 const cols = Math.ceil(alignmentData.w / 60);
                 const grid = [];
-                
+
                 // Inverse transform to place grid in original coordinate space if needed
                 // But since everything is inside the group, we work in Aligned Space directly.
-                
+
                 // We need to shift the grid to match the Orientated Bounds
                 // Let's create a sub-group for the grid that translates to the oriented origin
                 return (
@@ -835,7 +841,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
               {persistedRows.map(row => {
                 if (!row.spatialMetadata) return null;
                 const sm = JSON.parse(row.spatialMetadata);
-                
+
                 // Si tiene puntos (formato nuevo), úsalos. Si no, usa x,y,w,h (formato viejo)
                 let ptsString = "";
                 if (sm.points) {
@@ -867,7 +873,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
                 const ptsString = sm.points.map((p: any) => `${p.x - bounds.minX},${p.y - bounds.minY}`).join(' ');
                 const isCab = rack.type === 'CABINET';
                 const heat = calculateRackHeat(rack);
-                
+
                 // Centro del rack para el texto
                 const labelX = (sm.points.reduce((acc: number, p: any) => acc + p.x, 0) / sm.points.length) - bounds.minX;
                 const labelY = (sm.points.reduce((acc: number, p: any) => acc + p.y, 0) / sm.points.length) - bounds.minY;
@@ -876,19 +882,19 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
                   <g key={rack.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); if (!isDrafting) setSelectedContainer(rack); }}>
                     {/* THERMAL GLOW */}
                     {showHeatmap && heat.power > 0 && (
-                        <polygon 
-                            points={ptsString}
-                            fill={heat.color} opacity={heat.opacity}
-                            className="transition-all duration-1000 blur-2xl"
-                        />
+                      <polygon
+                        points={ptsString}
+                        fill={heat.color} opacity={heat.opacity}
+                        className="transition-all duration-1000 blur-2xl"
+                      />
                     )}
-                    
-                    <polygon 
-                      points={ptsString} 
-                      fill={isCab ? 'rgba(71, 85, 105, 0.2)' : (showHeatmap && heat.power > 0 ? `${heat.color}40` : 'rgba(16, 185, 129, 0.15)')} 
-                      stroke={isCab ? '#94a3b8' : (showHeatmap && heat.power > 0 ? heat.color : '#10b981')} 
-                      strokeWidth={(isCab ? 3 : 2) / zoom} 
-                      className="transition-all group-hover:stroke-white shadow-2xl" 
+
+                    <polygon
+                      points={ptsString}
+                      fill={isCab ? 'rgba(71, 85, 105, 0.2)' : (showHeatmap && heat.power > 0 ? `${heat.color}40` : 'rgba(16, 185, 129, 0.15)')}
+                      stroke={isCab ? '#94a3b8' : (showHeatmap && heat.power > 0 ? heat.color : '#10b981')}
+                      strokeWidth={(isCab ? 3 : 2) / zoom}
+                      className="transition-all group-hover:stroke-white shadow-2xl"
                     />
                     <text x={labelX} y={labelY} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter drop-shadow-sm" style={{ fontSize: 10 / zoom }}>{rack.name}</text>
                   </g>
@@ -903,19 +909,19 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
 
               {localElements.map(el => {
                 const ptsString = (el.points || []).map((p: any) => `${p.x},${p.y}`).join(' ');
-                
+
                 if (el.type === 'REFERENCE') {
                   const color = el.symbol === 'DOOR' ? '#ef4444' : (el.symbol === 'COLUMN' ? '#3b82f6' : (el.symbol === 'HVAC' ? '#06b6d4' : '#10b981'));
                   return (
                     <g key={el.id}>
-                      <polygon points={ptsString} fill={`${color}20`} stroke={color} strokeWidth={2/zoom} />
+                      <polygon points={ptsString} fill={`${color}20`} stroke={color} strokeWidth={2 / zoom} />
                       {/* Technical detail for Doors */}
                       {el.symbol === 'DOOR' && (
-                        <circle cx={el.points[0].x} cy={el.points[0].y} r={30/zoom} fill="none" stroke={color} strokeWidth={1/zoom} strokeDasharray="2 2" />
+                        <circle cx={el.points[0].x} cy={el.points[0].y} r={30 / zoom} fill="none" stroke={color} strokeWidth={1 / zoom} strokeDasharray="2 2" />
                       )}
                       {/* Technical detail for HVAC */}
                       {el.symbol === 'HVAC' && (
-                        <path d={`M ${el.points[0].x} ${el.points[0].y} L ${el.points[2].x} ${el.points[2].y} M ${el.points[1].x} ${el.points[1].y} L ${el.points[3].x} ${el.points[3].y}`} stroke={color} strokeWidth={1/zoom} opacity={0.5} />
+                        <path d={`M ${el.points[0].x} ${el.points[0].y} L ${el.points[2].x} ${el.points[2].y} M ${el.points[1].x} ${el.points[1].y} L ${el.points[3].x} ${el.points[3].y}`} stroke={color} strokeWidth={1 / zoom} opacity={0.5} />
                       )}
                       <text x={el.points[0].x} y={el.points[0].y} dy="-5" className="fill-white/40 text-[6px] font-black uppercase">{el.symbol}</text>
                     </g>

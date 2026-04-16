@@ -21,7 +21,11 @@ interface Position {
 }
 
 async function api(path: string, opts?: RequestInit) {
-  const res = await fetch(`${BASE}${path}`, opts);
+  const [url, query] = path.split('?');
+  const normalizedUrl = url.endsWith('/') ? url : `${url}/`;
+  const finalPath = query ? `${normalizedUrl}?${query}` : normalizedUrl;
+  
+  const res = await fetch(`${BASE}${finalPath}`, opts);
   return res.json();
 }
 

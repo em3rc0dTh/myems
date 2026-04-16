@@ -7,6 +7,7 @@ import WarehouseInventoryView from './WarehouseInventoryView';
 import StructureDashboardView from './StructureDashboardView';
 import RoomView from './RoomView';
 import { useMqtt } from '@/lib/MqttContext';
+import { useAuth } from '@/lib/AuthContext';
 import { Activity } from 'lucide-react';
 
 type ViewMode = 'SITE' | 'STRUCTURE' | 'ROOM';
@@ -37,6 +38,7 @@ export default function TopologyDashboard() {
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const { isTechnician } = useAuth();
 
   const fetchSites = async () => {
     setLoading(true);
@@ -236,12 +238,14 @@ export default function TopologyDashboard() {
                   <h2 className="text-4xl font-black uppercase italic tracking-tighter text-white">Select Your <span className="text-sky-400">Emplacement</span></h2>
                   <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] mt-2">Active Nodes Portfolio • Telxius Latin America</p>
                 </div>
-                <button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="px-6 py-3 bg-sky-500 hover:bg-sky-400 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(14,165,233,0.2)]"
-                >
-                  + Add New Emplacement
-                </button>
+                {!isTechnician && (
+                  <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="px-6 py-3 bg-sky-500 hover:bg-sky-400 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(14,165,233,0.2)]"
+                  >
+                    + Add New Emplacement
+                  </button>
+                )}
               </div>
 
               {allSites.length > 0 ? (

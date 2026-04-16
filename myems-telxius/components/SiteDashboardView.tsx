@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Save, MapPin, MousePointer2, PenTool } from 'lucide-react';
 import TechnicalBlueprintEngine from './TechnicalBlueprintEngine';
+import Swal from 'sweetalert2';
+import { useAuth } from '@/lib/AuthContext';
 
 interface SiteDashboardViewProps {
   siteId: string;
@@ -10,6 +12,7 @@ interface SiteDashboardViewProps {
 }
 
 export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDashboardViewProps) {
+  const { isAdmin } = useAuth();
   const [site, setSite] = useState<any>(null);
   const [structures, setStructures] = useState<any[]>([]);
   const [isDrafting, setIsDrafting] = useState(false);
@@ -44,7 +47,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
           try {
             const sm = typeof siteObj.spatialMetadata === 'string' ? JSON.parse(siteObj.spatialMetadata) : siteObj.spatialMetadata;
             if (sm.references) setLocalElements(prev => [...prev.filter(el => el.type !== 'REFERENCE'), ...(sm.references || [])]);
-          } catch(e) {}
+          } catch (e) { }
         }
       } else {
         setError("El sitio no tiene datos asignados.");
@@ -72,7 +75,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
     }]);
     setNamingModal({ isOpen: false, points: [] });
     setNewStructureName("");
-    setActiveTool('MOVE'); 
+    setActiveTool('MOVE');
   };
 
   const handleElementAdded = (newEl: any) => {
@@ -107,7 +110,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
       // PERSIST REFERENCE ICONS TO SITE
       const refs = localElements.filter(el => el.type === 'REFERENCE');
       const existingMetadata = site.spatialMetadata ? (typeof site.spatialMetadata === 'string' ? JSON.parse(site.spatialMetadata) : site.spatialMetadata) : {};
-      
+
       await fetch(`/telxius/api/sites/?id=${siteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -160,10 +163,10 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
     <div className="flex-1 flex flex-col min-h-0 bg-[#020617] font-sans">
       <div className="h-14 border-b border-white/5 bg-black/40 flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <div 
+          <div
             className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-all"
             onClick={async () => {
-              const { value: formValues } = await (require('sweetalert2')).default.fire({
+              const { value: formValues } = await Swal.fire({
                 title: 'Geo-Localización del Site',
                 html: `
                   <div class="text-left space-y-4">
@@ -207,7 +210,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest italic">{site.geoCoords || 'GEO-ANCHOR PENDING'}</p>
               {site.geoCoords && (
-                <button 
+                <button
                   onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(site.geoCoords)}`, '_blank')}
                   className="p-1 hover:bg-white/10 rounded transition-all group/map"
                   title="Abrir en Google Maps"
@@ -220,26 +223,28 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/5">
-            <button 
-              onClick={() => { setIsDrafting(false); setActiveTool('POLYGON'); }}
-              className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${!isDrafting ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              <MousePointer2 className="w-3 h-3 inline mr-2" /> Inspect
-            </button>
-            <button 
-              onClick={() => { setIsDrafting(true); setActiveTool('POLYGON'); }}
-              className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'POLYGON' ? 'bg-amber-500 text-black' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              <PenTool className="w-3 h-3 inline mr-2" /> Draw Building
-            </button>
-            <button 
-              onClick={() => { setIsDrafting(true); setActiveTool('REFERENCE_SYMBOL'); }}
-              className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'REFERENCE_SYMBOL' ? 'bg-emerald-500 text-black' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              Add Icon
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/5">
+              <button
+                onClick={() => { setIsDrafting(false); setActiveTool('POLYGON'); }}
+                className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${!isDrafting ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <MousePointer2 className="w-3 h-3 inline mr-2" /> Inspect
+              </button>
+              <button
+                onClick={() => { setIsDrafting(true); setActiveTool('POLYGON'); }}
+                className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'POLYGON' ? 'bg-amber-500 text-black' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <PenTool className="w-3 h-3 inline mr-2" /> Draw Building
+              </button>
+              <button
+                onClick={() => { setIsDrafting(true); setActiveTool('REFERENCE_SYMBOL'); }}
+                className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'REFERENCE_SYMBOL' ? 'bg-emerald-500 text-black' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                Add Icon
+              </button>
+            </div>
+          )}
 
           {isDrafting && activeTool === 'REFERENCE_SYMBOL' && (
             <div className="flex bg-white/5 p-1 rounded-lg border border-white/5 gap-1 mr-4">
@@ -250,7 +255,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
           )}
 
           {activeTool === 'MOVE' && (
-            <button 
+            <button
               onClick={handleSaveStructures}
               disabled={isSaving}
               className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[8px] font-black uppercase tracking-widest rounded-lg transition-all shadow-lg shadow-emerald-500/20"
@@ -263,21 +268,21 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
 
       <div className="flex-1 flex overflow-hidden">
         <div className="w-64 border-r border-white/5 p-4 space-y-4 bg-black/20">
-            <h3 className="text-[7px] font-black text-slate-500 uppercase tracking-widest px-2 italic text-slate-600">Infrastructure Catalog</h3>
-            <div className="space-y-1.5">
-              {structures.map(st => (
-                <button key={st.id} onClick={() => onStructureSelect(st.id)} className="w-full flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:bg-emerald-500/10 hover:border-emerald-500/20 transition-all group text-left">
-                  <div className="p-1.5 bg-emerald-500/10 rounded-lg">
-                    <Building2 className="w-3 h-3 text-emerald-500 group-hover:scale-110 transition-transform" />
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-black text-white uppercase tracking-tight">{st.name}</p>
-                    <p className="text-[7px] text-slate-500 font-bold uppercase tracking-tighter">Enter Architecture</p>
-                  </div>
-                </button>
-              ))}
-              {structures.length === 0 && <div className="p-6 text-center bg-white/5 rounded-2xl opacity-30"><p className="text-[7px] font-bold text-slate-500 uppercase italic">Empty Terrain</p></div>}
-            </div>
+          <h3 className="text-[7px] font-black text-slate-500 uppercase tracking-widest px-2 italic text-slate-600">Infrastructure Catalog</h3>
+          <div className="space-y-1.5">
+            {structures.map(st => (
+              <button key={st.id} onClick={() => onStructureSelect(st.id)} className="w-full flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:bg-emerald-500/10 hover:border-emerald-500/20 transition-all group text-left">
+                <div className="p-1.5 bg-emerald-500/10 rounded-lg">
+                  <Building2 className="w-3 h-3 text-emerald-500 group-hover:scale-110 transition-transform" />
+                </div>
+                <div>
+                  <p className="text-[9px] font-black text-white uppercase tracking-tight">{st.name}</p>
+                  <p className="text-[7px] text-slate-500 font-bold uppercase tracking-tighter">Enter Architecture</p>
+                </div>
+              </button>
+            ))}
+            {structures.length === 0 && <div className="p-6 text-center bg-white/5 rounded-2xl opacity-30"><p className="text-[7px] font-bold text-slate-500 uppercase italic">Empty Terrain</p></div>}
+          </div>
         </div>
 
         <div className="flex-1 p-8 relative flex items-center justify-center bg-[#01040a] min-h-0 min-w-0">
@@ -298,8 +303,8 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
               }
 
               return (
-                <TechnicalBlueprintEngine 
-                  widthCm={maxX - minX} 
+                <TechnicalBlueprintEngine
+                  widthCm={maxX - minX}
                   heightCm={maxY - minY}
                   viewBoxX={minX}
                   viewBoxY={minY}
