@@ -55,9 +55,12 @@ export async function middleware(request: NextRequest) {
   const userRole = (payload.role as string) || 'TECHNICIAN';
   const mustChange = payload.mustChangePassword as boolean;
 
+  // RUTAS DE EXCEPCIÓN PARA SETUP
+  const isAccountSetup = normalizedPathname.includes('account/setup');
+  const isAccountSetupPage = normalizedPathname.includes('/config/account/setup');
+
   // FORZADO DE CAMBIO DE CONTRASEÑA
-  const isAccountSetupPage = normalizedPathname === '/config/account/setup';
-  if (mustChange && !isAccountSetupPage && !isPublicRoute && !pathname.startsWith('/api/auth')) {
+  if (mustChange && !isAccountSetupPage && !isAccountSetup && !isPublicRoute && !pathname.startsWith('/api/auth')) {
     console.warn(`[AUTH-DEBUG] User ${payload.username} forced to password change`);
     const url = request.nextUrl.clone();
     url.pathname = '/config/account/setup/';
@@ -80,7 +83,6 @@ export async function middleware(request: NextRequest) {
   // BLOQUEO GLOBAL DE ESCRITURA PARA TÉCNICOS
   const isWriteMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method);
   const isLogoutRequest = normalizedPathname.includes('/api/auth/logout');
-  const isAccountSetup = normalizedPathname.includes('account/setup');
 
   if (isWriteMethod && userRole !== 'ADMIN' && !isLogoutRequest && !isAccountSetup) {
     // Permitir POST a logout y otras rutas públicas si las hubiera (ya manejadas arriba por isPublicRoute)
