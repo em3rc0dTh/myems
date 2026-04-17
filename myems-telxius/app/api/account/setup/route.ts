@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { verifyJwt, signJwt } from "@/lib/auth";
-
-const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
   const token = req.cookies.get("auth_token")?.value;
@@ -38,15 +36,20 @@ export async function POST(req: NextRequest) {
       mustChangePassword: updatedUser.mustChangePassword,
     };
 
+    const isProdMode = process.env.NEXT_PUBLIC_APP_MODE === 'prod';
     const newToken = await signJwt(newPayload);
 
     const response = NextResponse.json({ success: true, user: newPayload });
+    
+    // Sincronizar con la lógica de login estabilidad VPS
+    const isHttps = req.nextUrl.protocol === 'https:';
+
     response.cookies.set("auth_token", newToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isHttps && isProdMode, 
+      sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60,
-      path: "/",
+      path: "/telxius", 
     });
 
     return response;
