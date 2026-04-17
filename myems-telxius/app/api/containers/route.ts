@@ -62,3 +62,33 @@ export async function POST(req: NextRequest) {
     await prisma.$disconnect();
   }
 }
+export async function DELETE(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ ok: false, error: "id requerido" }, { status: 400 });
+  try {
+    const container = await prisma.container.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { devices: true, childContainers: true }
+        }
+      }
+    });
+
+    if (!container) return NextResponse.json({ ok: false, error: "Contenedor no encontrado" }, { status: 404 });
+
+    if (container._count.devices > 0 || container._count.childContainers > 0) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: `No se puede eliminar: El contenedor tiene ${container._count.devices} equipos y ${container._count.childContainers} sub-contenedores.` 
+      }, { status: 400 });
+    }
+
+    await prisma.container.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
+  }
+}

@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Building2, Save, MapPin, MousePointer2, PenTool } from 'lucide-react';
+import { Building2, Save, MapPin, MousePointer2, PenTool, ArrowRight, Activity, Layers, Trash2, X } from 'lucide-react';
 import TechnicalBlueprintEngine from './TechnicalBlueprintEngine';
 import Swal from 'sweetalert2';
 import { useAuth } from '@/lib/AuthContext';
 
 interface SiteDashboardViewProps {
   siteId: string;
-  onStructureSelect: (id: string) => void;
+  onStructureSelect: (id: string, name?: string) => void;
 }
 
 export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDashboardViewProps) {
@@ -160,34 +160,61 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
   ];
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#020617] font-sans">
-      <div className="h-14 border-b border-white/5 bg-black/40 flex items-center justify-between px-6">
-        <div className="flex items-center gap-4">
+    <div className="flex-1 flex flex-col min-h-0 bg-[#020617] font-sans selection:bg-sky-500/30">
+      <div className="h-20 border-b border-white/5 bg-black/40 backdrop-blur-2xl flex items-center justify-between px-8 relative z-[110]">
+        <div className="flex items-center gap-6">
           <div
-            className={`p-2 rounded-lg border transition-all ${isAdmin ? 'bg-emerald-500/10 border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20' : 'bg-slate-500/5 border-white/5 cursor-default'}`}
+            className={`p-3 rounded-2xl border transition-all shadow-2xl ${isAdmin ? 'bg-sky-500/10 border-sky-500/20 cursor-pointer hover:bg-sky-500/20 hover:scale-105 active:scale-95' : 'bg-slate-500/5 border-white/5 cursor-default'}`}
             onClick={async () => {
               if (!isAdmin) return;
               const { value: formValues } = await Swal.fire({
-                title: 'Geo-Localización del Site',
+                title: '<span class="text-sky-400 font-black italic">GEO-LOCATION ENGINE</span>',
                 html: `
-                  <div class="text-left space-y-4">
-                    <div>
-                      <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Dirección Física</label>
-                      <input id="swal-site-address" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm" value="${site.address || ''}">
+                  <div class="text-left space-y-6 p-2">
+                    <div class="grid grid-cols-2 gap-4">
+                      <div class="space-y-2">
+                        <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Site Label</label>
+                        <input id="swal-site-name" class="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-sky-500 outline-none transition-all uppercase font-mono" value="${site.name || ''}">
+                      </div>
+                      <div class="space-y-2">
+                        <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Network Alias</label>
+                        <input id="swal-site-alias" class="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm text-sky-400 font-black focus:border-sky-500 outline-none transition-all uppercase" value="${site.alias || ''}" placeholder="Ej: DC-LUR-01">
+                      </div>
                     </div>
-                    <div>
-                      <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Coordenadas (Lat, Lng)</label>
-                      <input id="swal-site-geo" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white text-sm font-mono" value="${site.geoCoords || ''}" placeholder="-12.0463, -77.0427">
+                    <div class="space-y-2">
+                      <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Operational Summary</label>
+                      <textarea id="swal-site-desc" class="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm h-32 focus:border-sky-500 outline-none transition-all" placeholder="Enter physical and logical details...">${site.description || ''}</textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                      <div class="space-y-2">
+                        <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Physical Address</label>
+                        <input id="swal-site-address" class="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-sky-500 outline-none transition-all" value="${site.address || ''}">
+                      </div>
+                      <div class="space-y-2">
+                        <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">GPS Coordinates</label>
+                        <input id="swal-site-geo" class="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm font-mono focus:border-sky-500 outline-none transition-all uppercase" value="${site.geoCoords || ''}" placeholder="-12.0463, -77.0427">
+                      </div>
                     </div>
                   </div>
                 `,
                 background: '#020617',
                 color: '#fff',
-                confirmButtonText: 'ACTUALIZAR ANCLA',
-                confirmButtonColor: '#10b981',
+                confirmButtonText: 'SYNC EMPLACEMENT',
+                confirmButtonColor: '#0ea5e9',
                 showCancelButton: true,
+                cancelButtonColor: 'rgba(255,255,255,0.05)',
+                width: '600px',
+                padding: '2rem',
+                customClass: {
+                  popup: 'rounded-[40px] border border-white/10 backdrop-blur-3xl shadow-2xl site-modal-premium',
+                  confirmButton: 'rounded-2xl px-8 py-4 text-[10px] font-black uppercase tracking-widest',
+                  cancelButton: 'rounded-2xl px-8 py-4 text-[10px] font-black uppercase tracking-widest'
+                },
                 preConfirm: () => {
                   return {
+                    name: (document.getElementById('swal-site-name') as HTMLInputElement).value,
+                    alias: (document.getElementById('swal-site-alias') as HTMLInputElement).value,
+                    description: (document.getElementById('swal-site-desc') as HTMLTextAreaElement).value,
                     address: (document.getElementById('swal-site-address') as HTMLInputElement).value,
                     geoCoords: (document.getElementById('swal-site-geo') as HTMLInputElement).value
                   }
@@ -204,19 +231,28 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
               }
             }}
           >
-            <MapPin className="w-4 h-4 text-emerald-400" />
+            <MapPin className="w-5 h-5 text-sky-400" />
           </div>
-          <div>
-            <h2 className="text-[10px] font-black uppercase text-white leading-none tracking-widest">{site.name}</h2>
-            <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest italic">{site.geoCoords || 'GEO-ANCHOR PENDING'}</p>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-black uppercase text-white leading-none tracking-[0.15em] italic">{site.name}</h2>
+              {site.alias && (
+                <span className="px-2 py-0.5 bg-sky-500/20 text-sky-400 text-[8px] font-black rounded-full border border-sky-500/30 uppercase tracking-widest">
+                  {site.alias}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex items-center gap-1 px-1.5 py-0.5 bg-white/5 rounded-md border border-white/10">
+                <MapPin className="w-2 h-2 text-sky-500" />
+                <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{site.geoCoords || 'PENDING'}</p>
+              </div>
               {site.geoCoords && (
                 <button
                   onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(site.geoCoords)}`, '_blank')}
-                  className="p-1 hover:bg-white/10 rounded transition-all group/map"
-                  title="Abrir en Google Maps"
+                  className="p-1 hover:bg-white/10 rounded-md transition-all group/map"
                 >
-                  <MapPin className="w-2.5 h-2.5 text-sky-400 group-hover/map:scale-110" />
+                  <ArrowRight className="w-2.5 h-2.5 text-slate-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                 </button>
               )}
             </div>
@@ -225,32 +261,38 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
 
         <div className="flex items-center gap-3">
           {isAdmin && (
-            <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/5">
+            <div className="flex bg-black/40 p-1 rounded-2xl border border-white/5 shadow-inner">
               <button
                 onClick={() => { setIsDrafting(false); setActiveTool('POLYGON'); }}
-                className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${!isDrafting ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 ${!isDrafting ? 'bg-white/10 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                <MousePointer2 className="w-3 h-3 inline mr-2" /> Inspect
+                <MousePointer2 className="w-4 h-4" /> Inspect
               </button>
               <button
                 onClick={() => { setIsDrafting(true); setActiveTool('POLYGON'); }}
-                className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'POLYGON' ? 'bg-amber-500 text-black' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 ${isDrafting && activeTool === 'POLYGON' ? 'bg-sky-500 text-black shadow-lg shadow-sky-500/30' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                <PenTool className="w-3 h-3 inline mr-2" /> Draw Building
+                <PenTool className="w-4 h-4" /> Draw Building
               </button>
               <button
                 onClick={() => { setIsDrafting(true); setActiveTool('REFERENCE_SYMBOL'); }}
-                className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-md transition-all ${isDrafting && activeTool === 'REFERENCE_SYMBOL' ? 'bg-emerald-500 text-black' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 ${isDrafting && activeTool === 'REFERENCE_SYMBOL' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/30' : 'text-slate-500 hover:text-slate-300'}`}
               >
-                Add Icon
+                <Layers className="w-4 h-4" /> Add Icon
               </button>
             </div>
           )}
 
           {isDrafting && activeTool === 'REFERENCE_SYMBOL' && (
-            <div className="flex bg-white/5 p-1 rounded-lg border border-white/5 gap-1 mr-4">
+            <div className="flex bg-sky-500/5 p-1 rounded-2xl border border-sky-500/10 gap-1 mr-4 animate-in slide-in-from-right-4 duration-300">
               {['DOOR', 'COLUMN', 'WINDOW', 'PANEL', 'HVAC', 'SECURITY'].map(s => (
-                <button key={s} onClick={() => setSymbolType(s as any)} className={`px-2 py-1 text-[7px] font-black uppercase rounded-md transition-all ${symbolType === s ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:text-white'}`}>{s}</button>
+                <button 
+                  key={s} 
+                  onClick={() => setSymbolType(s as any)} 
+                  className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all border ${symbolType === s ? 'bg-sky-500 border-sky-400 text-black' : 'bg-transparent border-transparent text-slate-500 hover:text-white hover:bg-white/5'}`}
+                >
+                  {s}
+                </button>
               ))}
             </div>
           )}
@@ -259,47 +301,140 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
             <button
               onClick={handleSaveStructures}
               disabled={isSaving}
-              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[8px] font-black uppercase tracking-widest rounded-lg transition-all shadow-lg shadow-emerald-500/20"
+              className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)] flex items-center gap-3 animate-pulse"
             >
-              {isSaving ? 'Saving...' : 'Confirm Positioning'}
+              <Save className="w-4 h-4" /> {isSaving ? 'Sincronizando...' : 'Commit Architecture'}
             </button>
           )}
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-64 border-r border-white/5 p-4 space-y-4 bg-black/20">
-          <h3 className="text-[7px] font-black text-slate-500 uppercase tracking-widest px-2 italic text-slate-600">Infrastructure Catalog</h3>
-          <div className="space-y-1.5">
-            {structures.map(st => (
-              <button key={st.id} onClick={() => onStructureSelect(st.id)} className="w-full flex items-center gap-2.5 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:bg-emerald-500/10 hover:border-emerald-500/20 transition-all group text-left">
-                <div className="p-1.5 bg-emerald-500/10 rounded-lg">
-                  <Building2 className="w-3 h-3 text-emerald-500 group-hover:scale-110 transition-transform" />
+        <div className="w-80 border-r border-white/5 p-6 flex flex-col gap-8 bg-black/40 backdrop-blur-xl shrink-0 overflow-y-auto custom-scrollbar">
+          {site.description && (
+            <div className="space-y-3">
+              <h4 className="text-[9px] font-black text-sky-500 uppercase tracking-[0.3em] italic flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgb(14,165,233)]" /> 
+                Operational Intelligence
+              </h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed font-medium italic border-l-2 border-sky-500/20 pl-4 py-1">
+                {site.description}
+              </p>
+            </div>
+          )}
+
+          <div className="p-6 bg-gradient-to-br from-white/[0.03] to-transparent rounded-[32px] border border-white/10 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-sky-500 group-hover:bg-sky-400 transition-colors" />
+            <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+              <Activity className="w-3 h-3 text-sky-500" /> Terrain Analytics
+            </h4>
+            <div className="space-y-4">
+              <div className="flex justify-between items-end border-b border-white/5 pb-2">
+                <span className="text-[10px] font-black text-slate-500 uppercase">Master Surface</span>
+                <span className="text-lg font-black text-white italic tracking-tighter">
+                  {((site.width || 0) * (site.length || 0)).toLocaleString()} <span className="text-[10px] text-sky-500 not-italic ml-1">M²</span>
+                </span>
+              </div>
+              <div className="flex justify-between items-end border-b border-white/5 pb-2">
+                <span className="text-[10px] font-black text-slate-500 uppercase">Boundary Perimeter</span>
+                <span className="text-lg font-black text-slate-200 italic tracking-tighter">
+                  {(2 * ((site.width || 0) + (site.length || 0))).toLocaleString()} <span className="text-[10px] text-slate-500 not-italic ml-1">M</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] px-2 italic flex items-center gap-2">
+               Infrastructure Portfolio
+               <span className="text-[8px] bg-sky-500/10 text-sky-500 px-1.5 rounded border border-sky-500/20 ml-auto">{structures.length}</span>
+            </h3>
+            <div className="space-y-2.5">
+              {structures.map(st => (
+                <div 
+                  key={st.id} 
+                  onClick={() => onStructureSelect(st.id, st.name)} 
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-sky-500/5 hover:border-sky-500/30 transition-all group text-left relative overflow-hidden cursor-pointer"
+                >
+                  <div className="p-2.5 bg-sky-500/10 rounded-xl border border-sky-500/10 group-hover:bg-sky-500 group-hover:text-black transition-all">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <p className="text-[11px] font-black text-white uppercase tracking-wider truncate">{st.name}</p>
+                    <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 group-hover:text-sky-400 transition-colors">Launch Physical Layer</p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-auto">
+                    {isAdmin && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const result = await Swal.fire({
+                            title: '¿Eliminar Edificio?',
+                            text: `Esta acción no se puede deshacer. Se verificará que el edificio esté vacío.`,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#ef4444',
+                            cancelButtonColor: 'rgba(255,255,255,0.05)',
+                            confirmButtonText: 'ELIMINAR',
+                            background: '#020617',
+                            color: '#fff'
+                          });
+
+                          if (result.isConfirmed) {
+                            const res = await fetch(`/telxius/api/structures/?id=${st.id}`, { method: 'DELETE' });
+                            const data = await res.json();
+                            if (data.ok) {
+                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Edificio eliminado', showConfirmButton: false, timer: 2000, background: '#020617', color: '#fff' });
+                              fetchSiteData();
+                            } else {
+                              Swal.fire({ icon: 'error', title: 'Error de Eliminación', text: data.error, background: '#020617', color: '#fff' });
+                            }
+                          }
+                        }}
+                        className="p-2 hover:bg-rose-500/10 rounded-lg group/trash transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-slate-700 group-hover/trash:text-rose-500" />
+                      </button>
+                    )}
+                    <ArrowRight className="w-4 h-4 text-slate-700 group-hover:text-sky-500 group-hover:translate-x-1 transition-all" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[9px] font-black text-white uppercase tracking-tight">{st.name}</p>
-                  <p className="text-[7px] text-slate-500 font-bold uppercase tracking-tighter">Enter Architecture</p>
+              ))}
+              {structures.length === 0 && (
+                <div className="p-10 text-center bg-white/[0.01] border border-dashed border-white/10 rounded-3xl opacity-40">
+                  <div className="p-4 bg-white/5 rounded-full w-fit mx-auto mb-4">
+                    <Layers className="w-6 h-6 text-slate-600" />
+                  </div>
+                  <p className="text-[8px] font-black text-slate-500 uppercase italic tracking-widest">Terrain Unpopulated</p>
                 </div>
-              </button>
-            ))}
-            {structures.length === 0 && <div className="p-6 text-center bg-white/5 rounded-2xl opacity-30"><p className="text-[7px] font-bold text-slate-500 uppercase italic">Empty Terrain</p></div>}
+              )}
+            </div>
           </div>
         </div>
 
         <div className="flex-1 p-8 relative flex items-center justify-center bg-[#01040a] min-h-0 min-w-0">
           <div className="flex-1 w-full h-full relative shadow-2xl border border-white/5 rounded-[40px] overflow-hidden">
             {(() => {
+              // Site dimensions in cm
+              const siteW = (site.width || 100) * 100;
+              const siteH = (site.length || 100) * 100;
+              
+              // Base perimeter (rect)
+              const sitePerimeter = JSON.stringify([
+                { x: 0, y: 0 }, { x: siteW, y: 0 }, { x: siteW, y: siteH }, { x: 0, y: siteH }
+              ]);
+
               // Calculate global bounds for all structures to auto-fit
-              let minX = 0, minY = 0, maxX = 5000, maxY = 5000;
+              let minX = 0, minY = 0, maxX = siteW, maxY = siteH;
               if (structures.length > 0) {
                 const allPoints = structures.flatMap(s => JSON.parse(s.perimeter || '[]'));
                 if (allPoints.length > 0) {
                   const xs = allPoints.map(p => p.x);
                   const ys = allPoints.map(p => p.y);
-                  minX = Math.min(...xs) - 500;
-                  minY = Math.min(...ys) - 500;
-                  maxX = Math.max(...xs) + 500;
-                  maxY = Math.max(...ys) + 500;
+                  minX = Math.min(minX, ...xs) - 200;
+                  minY = Math.min(minY, ...ys) - 200;
+                  maxX = Math.max(maxX, ...xs) + 200;
+                  maxY = Math.max(maxY, ...ys) + 200;
                 }
               }
 
@@ -309,6 +444,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
                   heightCm={maxY - minY}
                   viewBoxX={minX}
                   viewBoxY={minY}
+                  perimeter={sitePerimeter}
                   showGrid={true}
                   gridSize={200}
                   isEditable={isDrafting}

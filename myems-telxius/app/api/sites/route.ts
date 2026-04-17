@@ -75,6 +75,24 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ ok: false, error: "id requerido" }, { status: 400 });
   try {
+    const site = await prisma.site.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { structures: true, devices: true }
+        }
+      }
+    });
+
+    if (!site) return NextResponse.json({ ok: false, error: "Site no encontrado" }, { status: 404 });
+
+    if (site._count.structures > 0 || site._count.devices > 0) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: `No se puede eliminar: El site tiene ${site._count.structures} edificios y ${site._count.devices} equipos asignados.` 
+      }, { status: 400 });
+    }
+
     await prisma.site.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e) {

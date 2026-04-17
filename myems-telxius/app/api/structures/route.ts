@@ -82,3 +82,33 @@ export async function PATCH(req: NextRequest) {
     await prisma.$disconnect();
   }
 }
+export async function DELETE(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ ok: false, error: "id requerido" }, { status: 400 });
+  try {
+    const structure = await prisma.structure.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { levels: true }
+        }
+      }
+    });
+
+    if (!structure) return NextResponse.json({ ok: false, error: "Edificio no encontrado" }, { status: 404 });
+
+    if (structure._count.levels > 0) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: `No se puede eliminar: El edificio tiene ${structure._count.levels} niveles definidos.` 
+      }, { status: 400 });
+    }
+
+    await prisma.structure.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
+  }
+}

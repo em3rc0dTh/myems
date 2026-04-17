@@ -1,7 +1,7 @@
 "use client"
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Substructure, Position } from '@/lib/types';
-import { ChevronRight, Globe, MousePointer2, Layers, Cpu, CheckCircle2, AlertTriangle, Activity, Save, Trash2, Maximize2, MoveRight, Plus, Flame } from 'lucide-react';
+import { ChevronRight, Globe, MousePointer2, Layers, X, Cpu, CheckCircle2, AlertTriangle, Activity, Save, Trash2, Maximize2, MoveRight, Plus, Flame } from 'lucide-react';
 import Swal from 'sweetalert2';
 import RackElevationManager from './RackElevationManager';
 import { useMqtt } from '@/lib/MqttContext';
@@ -10,9 +10,10 @@ import { useAuth } from '@/lib/AuthContext';
 interface RoomViewProps {
   substructureId: string;
   onSelectBDFB?: (id: string | null) => void;
+  siteDimensions: { width?: number; length?: number };
 }
 
-const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => {
+const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteDimensions }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [substructure, setSubstructure] = useState<any | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -25,6 +26,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
   const [activeTool, setActiveTool] = useState<'POLYGON' | 'CLUSTER_STAMP' | 'BAY_DRAFTING' | 'REFERENCE_SYMBOL'>('CLUSTER_STAMP');
   const [stampSize, setStampSize] = useState({ w: 60, h: 60 });
   const [containerType, setContainerType] = useState<'RACK' | 'CABINET'>('RACK');
+  const [sizeMode, setSizeMode] = useState<'PRESET' | 'CUSTOM'>('PRESET');
   const [symbolType, setSymbolType] = useState<'DOOR' | 'COLUMN' | 'WINDOW' | 'PANEL' | 'HVAC' | 'SECURITY'>('DOOR');
   const [symbolRotation, setSymbolRotation] = useState(0);
   const [uCapacity, setUCapacity] = useState(42);
@@ -37,6 +39,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
   const { latestData } = useMqtt();
   const { isAdmin } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
+  const [ghostPoint, setGhostPoint] = useState<any | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const TILE_SIZE = 60;
@@ -132,6 +135,12 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
       setPan(prev => ({ x: prev.x - dx, y: prev.y - dy }));
       setLastMouse({ x: e.clientX, y: e.clientY });
     }
+
+    if (activePoints.length > 0) {
+      setGhostPoint(getSvgCoords(e));
+    } else {
+      setGhostPoint(null);
+    }
   };
 
   const handleMouseUp = () => {
@@ -200,7 +209,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
     }
   };
 
-  const handleSvgClick = (e: React.MouseEvent) => {
+  const handleSvgClick = async (e: React.MouseEvent) => {
     if (!isDrafting) return;
     const coords = getSvgCoords(e);
     if (!coords) return;
@@ -291,12 +300,16 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
 
       const worldPoints = newAlignedPoints.map(p => rotatePoint(p.x, p.y, alignmentData.angle, alignmentData.centerX, alignmentData.centerY));
 
+      const totalRacks = localRacks.length + localElements.filter(x => x.type === 'ZONE').length;
+      const nextRackNum = totalRacks + 1;
+      const rackLabel = `${containerType === 'CABINET' ? 'CAB' : 'RACK'}-${nextRackNum}`;
+
       const newEl = {
         id: `rack-${Date.now()}`,
         type: 'ZONE',
         cType: containerType,
         uCapacity: uCapacity,
-        label: `${containerType} ${localElements.filter(x => x.type === 'ZONE').length + 1}`,
+        label: rackLabel,
         points: worldPoints
       };
       setLocalElements(prev => [...prev, newEl]);
@@ -360,12 +373,30 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
         // 3. Un-rotate back to World Space
         const worldPoints = alignedPoints.map(p => rotatePoint(p.x, p.y, alignmentData.angle, alignmentData.centerX, alignmentData.centerY));
 
-        setLocalElements(prev => [...prev, {
-          id: `bay-${Date.now()}`,
-          type: 'BAY',
-          label: `BAY ${prev.filter(x => x.type === 'BAY').length + 1}`,
-          points: worldPoints
-        }]);
+        const totalBays = persistedRows.length + localElements.filter(el => el.type === 'BAY').length;
+        const nextBayNum = totalBays + 1;
+
+        const { value: bayName } = await Swal.fire({
+          title: 'Nombre de Bahía',
+          input: 'text',
+          inputValue: `BAHÍA-${nextBayNum} (${(uw / 100).toFixed(1)}m)`,
+          showCancelButton: true,
+          background: '#020617',
+          color: '#fff',
+          confirmButtonText: 'IDENTIFICAR',
+          confirmButtonColor: '#d946ef'
+        });
+
+        if (bayName) {
+          setLocalElements(prev => [...prev, {
+            id: `bay-${Date.now()}`,
+            type: 'BAY',
+            label: bayName,
+            width: uw,
+            height: uh,
+            points: worldPoints
+          }]);
+        }
         setActivePoints([]);
       } else {
         setActivePoints([coords]);
@@ -408,6 +439,27 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
         const maxY = Math.max(...points.map((p: any) => p.y));
         const w = maxX - minX;
         const h = maxY - minY;
+        const centerX = minX + w / 2;
+        const centerY = minY + h / 2;
+
+        // Find which bay (row) contains this rack
+        let assignedRowId = null;
+        for (const sr of savedRows) {
+           try {
+             const sm = typeof sr.spatialMetadata === 'string' ? JSON.parse(sr.spatialMetadata) : sr.spatialMetadata;
+             const rPoints = sm.points || [];
+             // Simple bounding box check for assignment
+             const rMinX = Math.min(...rPoints.map((p: any) => p.x));
+             const rMaxX = Math.max(...rPoints.map((p: any) => p.x));
+             const rMinY = Math.min(...rPoints.map((p: any) => p.y));
+             const rMaxY = Math.max(...rPoints.map((p: any) => p.y));
+             
+             if (centerX >= rMinX && centerX <= rMaxX && centerY >= rMinY && centerY <= rMaxY) {
+               assignedRowId = sr.id;
+               break;
+             }
+           } catch(e) {}
+        }
 
         const res = await fetch('/telxius/api/containers/', {
           method: 'POST',
@@ -415,7 +467,8 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
           body: JSON.stringify({
             name: rack.label,
             substructureId: roomId,
-            row: "A",
+            row: "A", 
+            rowId: assignedRowId,
             position: 0,
             type: rack.cType || 'RACK',
             width: w,
@@ -570,7 +623,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
     };
   }, [roomPoints, bounds]);
 
-  const viewBox = (() => {
+  const viewBox = useMemo(() => {
     const baseW = bounds.w + 200;
     const baseH = bounds.h + 200;
     const zW = baseW / zoom;
@@ -578,14 +631,28 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
     const startX = -100 + pan.x;
     const startY = -100 + pan.y;
     return `${startX} ${startY} ${zW} ${zH}`;
-  })();
+  }, [bounds, zoom, pan]);
 
-  if (loading || !substructure) return <div className="flex-1 flex flex-col items-center justify-center bg-black"><Activity className="animate-spin text-blue-500 mb-4" /></div>;
+  if (loading || !substructure) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-black">
+        <Activity className="animate-spin text-blue-500 mb-4" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col bg-[#050508] font-sans selection:bg-blue-500/30">
+      {/* HEADER */}
       <div className="h-20 px-8 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-2xl shrink-0 z-[100]">
         <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 py-1 px-3 bg-white/5 rounded-full border border-white/5 select-none">
+            <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest leading-none">ROOT</span>
+            <ChevronRight className="w-2.5 h-2.5 text-slate-800" />
+            <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest leading-none">SITE</span>
+            <ChevronRight className="w-2.5 h-2.5 text-slate-800" />
+            <span className="text-[7px] font-black text-sky-500/60 uppercase tracking-widest leading-none mt-0.5">{resolveValue(substructure.name)}</span>
+          </div>
           <div>
             <div className="flex items-center gap-2 text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
               <Globe className="w-2.5 h-2.5" />
@@ -603,10 +670,10 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
 
           <button
             onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`flex items-center gap-2 px-5 py-2 rounded-2xl border transition-all ${showHeatmap ? 'bg-orange-500 border-orange-400 text-white animate-pulse' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border ${showHeatmap ? 'bg-orange-500 text-black border-orange-400 shadow-lg shadow-orange-500/30' : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'}`}
           >
-            <Flame className={`w-4 h-4 ${showHeatmap ? 'fill-current' : ''}`} />
-            <span className="text-[9px] font-black uppercase tracking-widest">{showHeatmap ? 'Heatmap' : 'Thermal'}</span>
+            <Flame className={`w-3.5 h-3.5 ${showHeatmap ? 'animate-pulse' : ''}`} />
+            {showHeatmap ? 'HEATMAP ACTIVE' : 'THERMAL VIEW'}
           </button>
 
           {isAdmin && (
@@ -622,31 +689,40 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
         </div>
       </div>
 
-      <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-[#050508] transition-all cursor-crosshair" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel}>
-        {/* FLOATING TOOLS PANEL (Only when isDrafting is true) */}
+      {/* METADATA BAR */}
+      <div className="h-10 px-8 border-b border-white/5 bg-black/60 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Dimensiones:</span>
+            <span className="text-[9px] font-bold text-slate-300">{(substructure.width || 0).toFixed(2)}m x {(substructure.length || 0).toFixed(2)}m</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Área:</span>
+            <span className="text-[9px] font-bold text-sky-400">{(substructure.area || (substructure.width * substructure.length) || 0).toFixed(2)} m²</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-slate-500">
+          <span className="text-[8px] font-black uppercase tracking-widest italic">Grid: {TILE_SIZE}cm Tiles</span>
+        </div>
+      </div>
+
+      {/* MAIN VIEWPORT */}
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        {/* FLOATING TOOLS PANEL */}
         {isDrafting && (
           <div className="absolute left-6 top-6 bottom-6 w-80 z-[150] flex flex-col gap-4 pointer-events-none">
             <div className="glass-panel p-4 rounded-[32px] border border-white/10 pointer-events-auto flex flex-col gap-6 shadow-2xl bg-[#0a0a0f]/80">
               <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                <span className="text-[10px] font-black text-white uppercase italic tracking-widest">{isAdmin ? 'Drafting Machine' : 'Telemetry Monitor'}</span>
+                <span className="text-[10px] font-black text-white uppercase italic tracking-widest">Drafting Machine</span>
                 <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-[8px] font-black rounded border border-amber-500/30">ACTIVE</span>
               </div>
-
-              {/* Tool Category Selector */}
               <div className="grid grid-cols-3 gap-2 bg-black/40 p-1 rounded-2xl border border-white/5">
-                {[
-                  { id: 'CLUSTER_STAMP', label: 'Racks' },
-                  { id: 'BAY_DRAFTING', label: 'Bays' },
-                  { id: 'REFERENCE_SYMBOL', label: 'Icons' }
-                ].map(t => (
-                  <button key={t.id} onClick={() => setActiveTool(t.id as any)} className={`py-2 text-[8px] font-black uppercase rounded-xl transition-all ${activeTool === t.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
-                    {t.label}
-                  </button>
+                {[{ id: 'CLUSTER_STAMP', label: 'Racks' }, { id: 'BAY_DRAFTING', label: 'Bays' }, { id: 'REFERENCE_SYMBOL', label: 'Icons' }].map(t => (
+                  <button key={t.id} onClick={() => setActiveTool(t.id as any)} className={`py-2 text-[8px] font-black uppercase rounded-xl transition-all ${activeTool === t.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>{t.label}</button>
                 ))}
               </div>
-
-              {/* Contextual Tools based on Active Tool */}
-              <div className="flex flex-col gap-6 animate-in slide-in-from-left-2 duration-300">
+              {/* Contextual Tools */}
+              <div className="flex flex-col gap-4 animate-in slide-in-from-left-2 duration-300">
                 {activeTool === 'CLUSTER_STAMP' && (
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
@@ -666,21 +742,35 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Dimensions (cm)</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {PRESET_SIZES.map(s => (
-                          <button key={s.label} onClick={() => setStampSize({ w: s.w, h: s.h })} className={`py-2.5 text-[9px] font-bold border rounded-xl transition-all ${stampSize.w === s.w && stampSize.h === s.h ? 'border-amber-500 bg-amber-500/10 text-white shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 'border-white/5 bg-white/5 text-slate-500 hover:text-slate-300'}`}>
-                            {s.label}
-                          </button>
-                        ))}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between px-1">
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Size Engine</label>
+                        <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/5">
+                          <button onClick={() => setSizeMode('PRESET')} className={`px-3 py-1 text-[7px] font-black uppercase rounded-md transition-all ${sizeMode === 'PRESET' ? 'bg-amber-500 text-black' : 'text-slate-500'}`}>Presets</button>
+                          <button onClick={() => setSizeMode('CUSTOM')} className={`px-3 py-1 text-[7px] font-black uppercase rounded-md transition-all ${sizeMode === 'CUSTOM' ? 'bg-blue-500 text-white' : 'text-slate-500'}`}>Custom</button>
+                        </div>
                       </div>
-                      <div className="flex gap-2 mt-4 items-center bg-black/40 p-2 rounded-2xl border border-white/5">
-                        <input type="number" value={customSize.w} onChange={e => setCustomSize(prev => ({ ...prev, w: Number(e.target.value) }))} className="w-12 bg-white/5 border border-white/5 rounded-lg py-1.5 text-[10px] text-center text-white font-black" />
-                        <span className="text-slate-600 text-xs">×</span>
-                        <input type="number" value={customSize.h} onChange={e => setCustomSize(prev => ({ ...prev, h: Number(e.target.value) }))} className="w-12 bg-white/5 border border-white/5 rounded-lg py-1.5 text-[10px] text-center text-white font-black" />
-                        <button onClick={() => setStampSize(customSize)} className="flex-1 py-1.5 bg-blue-500/20 text-blue-400 text-[9px] font-black uppercase rounded-lg border border-blue-500/20 hover:bg-blue-500 hover:text-white transition-all">Custom</button>
-                      </div>
+
+                      {sizeMode === 'PRESET' ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {PRESET_SIZES.map(s => (
+                            <button key={s.label} onClick={() => setStampSize({ w: s.w, h: s.h })} className={`py-2.5 text-[9px] font-bold border rounded-xl transition-all ${stampSize.w === s.w && stampSize.h === s.h ? 'border-amber-500 bg-amber-500/10 text-white shadow-xl' : 'border-white/5 bg-white/5 text-slate-500 hover:text-slate-300'}`}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2 p-1">
+                           <div className="bg-black/40 border border-white/10 rounded-xl p-2 group hover:border-blue-500/50 transition-all">
+                              <label className="text-[7px] font-black text-slate-600 uppercase mb-1 block">Width (cm)</label>
+                              <input type="number" value={stampSize.w} onChange={e => setStampSize(prev => ({ ...prev, w: Number(e.target.value) }))} className="w-full bg-transparent text-white text-[10px] font-black outline-none" />
+                           </div>
+                           <div className="bg-black/40 border border-white/10 rounded-xl p-2 group hover:border-blue-500/50 transition-all">
+                              <label className="text-[7px] font-black text-slate-600 uppercase mb-1 block">Depth (cm)</label>
+                              <input type="number" value={stampSize.h} onChange={e => setStampSize(prev => ({ ...prev, h: Number(e.target.value) }))} className="w-full bg-transparent text-white text-[10px] font-black outline-none" />
+                           </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -692,268 +782,291 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB }) => 
                         <button key={s} onClick={() => setSymbolType(s as any)} className={`py-2.5 text-[8px] font-black uppercase rounded-xl transition-all border ${symbolType === s ? 'bg-indigo-500 border-indigo-400 text-white' : 'bg-black/40 border-white/5 text-slate-600 hover:text-slate-400'}`}>{s}</button>
                       ))}
                     </div>
-                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 flex items-center justify-between">
-                      <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest italic">{isAdmin ? 'Substructure Engineering' : 'Substructure Visualizer'}</p>
-                      <select value={symbolRotation} onChange={e => setSymbolRotation(Number(e.target.value))} className="bg-transparent text-[11px] text-white font-black outline-none appearance-none cursor-pointer">
-                        {[0, 90, 180, 270].map(deg => <option key={deg} value={deg} className="bg-slate-900">{deg}°</option>)}
-                      </select>
-                    </div>
                   </div>
                 )}
 
                 {activeTool === 'BAY_DRAFTING' && (
                   <div className="p-6 bg-blue-500/5 border border-blue-500/20 rounded-2xl text-center">
-                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed uppercase tracking-tighter italic">Click en el mapa para iniciar punto A, selecciona punto B para delimitar la bahía orientado a muros.</p>
+                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed uppercase tracking-tighter italic">Click en el mapa para iniciar punto A, selecciona punto B para delimitar la bahía.</p>
                   </div>
                 )}
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-white/5">
-                <div className="flex items-center gap-2 text-amber-500/50">
-                  <Activity className="w-3 h-3" />
-                  <span className="text-[7px] font-black uppercase tracking-[0.3em]">Hardware Level Drafting</span>
-                </div>
               </div>
             </div>
           </div>
         )}
 
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-full flex items-center gap-3">
-          <span className="text-[9px] font-black text-sky-400 uppercase tracking-widest">Zoom: {(zoom * 100).toFixed(0)}%</span>
-          <div className="h-3 w-[1px] bg-sky-500/20" />
-          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">Click + Drag to move</span>
+        {/* SIDEBAR */}
+        <div className="w-80 border-r border-white/5 p-6 flex flex-col gap-8 bg-black/40 backdrop-blur-xl shrink-0 overflow-y-auto custom-scrollbar">
+          {!selectedContainer && siteDimensions?.width && siteDimensions?.length && (
+            <div className="p-6 bg-gradient-to-br from-white/[0.03] to-transparent rounded-[32px] border border-white/10 shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-full h-1 bg-sky-500" />
+              <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                <Activity className="w-3 h-3 text-sky-500" /> Terrain Analytics
+              </h4>
+              <div className="space-y-4">
+                <div className="flex justify-between items-end border-b border-white/5 pb-2">
+                  <span className="text-[10px] font-black text-slate-500 uppercase">Master Surface</span>
+                  <span className="text-lg font-black text-white italic tracking-tighter">
+                    {((siteDimensions.width || 0) * (siteDimensions.length || 0)).toLocaleString()} <span className="text-[10px] text-sky-500 not-italic ml-1">M²</span>
+                  </span>
+                </div>
+                <div className="flex justify-between items-end border-b border-white/5 pb-2">
+                  <span className="text-[10px] font-black text-slate-500 uppercase">Boundary Perimeter</span>
+                  <span className="text-lg font-black text-white italic tracking-tighter">
+                    {(2 * ((siteDimensions.width || 0) + (siteDimensions.length || 0))).toLocaleString()} <span className="text-[10px] text-slate-500 not-italic ml-1">M</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-4">
+            <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] px-2 italic flex items-center gap-2">
+              Infrastructure Assets
+              <span className="text-[8px] bg-sky-500/10 text-sky-500 px-1.5 rounded border border-sky-500/20 ml-auto">{persistedRows.length} Bays</span>
+            </h3>
+            <div className="space-y-2">
+              {persistedRows.map(row => (
+                <div
+                  key={row.id}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] group text-left relative overflow-hidden"
+                >
+                  <div className="p-2.5 bg-fuchsia-500/10 rounded-xl border border-fuchsia-500/10 text-fuchsia-400">
+                    <Layers className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-black text-white uppercase tracking-wider truncate">{row.name}</p>
+                    <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Physical Partition</p>
+                  </div>
+                  {isAdmin && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        // PRE-EMPTIVE UX CHECK
+                        const hasRacks = localRacks.some(r => r.rowId === row.id);
+                        if (hasRacks) {
+                          Swal.fire({
+                            icon: 'error',
+                            title: 'Bahía Ocupada',
+                            text: 'No se puede eliminar una bahía que contiene racks. Mueve o elimina los racks primero.',
+                            background: '#020617',
+                            color: '#fff'
+                          });
+                          return;
+                        }
+
+                        const result = await Swal.fire({
+                          title: '¿Eliminar Bahía?',
+                          text: "Esta acción eliminará la partición lógica del suelo.",
+                          icon: 'warning',
+                          showCancelButton: true,
+                          confirmButtonColor: '#ef4444',
+                          confirmButtonText: 'ELIMINAR',
+                          background: '#020617',
+                          color: '#fff'
+                        });
+
+                        if (result.isConfirmed) {
+                          const res = await fetch(`/telxius/api/rows/?id=${row.id}`, { method: 'DELETE' });
+                          const data = await res.json();
+                          if (data.ok) {
+                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Bahía eliminada', showConfirmButton: false, timer: 2000, background: '#020617', color: '#fff' });
+                            // Refresh room data
+                            const fetchRoom = async () => {
+                              const rRes = await fetch(`/telxius/api/substructures/?id=${substructureId}&t=${Date.now()}`);
+                              const rData = await rRes.json();
+                              const obj = Array.isArray(rData.data) ? rData.data[0] : rData.data;
+                              if (obj) setPersistedRows(obj.rows || []);
+                            };
+                            fetchRoom();
+                          } else {
+                            Swal.fire({ icon: 'error', title: 'Error', text: data.error, background: '#020617', color: '#fff' });
+                          }
+                        }
+                      }}
+                      className="p-2 hover:bg-rose-500/10 rounded-lg group/trash transition-all"
+                    >
+                      <X className="w-3.5 h-3.5 text-slate-700 group-hover/trash:text-rose-500" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
 
-        <svg ref={svgRef} viewBox={viewBox} onClick={handleSvgClick} className="w-full h-full p-12 transition-all duration-200 ease-out select-none">
-          <defs>
-            <pattern id="grid30" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.02)" strokeWidth="0.5" /></pattern>
-            <pattern id="grid60" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" /></pattern>
+        {/* MAIN CANVAS */}
+        <div className="flex-1 bg-[#01040a] relative overflow-hidden flex items-center justify-center p-12 min-w-0" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel}>
+          <svg
+            ref={svgRef}
+            viewBox={viewBox}
+            className="w-full h-full drop-shadow-[0_0_50px_rgba(0,0,0,0.5)] transition-all duration-500 select-none"
+            onClick={handleSvgClick}
+          >
+            <defs>
+              <pattern id="roomGrid" width={TILE_SIZE} height={TILE_SIZE} patternUnits="userSpaceOnUse">
+                <path d={`M ${TILE_SIZE} 0 L 0 0 0 ${TILE_SIZE}`} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+              </pattern>
+              <pattern id="grid30" width="30" height="30" patternUnits="userSpaceOnUse">
+                <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.02)" strokeWidth="0.5" />
+              </pattern>
+              <pattern id="grid60" width="60" height="60" patternUnits="userSpaceOnUse">
+                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+              </pattern>
+              <clipPath id="roomClip">
+                {roomPoints ? <polygon points={normalizedPointsString} /> : <rect x={0} y={0} width={bounds.w} height={bounds.h} />}
+              </clipPath>
+            </defs>
+            <rect x={-1000} y={-1000} width={bounds.w + 2000} height={bounds.h + 2000} fill="url(#roomGrid)" />
+            <g ref={contentRef} transform={`rotate(${isDrafting && alignmentData ? -alignmentData.angle : 0}, ${alignmentData?.centerX || 0}, ${alignmentData?.centerY || 0})`}>
+              <g clipPath="url(#roomClip)">
+                {roomPoints ? (
+                  <polygon points={normalizedPointsString} fill="#050508" stroke="#3b82f6" strokeWidth={8 / zoom} />
+                ) : (
+                  <rect x={0} y={0} width={bounds.w} height={bounds.h} fill="#050508" stroke="#3b82f6" strokeWidth={4 / zoom} />
+                )}
 
-            <clipPath id="roomClip">
-              {roomPoints ? (
-                <polygon points={normalizedPointsString} />
-              ) : (
-                <rect x={0} y={0} width={bounds.w} height={bounds.h} />
-              )}
-            </clipPath>
-          </defs>
-
-          {/* MAIN ROTATED CONTENT GROUP */}
-          <g ref={contentRef} transform={`rotate(${isDrafting && alignmentData ? -alignmentData.angle : 0}, ${alignmentData?.centerX || 0}, ${alignmentData?.centerY || 0})`} className="transition-transform duration-700 ease-in-out">
-            {/* BACKGROUND FONDATION */}
-            {roomPoints ? (
-              <polygon points={normalizedPointsString} fill="#050508" stroke="#3b82f6" strokeWidth={8 / zoom} strokeLinejoin="round" />
-            ) : (
-              <rect x={0} y={0} width={bounds.w} height={bounds.h} fill="#050508" stroke="#3b82f6" strokeWidth={4 / zoom} />
-            )}
-
-            {/* DYNAMIC COORDINATE SYSTEM (60x60 Tiles) - Aligned to Room Orientation */}
-            <g clipPath="url(#roomClip)">
-              {/* Discrete Tile border and labels generated in aligned space */}
-              {(() => {
-                if (!alignmentData) return null;
-                const rows = Math.ceil(alignmentData.h / 60);
-                const cols = Math.ceil(alignmentData.w / 60);
-                const grid = [];
-
-                // Inverse transform to place grid in original coordinate space if needed
-                // But since everything is inside the group, we work in Aligned Space directly.
-
-                // We need to shift the grid to match the Orientated Bounds
-                // Let's create a sub-group for the grid that translates to the oriented origin
-                return (
+                {/* DYNAMIC COORDINATE SYSTEM (60x60 Tiles) */}
+                {alignmentData && (
                   <g transform={`translate(${alignmentData.oMinX}, ${alignmentData.oMinY}) rotate(${alignmentData.angle}, 0, 0)`}>
-                    {/* The grid pattern itself can be simpler now */}
                     <rect x={-500} y={-500} width={alignmentData.w + 1000} height={alignmentData.h + 1000} fill="url(#grid30)" opacity={0.5} />
                     <rect x={-500} y={-500} width={alignmentData.w + 1000} height={alignmentData.h + 1000} fill="url(#grid60)" />
 
-                    {Array.from({ length: rows }).map((_, r) => (
-                      Array.from({ length: cols }).map((_, c) => {
+                    {Array.from({ length: Math.ceil(alignmentData.h / 60) }).map((_, r) => (
+                      Array.from({ length: Math.ceil(alignmentData.w / 60) }).map((_, c) => {
                         const label = `${String.fromCharCode(65 + r)}${c + 1}`;
                         return (
-                          <g key={`${r}-${c}`}>
-                            <rect
-                              x={c * 60} y={r * 60} width="60" height="60"
-                              fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth={0.5 / zoom}
-                            />
-                            <text
-                              x={c * 60 + 30}
-                              y={r * 60 + 35}
-                              textAnchor="middle"
-                              className="fill-white/10 font-black pointer-events-none uppercase tracking-tighter"
-                              style={{ fontSize: '10px' }}
-                            >
-                              {label}
-                            </text>
-                          </g>
+                          <text
+                            key={`${r}-${c}`}
+                            x={c * 60 + 30}
+                            y={r * 60 + 35}
+                            textAnchor="middle"
+                            className="fill-white/20 font-black pointer-events-none uppercase tracking-tighter"
+                            style={{ fontSize: 14 / zoom }}
+                          >
+                            {label}
+                          </text>
                         );
                       })
                     ))}
                   </g>
-                );
-              })()}
-            </g>
+                )}
 
-            {/* PERIMETER MEASUREMENTS */}
-            <g>
-              {(() => {
-                const points = roomPoints ? roomPoints.map((p: any) => ({
-                  x: p.x - bounds.minX,
-                  y: p.y - bounds.minY
-                })) : [
-                  { x: 0, y: 0 }, { x: bounds.w, y: 0 }, { x: bounds.w, y: bounds.h }, { x: 0, y: bounds.h }
-                ];
+                {/* BAYS */}
+                {persistedRows.map(row => {
+                  if (!row.spatialMetadata) return null;
+                  const sm = JSON.parse(row.spatialMetadata);
+                  const pts = sm.points ? sm.points.map((p: any) => `${p.x - bounds.minX},${p.y - bounds.minY}`).join(' ') : "";
 
-                const measurements = [];
-                for (let i = 0; i < points.length; i++) {
-                  const p1 = points[i];
-                  const p2 = points[(i + 1) % points.length];
+                  const minX = sm.points ? Math.min(...sm.points.map((p: any) => p.x)) : 0;
+                  const maxX = sm.points ? Math.max(...sm.points.map((p: any) => p.x)) : 0;
+                  const bayW = maxX - minX;
 
-                  const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-                  const midX = (p1.x + p2.x) / 2;
-                  const midY = (p1.y + p2.y) / 2;
+                  const labelX = (sm.points ? sm.points.reduce((a: any, b: any) => a + b.x, 0) / sm.points.length : 0) - bounds.minX;
+                  const labelY = (sm.points ? sm.points.reduce((a: any, b: any) => a + b.y, 0) / sm.points.length : 0) - bounds.minY;
 
-                  // Normal vector for offset
-                  const dx = p2.x - p1.x;
-                  const dy = p2.y - p1.y;
-                  const angle = Math.atan2(dy, dx);
-                  const offsetX = Math.sin(angle) * (20 / zoom);
-                  const offsetY = -Math.cos(angle) * (20 / zoom);
-
-                  measurements.push(
-                    <g key={`measure-${i}`}>
-                      <text
-                        x={midX + offsetX} y={midY + offsetY}
-                        textAnchor="middle"
-                        className="fill-blue-400 font-black tracking-tighter"
-                        style={{ fontSize: 12 / zoom }}
-                      >
-                        {(dist / 100).toFixed(2)}m
-                      </text>
+                  return (
+                    <g key={row.id}>
+                      <polygon points={pts} fill="rgba(217, 70, 239, 0.08)" stroke="#d946ef" strokeWidth={4 / zoom} strokeDasharray="10 5" />
+                      <g transform={`translate(${labelX}, ${labelY})`}>
+                        <text textAnchor="middle" className="fill-white font-black uppercase tracking-[0.2em]" style={{ fontSize: 36 / zoom, paintOrder: 'stroke', stroke: 'black', strokeWidth: 4 / zoom }}>{row.name}</text>
+                        <text y={24 / zoom} textAnchor="middle" className="fill-fuchsia-400 font-bold italic" style={{ fontSize: 16 / zoom }}>{(bayW / 100).toFixed(2)}m Width</text>
+                      </g>
                     </g>
                   );
-                }
-                return measurements;
-              })()}
-            </g>
+                })}
 
-            <g>
-              {persistedRows.map(row => {
-                if (!row.spatialMetadata) return null;
-                const sm = JSON.parse(row.spatialMetadata);
+                {/* RACKS */}
+                {localRacks.map(rack => {
+                  const sm = typeof rack.spatialMetadata === 'string' ? JSON.parse(rack.spatialMetadata) : rack.spatialMetadata;
+                  if (!sm || !sm.points) return null;
+                  const pts = sm.points.map((p: any) => `${p.x - bounds.minX},${p.y - bounds.minY}`).join(' ');
+                  const lx = (sm.points.reduce((a: any, b: any) => a + b.x, 0) / sm.points.length) - bounds.minX;
+                  const ly = (sm.points.reduce((a: any, b: any) => a + b.y, 0) / sm.points.length) - bounds.minY;
 
-                // Si tiene puntos (formato nuevo), úsalos. Si no, usa x,y,w,h (formato viejo)
-                let ptsString = "";
-                if (sm.points) {
-                  ptsString = sm.points.map((p: any) => `${p.x - bounds.minX},${p.y - bounds.minY}`).join(' ');
-                } else {
-                  const nx = sm.x - bounds.minX;
-                  const ny = sm.y - bounds.minY;
-                  ptsString = `${nx},${ny} ${nx + sm.w},${ny} ${nx + sm.w},${ny + sm.h} ${nx},${ny + sm.h}`;
-                }
+                  const heat = calculateRackHeat(rack);
+                  const isCabinet = rack.type?.toUpperCase() === 'CABINET';
+                  const basePrimary = isCabinet ? '#94a3b8' : '#10b981';
+                  const baseFill = isCabinet ? 'rgba(71, 85, 105, 0.2)' : 'rgba(16, 185, 129, 0.15)';
 
-                // Centro del polígono para la etiqueta
-                const sumX = (sm.points || []).reduce((acc: number, p: any) => acc + p.x, 0) || (sm.x + sm.w / 2) * (sm.points?.length || 1);
-                const sumY = (sm.points || []).reduce((acc: number, p: any) => acc + p.y, 0) || (sm.y + sm.h / 2) * (sm.points?.length || 1);
-                const labelX = (sumX / (sm.points?.length || 1)) - bounds.minX;
-                const labelY = (sumY / (sm.points?.length || 1)) - bounds.minY;
+                  const fillColor = showHeatmap ? heat.color : baseFill;
+                  const strokeColor = showHeatmap ? heat.color : basePrimary;
 
-                return (
-                  <g key={row.id}>
-                    <polygon points={ptsString} fill="rgba(217, 70, 239, 0.03)" stroke="#d946ef" strokeWidth={2 / zoom} strokeDasharray={`${10 / zoom} ${5 / zoom}`} />
-                    <text x={labelX} y={labelY} textAnchor="middle" alignmentBaseline="middle" className="fill-white font-black uppercase tracking-widest drop-shadow-md" style={{ fontSize: 18 / zoom }}>{row.name}</text>
-                  </g>
-                );
-              })}
-
-              {localRacks.map(rack => {
-                const sm = typeof rack.spatialMetadata === 'string' ? JSON.parse(rack.spatialMetadata) : rack.spatialMetadata;
-                if (!sm || !sm.points) return null;
-
-                const ptsString = sm.points.map((p: any) => `${p.x - bounds.minX},${p.y - bounds.minY}`).join(' ');
-                const isCab = rack.type === 'CABINET';
-                const heat = calculateRackHeat(rack);
-
-                // Centro del rack para el texto
-                const labelX = (sm.points.reduce((acc: number, p: any) => acc + p.x, 0) / sm.points.length) - bounds.minX;
-                const labelY = (sm.points.reduce((acc: number, p: any) => acc + p.y, 0) / sm.points.length) - bounds.minY;
-
-                return (
-                  <g key={rack.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); if (!isDrafting) setSelectedContainer(rack); }}>
-                    {/* THERMAL GLOW */}
-                    {showHeatmap && heat.power > 0 && (
-                      <polygon
-                        points={ptsString}
-                        fill={heat.color} opacity={heat.opacity}
-                        className="transition-all duration-1000 blur-2xl"
+                  return (
+                    <g key={rack.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); if (!isDrafting) setSelectedContainer(rack); }}>
+                      <polygon 
+                        points={pts} 
+                        fill={fillColor} 
+                        stroke={strokeColor} 
+                        strokeWidth={(showHeatmap ? 6 : 3) / zoom} 
+                        className="transition-all duration-700 group-hover:stroke-white" 
+                        style={{ fillOpacity: showHeatmap ? 0.6 : 0.8 }}
                       />
-                    )}
+                      {showHeatmap && (
+                         <polygon points={pts} fill={heat.color} className="animate-pulse" style={{ opacity: 0.2 }} />
+                      )}
+                      <text x={lx} y={ly} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter" style={{ fontSize: 18 / zoom, paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.5)', strokeWidth: 2 / zoom }}>{rack.name}</text>
+                    </g>
+                  );
+                })}
 
-                    <polygon
-                      points={ptsString}
-                      fill={isCab ? 'rgba(71, 85, 105, 0.2)' : (showHeatmap && heat.power > 0 ? `${heat.color}40` : 'rgba(16, 185, 129, 0.15)')}
-                      stroke={isCab ? '#94a3b8' : (showHeatmap && heat.power > 0 ? heat.color : '#10b981')}
-                      strokeWidth={(isCab ? 3 : 2) / zoom}
-                      className="transition-all group-hover:stroke-white shadow-2xl"
-                    />
-                    <text x={labelX} y={labelY} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter drop-shadow-sm" style={{ fontSize: 10 / zoom }}>{rack.name}</text>
-                  </g>
-                );
-              })}
-
-              {positions.map(pos => {
-                const x = ((Number(pos.col) || 1) - 1) * TILE_SIZE + 8, y = ((Number(pos.row) || 1) - 1) * TILE_SIZE + 8;
-                const isOccupied = pos.status !== 'EMPTY';
-                return <rect key={pos.id} x={x} y={y} width={TILE_SIZE - 16} height={TILE_SIZE - 16} rx="4" fill={isOccupied ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.01)'} stroke={isOccupied ? '#3b82f6' : 'rgba(255,255,255,0.04)'} strokeWidth={1 / zoom} />;
-              })}
-
-              {localElements.map(el => {
-                const ptsString = (el.points || []).map((p: any) => `${p.x},${p.y}`).join(' ');
-
-                if (el.type === 'REFERENCE') {
-                  const color = el.symbol === 'DOOR' ? '#ef4444' : (el.symbol === 'COLUMN' ? '#3b82f6' : (el.symbol === 'HVAC' ? '#06b6d4' : '#10b981'));
+                {/* REFERENCE ICONS & DRAFTING ELEMENTS */}
+                {localElements.map(el => {
+                  const ptsString = (el.points || []).map((p: any) => `${p.x},${p.y}`).join(' ');
+                  if (el.type === 'REFERENCE') {
+                    const color = el.symbol === 'DOOR' ? '#ef4444' : (el.symbol === 'COLUMN' ? '#3b82f6' : '#10b981');
+                    return (
+                      <g key={el.id}>
+                        <polygon points={ptsString} fill={`${color}30`} stroke={color} strokeWidth={3 / zoom} />
+                        <text x={el.points[0].x} y={el.points[0].y} dy="-5" className="fill-white font-black uppercase" style={{ fontSize: 8 / zoom }}>{el.symbol}</text>
+                      </g>
+                    );
+                  }
                   return (
                     <g key={el.id}>
-                      <polygon points={ptsString} fill={`${color}20`} stroke={color} strokeWidth={2 / zoom} />
-                      {/* Technical detail for Doors */}
-                      {el.symbol === 'DOOR' && (
-                        <circle cx={el.points[0].x} cy={el.points[0].y} r={30 / zoom} fill="none" stroke={color} strokeWidth={1 / zoom} strokeDasharray="2 2" />
-                      )}
-                      {/* Technical detail for HVAC */}
-                      {el.symbol === 'HVAC' && (
-                        <path d={`M ${el.points[0].x} ${el.points[0].y} L ${el.points[2].x} ${el.points[2].y} M ${el.points[1].x} ${el.points[1].y} L ${el.points[3].x} ${el.points[3].y}`} stroke={color} strokeWidth={1 / zoom} opacity={0.5} />
-                      )}
-                      <text x={el.points[0].x} y={el.points[0].y} dy="-5" className="fill-white/40 text-[6px] font-black uppercase">{el.symbol}</text>
+                      <polygon points={ptsString} fill="rgba(255,255,255,0.05)" stroke="white" strokeWidth={1 / zoom} strokeDasharray="5 5" />
                     </g>
                   );
-                }
+                })}
 
-                return (
-                  <g key={el.id}>
-                    <polygon
-                      points={ptsString}
-                      fill={el.type === 'BAY' ? 'rgba(217,70,239,0.1)' : (el.cType === 'CABINET' ? 'rgba(148, 163, 184, 0.2)' : 'rgba(245,158,11,0.2)')}
-                      stroke={el.type === 'BAY' ? '#d946ef' : (el.cType === 'CABINET' ? '#94a3b8' : '#f59e0b')}
-                      strokeWidth={2 / zoom} strokeDasharray={`${6 / zoom} ${4 / zoom}`}
-                    />
-                  </g>
-                );
-              })}
+                {/* GHOST / ACTIVE DRAFTING FEEDBACK */}
+                {activeTool === 'BAY_DRAFTING' && activePoints.length === 1 && ghostPoint && alignmentData && (
+                  (() => {
+                    const u1 = rotatePoint(activePoints[0].x, activePoints[0].y, -alignmentData.angle, alignmentData.centerX, alignmentData.centerY);
+                    const u2 = rotatePoint(ghostPoint.x, ghostPoint.y, -alignmentData.angle, alignmentData.centerX, alignmentData.centerY);
+                    const ux = Math.min(u1.x, u2.x);
+                    const uy = Math.min(u1.y, u2.y);
+                    const uw = Math.abs(u1.x - u2.x);
+                    const uh = Math.abs(u1.y - u2.y);
+                    const uPts = [{ x: ux, y: uy }, { x: ux + uw, y: uy }, { x: ux + uw, y: uy + uh }, { x: ux, y: uy + uh }];
+                    const wPts = uPts.map(p => rotatePoint(p.x, p.y, alignmentData.angle, alignmentData.centerX, alignmentData.centerY));
+                    const ptsStr = wPts.map(p => `${p.x},${p.y}`).join(' ');
+                    return (
+                      <g>
+                        <polygon points={ptsStr} fill="rgba(217, 70, 239, 0.2)" stroke="#d946ef" strokeWidth={2 / zoom} strokeDasharray="5 5" />
+                        <text x={wPts[0].x} y={wPts[0].y} dy="-10" className="fill-fuchsia-400 font-black" style={{ fontSize: 12 / zoom }}>{(uw / 100).toFixed(2)}m Width</text>
+                      </g>
+                    );
+                  })()
+                )}
+              </g>
             </g>
-          </g>
+          </svg>
 
-          <text x={bounds.w / 2} y={bounds.h / 2} textAnchor="middle" className="fill-white/[0.03] font-black uppercase italic tracking-tighter select-none pointer-events-none" style={{ fontSize: 120 / zoom }}>AppM</text>
-        </svg>
-
-        <div className="absolute bottom-10 left-10 flex flex-col gap-3 bg-black/60 backdrop-blur-xl p-6 rounded-[32px] border border-white/10 shadow-2xl animate-in slide-in-from-left-4 duration-700">
-          <h4 className="text-[8px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">Referencia Técnica</h4>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-            <LegendItem icon={<div className="w-3 h-3 bg-blue-500 rounded-sm shadow-[0_0_10px_rgba(59,130,246,0.4)]" />} label="Equipos Activos" />
-            <LegendItem icon={<div className="w-3 h-3 bg-fuchsia-500 rounded-sm shadow-[0_0_10px_rgba(217,70,239,0.4)]" />} label="Bahías de Pasillo" />
-            <LegendItem icon={<div className="w-3 h-3 bg-emerald-500 rounded-sm shadow-[0_0_10px_rgba(16,185,129,0.4)]" />} label="Racks Estándar" />
-            <LegendItem icon={<div className="w-3 h-3 bg-slate-500 rounded-sm" />} label="Gabinete / Cabinet" />
-            <LegendItem icon={<div className="w-3 h-3 border border-white/20 rounded-sm bg-white/5" />} label="Mosaico 60x60 (A1...)" />
-            <LegendItem icon={<div className="w-3 h-[2px] bg-blue-500 shadow-[0_0_5px_#3b82f6]" />} label="Perímetro de Sala" />
+          {/* FLOATING LEGEND */}
+          <div className="absolute bottom-8 right-8 z-[160] pointer-events-none animate-in fade-in slide-in-from-right-4 duration-700">
+            <div className="glass-panel p-6 rounded-[32px] border border-white/10 pointer-events-auto bg-[#0a0a0f]/60 backdrop-blur-xl shadow-2xl space-y-4">
+              <h3 className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] px-1 italic">REFERENCIA TÉCNICA</h3>
+              <div className="space-y-3">
+                <LegendItem icon={<div className="w-3 h-3 bg-blue-500 rounded-sm" />} label="Equipos Activos" />
+                <LegendItem icon={<div className="w-3 h-3 bg-fuchsia-500/20 border border-fuchsia-500/50 rounded-sm" />} label="Bahías De Pasillo" />
+                <LegendItem icon={<div className="w-3 h-3 bg-emerald-500/30 border border-emerald-500 rounded-sm" />} label="Racks Estándar" />
+                <LegendItem icon={<div className="w-3 h-3 bg-slate-500/30 border border-slate-400 rounded-sm" />} label="Gabinete/Cabinet" />
+                <LegendItem icon={<div className="text-[10px] font-black text-white/20">A1</div>} label="Mosaico 60x60 (A1...)" />
+                <LegendItem icon={<div className="w-3 h-[2px] bg-blue-500 shadow-[0_0_5px_#3b82f6]" />} label="Perímetro De Sala" />
+              </div>
+            </div>
           </div>
         </div>
       </div>

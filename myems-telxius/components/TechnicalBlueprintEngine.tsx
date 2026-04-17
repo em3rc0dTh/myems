@@ -22,6 +22,8 @@ interface BlueprintProps {
   onDrawingComplete?: (points: Point[]) => void;
   onElementAdded?: (element: any) => void;
   onElementUpdated?: (element: any) => void;
+  onElementHover?: (id: string | null) => void;
+  onElementClick?: (id: string) => void;
   activeTool?: 'POLYGON' | 'CLUSTER_STAMP' | 'MOVE' | 'REFERENCE_SYMBOL' | null;
   stampSize?: { w: number, h: number };
 }
@@ -42,6 +44,8 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
   onDrawingComplete,
   onElementAdded,
   onElementUpdated,
+  onElementHover,
+  onElementClick,
   activeTool = 'POLYGON',
   stampSize = { w: 60, h: 60 }
 }) => {
@@ -224,10 +228,12 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
   };
 
   const dynamicViewBox = useMemo(() => {
-    const w = (widthCm || 1000) / (zoom || 1);
-    const h = (heightCm || 1000) / (zoom || 1);
-    const x = (viewBoxX || 0) + (pan.x || 0);
-    const y = (viewBoxY || 0) + (pan.y || 0);
+    // Add significant padding for a better feel
+    const padding = 1000;
+    const w = (widthCm + padding * 2) / (zoom || 1);
+    const h = (heightCm + padding * 2) / (zoom || 1);
+    const x = (viewBoxX - padding) + (pan.x || 0);
+    const y = (viewBoxY - padding) + (pan.y || 0);
     return `${x} ${y} ${w} ${h}`;
   }, [widthCm, heightCm, viewBoxX, viewBoxY, zoom, pan]);
 
@@ -300,53 +306,114 @@ const TechnicalBlueprintEngine: React.FC<BlueprintProps> = ({
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
-          <pattern id="blueprint-grid" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
-            <path d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth={1 / zoom} />
+          <pattern id="blueprint-grid-small" width={gridSize / 5} height={gridSize / 5} patternUnits="userSpaceOnUse">
+            <path d={`M ${gridSize / 5} 0 L 0 0 0 ${gridSize / 5}`} fill="none" stroke="rgba(56, 189, 248, 0.03)" strokeWidth={0.5 / zoom} />
           </pattern>
+          <pattern id="blueprint-grid" width={gridSize} height={gridSize} patternUnits="userSpaceOnUse">
+            <path d={`M ${gridSize} 0 L 0 0 0 ${gridSize}`} fill="none" stroke="rgba(56, 189, 248, 0.08)" strokeWidth={1 / zoom} />
+          </pattern>
+          
+          <filter id="glow">
+            <feGaussianBlur stdDeviation={10 / zoom} result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
         </defs>
 
-        {showGrid && <rect x={viewBoxX + pan.x} y={viewBoxY + pan.y} width={widthCm / zoom} height={heightCm / zoom} fill="url(#blueprint-grid)" />}
+        <rect x={viewBoxX - 2000} y={viewBoxY - 2000} width={widthCm + 4000} height={heightCm + 4000} fill="url(#blueprint-grid-small)" />
+        <rect x={viewBoxX - 2000} y={viewBoxY - 2000} width={widthCm + 4000} height={heightCm + 4000} fill="url(#blueprint-grid)" />
 
         {isEditable && activePoints.length > 0 && activeTool === 'POLYGON' && (
           <g>
-            <polyline points={activePoints.map(p => `${p.x},${p.y}`).join(' ')} fill="rgba(59, 130, 246, 0.1)" stroke="#3b82f6" strokeWidth={2 / zoom} strokeDasharray={`${4 / zoom} ${2 / zoom}`} />
+            <polyline points={activePoints.map(p => `${p.x},${p.y}`).join(' ')} fill="rgba(56, 189, 248, 0.1)" stroke="#38bdf8" strokeWidth={3 / zoom} strokeDasharray={`${8 / zoom} ${4 / zoom}`} />
             {activePoints.map((p, i) => (
-              <circle key={i} cx={p.x} cy={p.y} r={8 / zoom} fill="#3b82f6" className="animate-pulse" />
+              <circle key={i} cx={p.x} cy={p.y} r={12 / zoom} fill="#38bdf8" filter="url(#glow)" className="animate-pulse" />
             ))}
           </g>
         )}
 
-        <polyline points={boundaryPoints.length > 0 ? [...boundaryPoints, boundaryPoints[0]].map(p => `${p.x},${p.y}`).join(' ') : ""} fill="rgba(15, 23, 42, 0.6)" stroke="#475569" strokeWidth={3 / zoom} />
+        {/* SITE BOUNDARY - PREMIUM STYLE */}
+        <g filter="url(#glow)">
+          <polyline 
+            points={boundaryPoints.length > 0 ? [...boundaryPoints, boundaryPoints[0]].map(p => `${p.x},${p.y}`).join(' ') : ""} 
+            fill="rgba(2, 6, 23, 0.4)" 
+            stroke="#0ea5e9" 
+            strokeWidth={6 / zoom} 
+            strokeDasharray={`${20 / zoom} ${10 / zoom}`}
+            opacity={0.6}
+          />
+          <polyline 
+            points={boundaryPoints.length > 0 ? [...boundaryPoints, boundaryPoints[0]].map(p => `${p.x},${p.y}`).join(' ') : ""} 
+            fill="none" 
+            stroke="#0ea5e9" 
+            strokeWidth={1 / zoom} 
+          />
+          {/* CORNER ACCENTS */}
+          {boundaryPoints.map((p, i) => (
+            <g key={`corner-${i}`} transform={`translate(${p.x}, ${p.y})`}>
+              <path d={`M ${-40/zoom} 0 L ${40/zoom} 0 M 0 ${-40/zoom} L 0 ${40/zoom}`} stroke="#38bdf8" strokeWidth={2/zoom} />
+              <rect x={-10/zoom} y={-10/zoom} width={20/zoom} height={20/zoom} fill="#38bdf8" />
+            </g>
+          ))}
+        </g>
 
         {elements.map(zone => {
           const isReference = zone.type === 'REFERENCE';
           const pointsStr = zone.points?.map((p: any) => `${p.x},${p.y}`).join(' ');
           
           return (
-            <g key={zone.id} onMouseDown={(e) => handleDragStart(e, zone)} className={`${internalEditable && activeTool === 'MOVE' ? 'cursor-grab active:cursor-grabbing hover:filter hover:brightness-125' : ''}`}>
+            <g 
+              key={zone.id} 
+              onMouseDown={(e) => handleDragStart(e, zone)} 
+              onMouseEnter={() => onElementHover?.(zone.id)}
+              onMouseLeave={() => onElementHover?.(null)}
+              onClick={() => onElementClick?.(zone.id)}
+              className={`${internalEditable && activeTool === 'MOVE' ? 'cursor-grab active:cursor-grabbing hover:filter hover:brightness-125' : (onElementClick ? 'cursor-pointer hover:filter hover:brightness-110' : '')}`}
+            >
               {zone.points && (
                 <polygon 
                   points={pointsStr} 
-                  fill={isReference ? 'rgba(239, 68, 68, 0.2)' : (zone.color || 'rgba(59, 130, 246, 0.1)')} 
-                  stroke={isReference ? '#ef4444' : (zone.color || '#3b82f6')} 
-                  strokeWidth={(draggingElement?.id === zone.id ? 3 : 1.5) / zoom} 
-                  strokeDasharray={(!isReference && draggingElement?.id !== zone.id) ? `${4 / zoom} ${2 / zoom}` : ""} 
+                  fill={isReference ? 'rgba(239, 68, 68, 0.1)' : (zone.color || 'rgba(14, 165, 233, 0.2)')} 
+                  stroke={isReference ? '#ef4444' : (zone.color || '#0ea5e9')} 
+                  strokeWidth={(draggingElement?.id === zone.id ? 5 : (zone.isHovered ? 4 : 2.5)) / zoom} 
+                  strokeDasharray={(!isReference && draggingElement?.id !== zone.id) ? `${10 / zoom} ${5 / zoom}` : ""} 
+                  className="transition-all duration-300"
                 />
               )}
               {isReference && zone.points && (
-                <text x={zone.points[0].x} y={zone.points[0].y} dy="-5" className="fill-white/40 font-black uppercase tracking-widest" style={{ fontSize: 18 / zoom }}>{zone.symbol || 'REF'}</text>
+                <g>
+                  {zone.symbol === 'DOOR' && (
+                    <path 
+                      d={`M ${zone.points[0].x} ${zone.points[0].y} A ${100} ${100} 0 0 1 ${zone.points[1].x} ${zone.points[1].y}`} 
+                      fill="none" stroke="#ef4444" strokeWidth={5/zoom} strokeDasharray="10 5" 
+                    />
+                  )}
+                  {zone.symbol === 'WINDOW' && (
+                    <path d={`M ${zone.points[0].x} ${zone.points[0].y} L ${zone.points[1].x} ${zone.points[1].y}`} stroke="#38bdf8" strokeWidth={8/zoom} />
+                  )}
+                  <text x={zone.points[0].x} y={zone.points[0].y} dy="-12" className="fill-white/80 font-black uppercase tracking-[0.2em] italic" style={{ fontSize: 32 / zoom }}>
+                    {zone.symbol}
+                  </text>
+                </g>
               )}
               {zone.label && zone.points && zone.points.length >= 3 && !isReference && (
-                <text 
-                  x={zone.points.reduce((acc: number, p: any) => acc + p.x, 0) / zone.points.length} 
-                  y={zone.points.reduce((acc: number, p: any) => acc + p.y, 0) / zone.points.length} 
-                  textAnchor="middle" 
-                  dominantBaseline="central"
-                  className="fill-white font-black uppercase tracking-widest pointer-events-none italic drop-shadow-lg" 
-                  style={{ fontSize: 48 / zoom }}
-                >
-                  {zone.label}
-                </text>
+                <g transform={`translate(${zone.points.reduce((acc: number, p: any) => acc + p.x, 0) / zone.points.length}, ${zone.points.reduce((acc: number, p: any) => acc + p.y, 0) / zone.points.length})`}>
+                  <text 
+                    textAnchor="middle" 
+                    dominantBaseline="central"
+                    className="fill-white font-black uppercase tracking-[0.2em] pointer-events-none" 
+                    style={{ 
+                      fontSize: 120 / zoom,
+                      paintOrder: 'stroke',
+                      stroke: 'rgba(0,0,0,0.8)',
+                      strokeWidth: 4 / zoom,
+                    }}
+                  >
+                    {zone.label}
+                  </text>
+                </g>
               )}
             </g>
           );

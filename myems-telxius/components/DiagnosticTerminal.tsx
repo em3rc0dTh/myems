@@ -25,7 +25,7 @@ export default function DiagnosticTerminal() {
     return (
         <AnimatePresence>
             {isOpen && (
-                <motion.div 
+                <motion.div
                     initial={{ x: 500, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 500, opacity: 0 }}
@@ -36,16 +36,16 @@ export default function DiagnosticTerminal() {
                     <div className="flex justify-between items-center mb-8 border-b border-white/10 pb-4 shrink-0">
                         <div className="flex flex-col">
                             <span className="text-cyan-400 font-black text-xs uppercase tracking-[0.2em] animate-pulse">Diagnostic Terminal</span>
-                            <span className="text-[8px] text-slate-500 uppercase tracking-widest mt-1">Telxius Global Network Telemetry Analyzer v5.0</span>
+                            <span className="text-[8px] text-slate-500 uppercase tracking-widest mt-1">AppM Global Network Telemetry Analyzer v5.0</span>
                         </div>
-                        <button 
+                        <button
                             onClick={() => setIsOpen(false)}
                             className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-colors"
                         >
                             ✕
                         </button>
                     </div>
-                    
+
                     {/* Lista de Paquetes */}
                     <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
                         {rawLogs.length === 0 ? (
@@ -74,7 +74,7 @@ export default function DiagnosticTerminal() {
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             <span className="text-[8px] text-slate-500 uppercase tracking-widest">Relay Active</span>
                         </div>
-                        <button 
+                        <button
                             onClick={() => setRawLogs([])}
                             className="text-[9px] font-black text-rose-500/60 hover:text-rose-400 uppercase tracking-widest transition-colors"
                         >

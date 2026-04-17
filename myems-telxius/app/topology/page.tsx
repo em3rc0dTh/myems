@@ -75,13 +75,13 @@ const STEPS = [
     endpoint: '/telxius/api/bulk/sites/',
     templateName: '01_site_template.json',
     sample: [
-      { 
-        name: "Datacenter Lurin", 
+      {
+        name: "Datacenter Lurin",
         address: "Panamericana Sur Km 35",
         geoCoords: "-12.2530, -76.8820",
-        width: 155.0, 
-        length: 120.0, 
-        isLogical: false 
+        width: 155.0,
+        length: 120.0,
+        isLogical: false
       }
     ]
   },
@@ -92,13 +92,13 @@ const STEPS = [
     icon: Inbox,
     endpoint: '/telxius/api/bulk/devices/?isCatalog=true',
     templateName: '02_catalog_template.json',
-    sample: [{ 
-      name: "BDFB-TEMPLATE-V1", 
-      category: "BDFB", 
-      uHeight: 44, 
-      physWidth: 60, 
-      physDepth: 60, 
-      physHeight: 200 
+    sample: [{
+      name: "BDFB-TEMPLATE-V1",
+      category: "BDFB",
+      uHeight: 44,
+      physWidth: 60,
+      physDepth: 60,
+      physHeight: 200
     }]
   }
   // },
@@ -245,7 +245,7 @@ export default function CascadeIngestionPage() {
               <h1 className="text-3xl font-black uppercase italic tracking-tighter">
                 Cascade <span className="text-sky-400 not-italic">Ingestion Wizard</span>
               </h1>
-              <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] mt-1">Infrastructure as Code • Telxius Node Management</p>
+              <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] mt-1">Infrastructure as Code </p>
             </div>
           </div>
           <div className="flex gap-2">

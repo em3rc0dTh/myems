@@ -69,6 +69,8 @@ model District {
 model Site {
   id              String      @id @default(auto()) @map("_id") @db.ObjectId
   name            String
+  alias           String?     // Alias for the site (e.g. DC01)
+  description     String?     // Detailed description
   districtId      String      @db.ObjectId
   district        District    @relation(fields: [districtId], references: [id])
   address         String?

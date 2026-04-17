@@ -460,7 +460,7 @@ const BDFBDetailPage: React.FC = () => {
                                             <div className="grid grid-cols-2 gap-4">
                                                 <MetricCard label="Voltage" value={displayTelemetry.voltage} unit="V" color="text-accent-primary" stats={displayTelemetry.voltageHistory} isLive={displayTelemetry.isLive} />
                                                 <MetricCard label="Current" value={displayTelemetry.current} unit="A" color={(displayTelemetry as any).statusColor || "text-accent-secondary"} stats={displayTelemetry.currentHistory} isLive={displayTelemetry.isLive} />
-                                                <MetricCard label="Power" value={displayTelemetry.power} unit="kW" color="text-success" stats={displayTelemetry.powerHistory} isLive={displayTelemetry.isLive} />
+                                                <MetricCard label="Power" value={displayTelemetry.power} unit={parseFloat(displayTelemetry.power) > 100 ? "W" : "kW"} color="text-success" stats={displayTelemetry.powerHistory} isLive={displayTelemetry.isLive} />
                                                 <MetricCard label="Energy" value={displayTelemetry.energy} unit="kWh" color="text-warning" stats={displayTelemetry.energyHistory} isLive={displayTelemetry.isLive} />
                                             </div>
 

@@ -13,9 +13,10 @@ interface TreeItemProps {
   sn?: string;
   children?: React.ReactNode;
   isInitialOpen?: boolean;
+  onSelect?: () => void;
 }
 
-const TreeItem: React.FC<TreeItemProps> = ({ label, type, count, sn, children, isInitialOpen = false }) => {
+const TreeItem: React.FC<TreeItemProps> = ({ label, type, count, sn, children, isInitialOpen = false, onSelect }) => {
   const [isOpen, setIsOpen] = useState(isInitialOpen);
 
   const getIcon = () => {
@@ -60,6 +61,15 @@ const TreeItem: React.FC<TreeItemProps> = ({ label, type, count, sn, children, i
           )}
         </div>
 
+        {onSelect && (
+          <button 
+            onClick={(e) => { e.stopPropagation(); onSelect(); }}
+            className="p-1 px-2 bg-sky-500/10 hover:bg-sky-500 text-sky-400 hover:text-black rounded text-[8px] font-black uppercase tracking-widest transition-all opacity-0 group-hover:opacity-100"
+          >
+            GO
+          </button>
+        )}
+
         {count !== undefined && (
           <span className="text-[9px] font-black text-slate-600 bg-black/40 px-2 py-0.5 rounded-full border border-white/5">{count}</span>
         )}
@@ -74,7 +84,17 @@ const TreeItem: React.FC<TreeItemProps> = ({ label, type, count, sn, children, i
   );
 };
 
-export default function MasterInventoryTree() {
+export default function MasterInventoryTree({ 
+    limitToSiteId,
+    onNavigateSite,
+    onNavigateStructure,
+    onNavigateRoom
+  }: { 
+    limitToSiteId?: string | null;
+    onNavigateSite?: (siteId: string, siteName: string) => void;
+    onNavigateStructure?: (id: string, name: string) => void;
+    onNavigateRoom?: (id: string, name: string) => void;
+  }) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -82,62 +102,79 @@ export default function MasterInventoryTree() {
     fetch('/telxius/api/topology/tree/')
       .then(res => res.json())
       .then(json => {
-        if (json.ok) setData(json.data);
+        if (json.ok) {
+          let treeData = json.data;
+          if (limitToSiteId) {
+            treeData = treeData.filter((s: any) => s.id === limitToSiteId);
+          }
+          setData(treeData);
+        }
         setLoading(false);
       });
-  }, []);
+  }, [limitToSiteId]);
 
   if (loading) {
     return (
       <div className="p-20 flex flex-col items-center justify-center text-center">
         <Activity className="w-10 h-10 text-sky-500 animate-spin mb-4" />
-        <h3 className="text-sm font-black text-white uppercase tracking-widest italic">Generando Árbol Estructural...</h3>
-        <p className="text-[10px] text-slate-500 mt-2 uppercase tracking-[0.2em]">Cargando jerarquía de activos Telxius</p>
+        <h3 className="text-sm font-black text-white uppercase tracking-widest italic">Syncing Layers...</h3>
+        <p className="text-[10px] text-slate-500 mt-2 uppercase tracking-[0.2em]">Audit in progress</p>
       </div>
     );
   }
 
   return (
-    <div className="p-8 bg-black/20 rounded-3xl border border-white/5 backdrop-blur-3xl overflow-hidden max-h-[800px] overflow-y-auto custom-scrollbar">
-      <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
-        <div>
-          <h2 className="text-xl font-black text-white uppercase italic tracking-tighter">Full Stack <span className="text-sky-400">Inventory</span></h2>
-          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-[0.3em] mt-1">Navegación Vertical de Activos • Milimétrica</p>
+    <div className="p-2 space-y-2">
+      {data.length === 0 && (
+        <div className="p-10 text-center opacity-30">
+          <p className="text-[10px] font-black text-slate-500 uppercase italic">No context available</p>
         </div>
-        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
-          <span className="px-4 py-2 text-[8px] font-black text-slate-400 uppercase tracking-widest">Master Root: TELXIUS</span>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        {data.map(site => (
-          <TreeItem key={site.id} label={site.name} type="SITE" count={site.structures?.length} isInitialOpen={true}>
-            {site.structures?.map((struct: any) => (
-              <TreeItem key={struct.id} label={struct.name} type="STRUCTURE">
-                {struct.levels?.map((level: any) => (
-                  <TreeItem key={level.id} label={level.name} type="LEVEL">
-                    {level.rooms?.map((room: any) => (
-                      <TreeItem key={room.id} label={room.name} type="ROOM" count={room.racks?.length}>
-                        {room.racks?.map((rack: any) => (
-                          <TreeItem key={rack.id} label={rack.name} type="RACK">
-                            {rack.devices?.map((dev: any) => (
-                              <TreeItem key={dev.id} label={dev.name} type="WRAPPER">
-                                {dev.equipments?.map((eq: any) => (
-                                  <EquipmentNode key={eq.id} equipment={eq} />
-                                ))}
-                              </TreeItem>
-                            ))}
-                          </TreeItem>
-                        ))}
-                      </TreeItem>
-                    ))}
-                  </TreeItem>
-                ))}
-              </TreeItem>
-            ))}
-          </TreeItem>
-        ))}
-      </div>
+      )}
+      {data.map(site => (
+        <TreeItem 
+            key={site.id} 
+            label={site.name} 
+            type="SITE" 
+            count={site.structures?.length} 
+            isInitialOpen={true}
+            onSelect={onNavigateSite ? () => onNavigateSite(site.id, site.name) : undefined}
+        >
+          {site.structures?.map((struct: any) => (
+            <TreeItem 
+                key={struct.id} 
+                label={struct.name} 
+                type="STRUCTURE"
+                onSelect={onNavigateStructure ? () => onNavigateStructure(struct.id, struct.name) : undefined}
+            >
+              {struct.levels?.map((level: any) => (
+                <TreeItem key={level.id} label={level.name} type="LEVEL">
+                  {level.rooms?.map((room: any) => (
+                    <TreeItem 
+                        key={room.id} 
+                        label={room.name} 
+                        type="ROOM" 
+                        count={room.racks?.length}
+                        onSelect={onNavigateRoom ? () => onNavigateRoom(room.id, room.name) : undefined}
+                    >
+                      {room.racks?.map((rack: any) => (
+                        <TreeItem key={rack.id} label={rack.name} type="RACK">
+                          {rack.devices?.map((dev: any) => (
+                            <TreeItem key={dev.id} label={dev.name} type="WRAPPER">
+                              {dev.equipments?.map((eq: any) => (
+                                <EquipmentNode key={eq.id} equipment={eq} />
+                              ))}
+                            </TreeItem>
+                          ))}
+                        </TreeItem>
+                      ))}
+                    </TreeItem>
+                  ))}
+                </TreeItem>
+              ))}
+            </TreeItem>
+          ))}
+        </TreeItem>
+      ))}
     </div>
   );
 }

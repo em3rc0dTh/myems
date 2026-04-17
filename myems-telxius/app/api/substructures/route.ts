@@ -93,6 +93,24 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ ok: false, error: "id requerido" }, { status: 400 });
   try {
+    const room = await prisma.substructure.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { racks: true, rows: true }
+        }
+      }
+    });
+
+    if (!room) return NextResponse.json({ ok: false, error: "Sala no encontrada" }, { status: 404 });
+
+    if (room._count.racks > 0 || room._count.rows > 0) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: `No se puede eliminar: La sala tiene ${room._count.rows} bahías y ${room._count.racks} racks instalados.` 
+      }, { status: 400 });
+    }
+
     await prisma.substructure.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (e: any) {

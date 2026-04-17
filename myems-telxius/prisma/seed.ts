@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log("🛡️ Iniciando SEED - Fase 0: Seguridad (Admin por defecto)...");
-  
+
   const userCount = await prisma.user.count();
   if (userCount === 0) {
     const hash = await bcrypt.hash("admin123", 10);
@@ -68,6 +68,8 @@ async function main() {
     site = await prisma.site.create({
       data: {
         name: "Lurín DC01",
+        alias: "LURIN-01",
+        description: "Datacenter Principal de Telxius en Lurín. Capa 1 de Infraestructura Crítica.",
         districtId: district.id,
         address: "Panamericana Sur Km. 35, Lurín, Lima, Perú",
         geoCoords: "-12.2741, -76.8711",

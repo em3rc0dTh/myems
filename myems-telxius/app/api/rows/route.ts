@@ -52,3 +52,33 @@ export async function POST(req: NextRequest) {
     await prisma.$disconnect();
   }
 }
+export async function DELETE(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ ok: false, error: "id requerido" }, { status: 400 });
+  try {
+    const row = await prisma.row.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { containers: true }
+        }
+      }
+    });
+
+    if (!row) return NextResponse.json({ ok: false, error: "Bahía no encontrada" }, { status: 404 });
+
+    if (row._count.containers > 0) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: `No se puede eliminar: La bahía tiene ${row._count.containers} racks instalados.` 
+      }, { status: 400 });
+    }
+
+    await prisma.row.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
+  }
+}

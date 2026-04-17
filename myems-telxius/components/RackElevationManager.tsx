@@ -2,7 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, Cpu, Server, Layers, Plus, Save, Trash2, Activity, Info, ExternalLink, Settings, FileJson } from 'lucide-react';
 import Swal from 'sweetalert2';
+import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
+import RackElevation from './RackElevation';
+import EquipmentEditorModal from './EquipmentEditorModal';
 
 interface RackElevationManagerProps {
   container: any;
@@ -255,6 +258,37 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
          <button className="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 transition-all border border-white/5">
             Reporte PDF
          </button>
+         {isAdmin && (
+           <button 
+             onClick={async () => {
+               const result = await Swal.fire({
+                 title: '¿Eliminar Contenedor?',
+                 text: "Se verificará que el rack esté vacío antes de proceder.",
+                 icon: 'warning',
+                 showCancelButton: true,
+                 confirmButtonColor: '#ef4444',
+                 confirmButtonText: 'ELIMINAR RACK',
+                 background: '#020617',
+                 color: '#fff'
+               });
+
+               if (result.isConfirmed) {
+                 const res = await fetch(`/telxius/api/containers/?id=${container.id}`, { method: 'DELETE' });
+                 const data = await res.json();
+                 if (data.ok) {
+                   Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Rack eliminado', showConfirmButton: false, timer: 2000, background: '#020617', color: '#fff' });
+                   onUpdate?.();
+                   onClose();
+                 } else {
+                   Swal.fire({ icon: 'error', title: 'Error', text: data.error, background: '#020617', color: '#fff' });
+                 }
+               }
+             }}
+             className="flex-1 py-3 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-rose-500/20"
+           >
+             Eliminar Rack
+           </button>
+         )}
       </div>
 
       {/* COMPONENT EDITOR MODAL */}
