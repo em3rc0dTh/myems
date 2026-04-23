@@ -111,7 +111,7 @@ export default function ModuleDetail() {
         async function loadLastState() {
             try {
                 // Pedimos el último estado de potencia (P) para inicializar
-                const res = await fetch(`/telxius/api/history/?sn=${sn}&field=P&range=1h`);
+                const res = await fetch(`/appm-ems/api/history/?sn=${sn}&field=P&range=1h`);
                 const data = await res.json();
                 
                 if (Array.isArray(data) && data.length > 0) {

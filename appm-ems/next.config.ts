@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  basePath: '/telxius',
+  basePath: '/appm-ems',
   trailingSlash: true,
   eslint: {
     ignoreDuringBuilds: true,

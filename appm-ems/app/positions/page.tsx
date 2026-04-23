@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import RackElevation from "@/components/RackElevation";
 
-const BASE = "/telxius";
+const BASE = "/appm-ems";
 async function api(path: string, opts?: RequestInit) {
   // Aseguramos slash final antes de query params si no existe
   const [url, query] = path.split('?');

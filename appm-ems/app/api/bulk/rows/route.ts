@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// POST /telxius/api/bulk/rows
+// POST /appm-ems/api/bulk/rows
 export async function POST(req: NextRequest) {
   try {
     const rows = await req.json();

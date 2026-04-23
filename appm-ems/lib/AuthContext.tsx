@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshSession = async () => {
     try {
-      const res = await fetch("/telxius/api/auth/me/");
+      const res = await fetch("/appm-ems/api/auth/me/");
       if (res.ok) {
         const contentType = res.headers.get("content-type");
         if (contentType && contentType.includes("application/json")) {
@@ -57,9 +57,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await fetch("/telxius/api/auth/logout/", { method: "POST" });
+    await fetch("/appm-ems/api/auth/logout/", { method: "POST" });
     setUser(null);
-    window.location.href = "/telxius/login/";
+    window.location.href = "/appm-ems/login/";
   };
 
   useEffect(() => {

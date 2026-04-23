@@ -17,7 +17,7 @@ const DataCenter3D = dynamic(() => import("../../../components/DataCenter3D"), {
   ),
 });
 
-const BASE = "/telxius";
+const BASE = "/appm-ems";
 
 interface Site { id: string; name: string; }
 interface Structure { id: string; name: string; }

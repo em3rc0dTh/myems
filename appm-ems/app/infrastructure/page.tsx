@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 
-const BASE = "/telxius";
+const BASE = "/appm-ems";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Site { id: string; name: string; address: string | null; }
@@ -191,7 +191,7 @@ export default function InfrastructurePage() {
       <div className="page">
         <header>
           <div className="header-top">
-             <Link href="/telxius/sites/" className="back-btn">🌎 Geo</Link>
+             <Link href="/appm-ems/sites/" className="back-btn">🌎 Geo</Link>
              <h1 className="page-title">Datacenter Infrastructure</h1>
           </div>
           <Breadcrumb items={crumbs} />

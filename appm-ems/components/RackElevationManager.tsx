@@ -34,18 +34,18 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
     setLoading(true);
     try {
       // Get devices already in this container
-      const res = await fetch(`/telxius/api/devices/?containerId=${container.id}`);
+      const res = await fetch(`/appm-ems/api/devices/?containerId=${container.id}`);
       const data = await res.json();
       setDevices(data.data || []);
 
       // Get orphaned devices (Real ones in this site OR Catalog ones in Warehouse)
-      const orphanRes = await fetch(`/telxius/api/devices/?orphaned=true`);
+      const orphanRes = await fetch(`/appm-ems/api/devices/?orphaned=true`);
       const orphanData = await orphanRes.json();
       setAvailableDevices(orphanData.data || []);
 
       // Get Site Name
       if (siteId) {
-        const siteRes = await fetch(`/telxius/api/sites/?id=${siteId}`);
+        const siteRes = await fetch(`/appm-ems/api/sites/?id=${siteId}`);
         const siteData = await siteRes.json();
         if (siteData.data) setSiteName(siteData.data.name);
       }
@@ -75,7 +75,7 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
         if (name) payload.name = name;
       }
 
-      const res = await fetch(`/telxius/api/devices/`, {
+      const res = await fetch(`/appm-ems/api/devices/`, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -92,7 +92,7 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
               // 1. Process Equipments
               if (config.equipments && Array.isArray(config.equipments)) {
                 const eqPayload = config.equipments.map((e: any) => ({ ...e, deviceName: createdDevice.name }));
-                await fetch('/telxius/api/bulk/equipments/', {
+                await fetch('/appm-ems/api/bulk/equipments/', {
                    method: 'POST',
                    headers: { 'Content-Type': 'application/json' },
                    body: JSON.stringify(eqPayload)
@@ -101,7 +101,7 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
 
               // 2. Process Ports
               if (config.ports && Array.isArray(config.ports)) {
-                await fetch('/telxius/api/bulk/ports/', {
+                await fetch('/appm-ems/api/bulk/ports/', {
                    method: 'POST',
                    headers: { 'Content-Type': 'application/json' },
                    body: JSON.stringify(config.ports)
@@ -273,7 +273,7 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
                });
 
                if (result.isConfirmed) {
-                 const res = await fetch(`/telxius/api/containers/?id=${container.id}`, { method: 'DELETE' });
+                 const res = await fetch(`/appm-ems/api/containers/?id=${container.id}`, { method: 'DELETE' });
                  const data = await res.json();
                  if (data.ok) {
                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Rack eliminado', showConfirmButton: false, timer: 2000, background: '#020617', color: '#fff' });

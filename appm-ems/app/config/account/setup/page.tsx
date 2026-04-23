@@ -19,7 +19,7 @@ export default function SetupAccountPage() {
     setError("");
 
     try {
-      const res = await fetch("/telxius/api/account/setup/", {
+      const res = await fetch("/appm-ems/api/account/setup/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newUsername, newPassword }),

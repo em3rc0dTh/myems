@@ -48,7 +48,7 @@ export default function TopologyDashboard() {
   const fetchSites = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/telxius/api/sites/');
+      const res = await fetch('/appm-ems/api/sites/');
       const data = await res.json();
       if (data.ok) {
         setAllSites(data.data);
@@ -63,7 +63,7 @@ export default function TopologyDashboard() {
   const handleCreateSite = async (formData: any) => {
     setIsSaving(true);
     try {
-      const res = await fetch('/telxius/api/sites/', {
+      const res = await fetch('/appm-ems/api/sites/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -409,7 +409,7 @@ export default function TopologyDashboard() {
                                   });
 
                                   if (result.isConfirmed) {
-                                    const res = await fetch(`/telxius/api/sites/?id=${site.id}`, { method: 'DELETE' });
+                                    const res = await fetch(`/appm-ems/api/sites/?id=${site.id}`, { method: 'DELETE' });
                                     const data = await res.json();
                                     if (data.ok) {
                                       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Site eliminado', showConfirmButton: false, timer: 2000, background: '#020617', color: '#fff' });

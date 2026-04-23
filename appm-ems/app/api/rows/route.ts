@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// GET /telxius/api/rows?substructureId=xxx
+// GET /appm-ems/api/rows?substructureId=xxx
 export async function GET(req: NextRequest) {
   const substructureId = req.nextUrl.searchParams.get("substructureId");
   try {
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /telxius/api/rows
+// POST /appm-ems/api/rows
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

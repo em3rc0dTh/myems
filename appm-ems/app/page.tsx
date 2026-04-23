@@ -28,7 +28,7 @@ export default function Home() {
 
         const fetchBDFBs = async () => {
             try {
-                const res = await fetch('/telxius/api/bdfb-dashboard/');
+                const res = await fetch('/appm-ems/api/bdfb-dashboard/');
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data)) {
@@ -66,7 +66,7 @@ export default function Home() {
 
         if (isProd) {
             try {
-                await fetch(`/telxius/api/devices/${id}/`, {
+                await fetch(`/appm-ems/api/devices/${id}/`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ isPinned: newState })
@@ -449,7 +449,7 @@ export default function Home() {
                     onUpdate={() => {
                         // Refresh data
                         if (isProd) {
-                            fetch('/telxius/api/bdfb-dashboard/')
+                            fetch('/appm-ems/api/bdfb-dashboard/')
                                 .then(res => res.json())
                                 .then(data => setActiveBDFBs(data));
                         }
@@ -518,7 +518,7 @@ function ConfigPanelItem({ panel }: { panel: any }) {
         const newState = !isPinned;
         setIsPinned(newState);
         try {
-            await fetch(`/telxius/api/equipments/${panel.id}/`, {
+            await fetch(`/appm-ems/api/equipments/${panel.id}/`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ isPinned: newState })

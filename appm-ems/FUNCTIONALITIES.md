@@ -4,7 +4,7 @@ Este documento detalla todas las capacidades implementadas en el sistema de moni
 
 ---
 
-## 1. Dashboard de Inteligencia Central (`/telxius/`)
+## 1. Dashboard de Inteligencia Central (`/appm-ems/`)
 El corazón del sistema, diseñado para ofrecer una visión "de un vistazo" de la salud del datacenter.
 *   **KPIs en Tiempo Real**: Eficiencia global (%), utilización de la flota y potencia total activa.
 *   **Gráfica de Tendencias (Power Trend)**: Integrada con **InfluxDB** para mostrar las últimas 24 horas de consumo.
@@ -13,8 +13,8 @@ El corazón del sistema, diseñado para ofrecer una visión "de un vistazo" de l
 
 ## 2. Monitorización de Rack de Dos Niveles
 Estructura jerárquica para navegación física intuitiva:
-*   **Nivel 1: Vista de Rack (`/telxius/rack/`)**: Muestra los paneles (A1, A2, B1, B2) de los cuadros de fuerza (QDF) con resúmenes de salud.
-*   **Nivel 2: Detalle de Módulo (`/telxius/module/[id]/`)**: Visualización de **alta densidad de 24 puertos** en una sola pantalla sin necesidad de scroll.
+*   **Nivel 1: Vista de Rack (`/appm-ems/rack/`)**: Muestra los paneles (A1, A2, B1, B2) de los cuadros de fuerza (QDF) con resúmenes de salud.
+*   **Nivel 2: Detalle de Módulo (`/appm-ems/module/[id]/`)**: Visualización de **alta densidad de 24 puertos** en una sola pantalla sin necesidad de scroll.
 
 ## 3. Sistema de "Semáforo" (Color Coding Status)
 Lógica de alertas visuales basada en umbrales reales de potencia (P = U * A):
@@ -23,7 +23,7 @@ Lógica de alertas visuales basada en umbrales reales de potencia (P = U * A):
 *   🟢 **NORMAL**: Telemetría estable con consumo detectado por encima de 0.02A.
 *   ⚪ **VACANT**: Puerto sin equipo conectado o consumo despreciable (< 0.02A).
 
-## 4. Gestión de Configuración e Inventario (`/telxius/config/`)
+## 4. Gestión de Configuración e Inventario (`/appm-ems/config/`)
 Panel administrativo robusto para el registro de activos:
 *   **Registro de QDF**: Gestión de cuadros de fuerza (Sitio, Sala, Capacidad, Feeds A/B).
 *   **Hardware de Medición**: Registro de medidores **AMC16Z** mediante Número de Serie (SN).

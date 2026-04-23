@@ -27,7 +27,7 @@ export default function WarehouseInventoryView({ siteId }: WarehouseInventoryVie
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/telxius/api/devices/?siteId=${siteId}`);
+      const res = await fetch(`/appm-ems/api/devices/?siteId=${siteId}`);
       const data = await res.json();
       if (data.ok) {
         setTemplates(data.data);

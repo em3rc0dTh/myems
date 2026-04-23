@@ -67,7 +67,7 @@ export default function InfrastructureControl() {
     useEffect(() => {
         const fetchInfrastructure = async () => {
             try {
-                const res = await fetch('/telxius/api/bdfb-dashboard');
+                const res = await fetch('/appm-ems/api/bdfb-dashboard');
                 if (res.ok) {
                     const data = await res.json();
                     const newRack: Record<string, RackModule> = {};

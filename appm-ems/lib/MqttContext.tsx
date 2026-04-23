@@ -53,7 +53,7 @@ export const MqttProvider = ({ children }: { children: React.ReactNode }) => {
             try {
                 // Iniciar la conexión usando Server-Sent Events (SSE) hacia nuestro túnel API en Next.js
                 // Esto bypassa las bloqueos del navegador hacia servidores MQTT TCP puros (puerto 1883)
-                evtSource = new EventSource('/telxius/api/telemetry/stream/');
+                evtSource = new EventSource('/appm-ems/api/telemetry/stream/');
                 
                 evtSource.onopen = () => {
                     setIsConnected(true);

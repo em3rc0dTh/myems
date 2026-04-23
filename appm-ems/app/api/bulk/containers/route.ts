@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from "../../../../lib/prisma";
 
-// POST /telxius/api/bulk/containers
+// POST /appm-ems/api/bulk/containers
 export async function POST(req: Request) {
     try {
         const body = await req.json();
