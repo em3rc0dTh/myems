@@ -96,7 +96,7 @@ export default function SitesPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/appm-ems/api/geo/")
+    fetch("/telxius/api/geo/")
       .then((r) => r.json())
       .then((res) => {
         if (res.ok) setCountries(res.data);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET /appm-ems/api/substructures?structureId=xxx
+// GET /telxius/api/substructures?structureId=xxx
 export async function GET(req: NextRequest) {
   const structureId = req.nextUrl.searchParams.get("structureId");
   const id = req.nextUrl.searchParams.get("id");
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /appm-ems/api/substructures
+// POST /telxius/api/substructures
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

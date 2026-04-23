@@ -34,7 +34,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
 
                 if (config.equipments) {
                     const eqPayload = config.equipments.map((e: any) => ({ ...e, deviceName: device.name }));
-                    await fetch('/appm-ems/api/bulk/equipments/', {
+                    await fetch('/telxius/api/bulk/equipments/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(eqPayload)
@@ -42,7 +42,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                 }
 
                 if (config.ports) {
-                    await fetch('/appm-ems/api/bulk/ports/', {
+                    await fetch('/telxius/api/bulk/ports/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(config.ports)
@@ -114,7 +114,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
 
         if (formValues && formValues.name) {
             try {
-                const res = await fetch('/appm-ems/api/equipments/', {
+                const res = await fetch('/telxius/api/equipments/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -140,7 +140,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                             deviceId: device.id
                         }));
 
-                        await fetch('/appm-ems/api/bulk/ports/', {
+                        await fetch('/telxius/api/bulk/ports/', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(portsToCreate)
@@ -207,7 +207,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                 const suffix = numMatch ? numMatch[0] : "0";
                 const calculatedTopic = prefix ? `${prefix}${suffix}` : null;
 
-                    const res = await fetch('/appm-ems/api/ports/', {
+                    const res = await fetch('/telxius/api/ports/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -245,7 +245,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
 
         if (result.isConfirmed) {
             try {
-                const res = await fetch(`/appm-ems/api/equipments/?id=${id}`, {
+                const res = await fetch(`/telxius/api/equipments/?id=${id}`, {
                     method: 'DELETE'
                 });
                 if (res.ok) {
@@ -278,7 +278,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                                         const newSn = e.target.value;
                                         if (newSn === device.sn) return;
                                         try {
-                                            await fetch(`/appm-ems/api/devices/?id=${device.id}`, {
+                                            await fetch(`/telxius/api/devices/?id=${device.id}`, {
                                                 method: 'PATCH',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({ sn: newSn })
@@ -300,7 +300,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                                         defaultValue={device.physWidth || ''} 
                                         type="number"
                                         onBlur={async (e) => {
-                                            await fetch(`/appm-ems/api/devices/?id=${device.id}`, {
+                                            await fetch(`/telxius/api/devices/?id=${device.id}`, {
                                                 method: 'PATCH',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({ physWidth: e.target.value })
@@ -314,7 +314,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                                         defaultValue={device.physDepth || ''} 
                                         type="number"
                                         onBlur={async (e) => {
-                                            await fetch(`/appm-ems/api/devices/?id=${device.id}`, {
+                                            await fetch(`/telxius/api/devices/?id=${device.id}`, {
                                                 method: 'PATCH',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({ physDepth: e.target.value })
@@ -328,7 +328,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                                         defaultValue={device.physHeight || ''} 
                                         type="number"
                                         onBlur={async (e) => {
-                                            await fetch(`/appm-ems/api/devices/?id=${device.id}`, {
+                                            await fetch(`/telxius/api/devices/?id=${device.id}`, {
                                                 method: 'PATCH',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({ physHeight: e.target.value })
@@ -345,7 +345,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                                         defaultValue={device.uHeight || 1} 
                                         type="number"
                                         onBlur={async (e) => {
-                                            await fetch(`/appm-ems/api/devices/?id=${device.id}`, {
+                                            await fetch(`/telxius/api/devices/?id=${device.id}`, {
                                                 method: 'PATCH',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({ uHeight: e.target.value })
@@ -419,7 +419,7 @@ export default function EquipmentEditorModal({ device, onClose, onUpdate }: Equi
                                                         <input 
                                                             defaultValue={port.clientName || ''}
                                                             onBlur={async (e) => {
-                                                                await fetch(`/appm-ems/api/ports/?id=${port.id}`, {
+                                                                await fetch(`/telxius/api/ports/?id=${port.id}`, {
                                                                     method: 'PATCH',
                                                                     headers: { 'Content-Type': 'application/json' },
                                                                     body: JSON.stringify({ clientName: e.target.value })

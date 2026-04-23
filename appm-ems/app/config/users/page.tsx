@@ -21,7 +21,7 @@ export default function UsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/appm-ems/api/users/");
+      const res = await fetch("/telxius/api/users/");
       if (res.ok) {
         const data = await res.json();
         setUsers(data.users);
@@ -46,7 +46,7 @@ export default function UsersPage() {
     });
 
     try {
-      const res = await fetch("/appm-ems/api/users/", {
+      const res = await fetch("/telxius/api/users/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)

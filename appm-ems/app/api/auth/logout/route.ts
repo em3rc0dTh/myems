@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     httpOnly: true,
     expires: new Date(0),
     maxAge: 0,
-    path: "/appm-ems",
+    path: "/telxius",
   });
 
   return response;

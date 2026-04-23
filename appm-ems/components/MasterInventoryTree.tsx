@@ -99,7 +99,7 @@ export default function MasterInventoryTree({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/appm-ems/api/topology/tree/')
+    fetch('/telxius/api/topology/tree/')
       .then(res => res.json())
       .then(json => {
         if (json.ok) {

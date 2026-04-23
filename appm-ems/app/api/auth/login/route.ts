@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       secure: isHttps && isProdMode, 
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: "/appm-ems", 
+      path: "/telxius", 
     });
 
     return response;

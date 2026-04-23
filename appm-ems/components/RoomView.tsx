@@ -56,7 +56,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
     const fetchRoomData = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/appm-ems/api/substructures/?id=${substructureId}&t=${Date.now()}`);
+        const res = await fetch(`/telxius/api/substructures/?id=${substructureId}&t=${Date.now()}`);
         const data = await res.json();
         const obj = Array.isArray(data.data) ? data.data[0] : data.data;
         if (obj) {
@@ -70,11 +70,11 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
           }
           if (obj.racks) setLocalRacks(obj.racks);
 
-          const pRes = await fetch(`/appm-ems/api/positions/?substructureId=${substructureId}`);
+          const pRes = await fetch(`/telxius/api/positions/?substructureId=${substructureId}`);
           const pData = await pRes.json();
           setPositions(pData.data || []);
 
-          const rRes = await fetch(`/appm-ems/api/rows/?substructureId=${substructureId}`);
+          const rRes = await fetch(`/telxius/api/rows/?substructureId=${substructureId}`);
           const rData = await rRes.json();
           setPersistedRows(rData.data || []);
         }
@@ -415,7 +415,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
 
       for (const bay of bays) {
         const points = bay.points.map((p: any) => ({ x: p.x + bounds.minX, y: p.y + bounds.minY }));
-        const res = await fetch('/appm-ems/api/rows/', {
+        const res = await fetch('/telxius/api/rows/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -461,7 +461,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
            } catch(e) {}
         }
 
-        const res = await fetch('/appm-ems/api/containers/', {
+        const res = await fetch('/telxius/api/containers/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -489,7 +489,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
       const refs = localElements.filter(el => el.type === 'REFERENCE');
       const existingMetadata = substructure.spatialMetadata ? (typeof substructure.spatialMetadata === 'string' ? JSON.parse(substructure.spatialMetadata) : substructure.spatialMetadata) : {};
 
-      await fetch(`/appm-ems/api/substructures/?id=${roomId}`, {
+      await fetch(`/telxius/api/substructures/?id=${roomId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -503,7 +503,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
       setLocalElements([]);
 
       // RE-FETCH ALL ROOM DATA (including spatialMetadata with the new references/icons)
-      const roomRes = await fetch(`/appm-ems/api/substructures/?id=${roomId}&t=${Date.now()}`);
+      const roomRes = await fetch(`/telxius/api/substructures/?id=${roomId}&t=${Date.now()}`);
       const roomData = await roomRes.json();
       const obj = Array.isArray(roomData.data) ? roomData.data[0] : roomData.data;
       if (obj) {
@@ -517,7 +517,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
         }
       }
 
-      const rRes = await fetch(`/appm-ems/api/rows/?substructureId=${substructureId}`);
+      const rRes = await fetch(`/telxius/api/rows/?substructureId=${substructureId}`);
       const rData = await rRes.json();
       setPersistedRows(rData.data || []);
 
@@ -867,13 +867,13 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
                         });
 
                         if (result.isConfirmed) {
-                          const res = await fetch(`/appm-ems/api/rows/?id=${row.id}`, { method: 'DELETE' });
+                          const res = await fetch(`/telxius/api/rows/?id=${row.id}`, { method: 'DELETE' });
                           const data = await res.json();
                           if (data.ok) {
                             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Bahía eliminada', showConfirmButton: false, timer: 2000, background: '#020617', color: '#fff' });
                             // Refresh room data
                             const fetchRoom = async () => {
-                              const rRes = await fetch(`/appm-ems/api/substructures/?id=${substructureId}&t=${Date.now()}`);
+                              const rRes = await fetch(`/telxius/api/substructures/?id=${substructureId}&t=${Date.now()}`);
                               const rData = await rRes.json();
                               const obj = Array.isArray(rData.data) ? rData.data[0] : rData.data;
                               if (obj) setPersistedRows(obj.rows || []);
@@ -1078,7 +1078,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
           onClose={() => setSelectedContainer(null)}
           onUpdate={() => {
             const fetchRoomData = async () => {
-              const res = await fetch(`/appm-ems/api/substructures/?id=${substructureId}&t=${Date.now()}`);
+              const res = await fetch(`/telxius/api/substructures/?id=${substructureId}&t=${Date.now()}`);
               const data = await res.json();
               const obj = Array.isArray(data.data) ? data.data[0] : data.data;
               if (obj && obj.racks) setLocalRacks(obj.racks);

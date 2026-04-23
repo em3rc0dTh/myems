@@ -36,7 +36,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
     setLoading(true);
     setError(null);
     try {
-      const sRes = await fetch(`/appm-ems/api/sites/?id=${siteId}`);
+      const sRes = await fetch(`/telxius/api/sites/?id=${siteId}`);
       if (!sRes.ok) throw new Error(`HTTP Error: ${sRes.status}`);
       const sData = await sRes.json();
       const siteObj = Array.isArray(sData.data) ? sData.data[0] : sData.data;
@@ -93,7 +93,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
     setIsSaving(true);
     try {
       for (const poly of polygons) {
-        const res = await fetch('/appm-ems/api/structures/', {
+        const res = await fetch('/telxius/api/structures/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -111,7 +111,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
       const refs = localElements.filter(el => el.type === 'REFERENCE');
       const existingMetadata = site.spatialMetadata ? (typeof site.spatialMetadata === 'string' ? JSON.parse(site.spatialMetadata) : site.spatialMetadata) : {};
 
-      await fetch(`/appm-ems/api/sites/?id=${siteId}`, {
+      await fetch(`/telxius/api/sites/?id=${siteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -222,7 +222,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
               });
 
               if (formValues) {
-                await fetch(`/appm-ems/api/sites/?id=${siteId}`, {
+                await fetch(`/telxius/api/sites/?id=${siteId}`, {
                   method: 'PATCH',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(formValues)
@@ -381,7 +381,7 @@ export default function SiteDashboardView({ siteId, onStructureSelect }: SiteDas
                           });
 
                           if (result.isConfirmed) {
-                            const res = await fetch(`/appm-ems/api/structures/?id=${st.id}`, { method: 'DELETE' });
+                            const res = await fetch(`/telxius/api/structures/?id=${st.id}`, { method: 'DELETE' });
                             const data = await res.json();
                             if (data.ok) {
                               Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Edificio eliminado', showConfirmButton: false, timer: 2000, background: '#020617', color: '#fff' });

@@ -72,7 +72,7 @@ const STEPS = [
     title: 'Capa 1: Site Foundation',
     description: 'Site Perimeter & Dimensions',
     icon: Layout,
-    endpoint: '/appm-ems/api/bulk/sites/',
+    endpoint: '/telxius/api/bulk/sites/',
     templateName: '01_site_template.json',
     sample: [
       {
@@ -90,7 +90,7 @@ const STEPS = [
     title: 'Capa 2: Catálogo Lógico',
     description: 'Master Templates (Almacén Central)',
     icon: Inbox,
-    endpoint: '/appm-ems/api/bulk/devices/?isCatalog=true',
+    endpoint: '/telxius/api/bulk/devices/?isCatalog=true',
     templateName: '02_catalog_template.json',
     sample: [{
       name: "BDFB-TEMPLATE-V1",
@@ -107,7 +107,7 @@ const STEPS = [
   //   title: 'Capa 3: Instanciación Física',
   //   description: 'Placement of Devices in Racks',
   //   icon: Box,
-  //   endpoint: '/appm-ems/api/bulk/devices/',
+  //   endpoint: '/telxius/api/bulk/devices/',
   //   templateName: '03_instances_template.json',
   //   sample: [{ siteName: "Datacenter Lurin", containerName: "RACK-D12", templateName: "BDFB-TEMPLATE-V1", name: "BDFB-LURIN-01" }]
   // },
@@ -116,7 +116,7 @@ const STEPS = [
   //   title: 'Capa 4: Equipamiento Físico',
   //   description: 'Panels, Cards & Modules',
   //   icon: Cpu,
-  //   endpoint: '/appm-ems/api/bulk/equipments/',
+  //   endpoint: '/telxius/api/bulk/equipments/',
   //   templateName: '04_equipment_template.json',
   //   sample: [{ deviceName: "BDFB-LURIN-01", name: "Panel-A1", sn: "SN-998877", category: "SUBRACK", unitPosition: 40, unitHeight: 2 }]
   // },
@@ -125,7 +125,7 @@ const STEPS = [
   //   title: 'Capa 5: Telemetría MQTT',
   //   description: 'Mapeo de Sensores InfluxDB',
   //   icon: Activity,
-  //   endpoint: '/appm-ems/api/bulk/ports/',
+  //   endpoint: '/telxius/api/bulk/ports/',
   //   templateName: '05_ports_template.json',
   //   sample: [{ equipmentName: "Panel-A1", name: "Breaker-1", type: "POWER_OUT", sensorTopic: "0_1_1" }]
   // }
@@ -222,7 +222,7 @@ export default function CascadeIngestionPage() {
     try {
       const foundationData = files['foundation']?.[0] as { siteName?: string } | undefined;
       const siteName = foundationData?.siteName || geo.district;
-      const resp = await fetch(`/appm-ems/api/topology/summary/?siteName=${encodeURIComponent(siteName)}`);
+      const resp = await fetch(`/telxius/api/topology/summary/?siteName=${encodeURIComponent(siteName)}`);
       const data = await resp.json();
       setSummaryData(data);
       setShowSummary(true);
@@ -352,7 +352,7 @@ export default function CascadeIngestionPage() {
                       Back to Layer
                     </button>
                     <button
-                      onClick={() => window.location.href = '/appm-ems/'}
+                      onClick={() => window.location.href = '/telxius/'}
                       className="px-10 py-5 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black uppercase tracking-[0.2em] rounded-2xl transition-all flex items-center gap-3 shadow-[0_0_40px_-10px_rgba(16,185,129,0.5)] active:scale-95"
                     >
                       Everything Correct • Finish <ArrowRight className="w-4 h-4" />

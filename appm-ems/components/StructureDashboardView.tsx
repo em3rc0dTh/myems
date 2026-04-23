@@ -39,7 +39,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
   const fetchStructureData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/appm-ems/api/structures/?id=${structureId}&t=${Date.now()}`);
+      const res = await fetch(`/telxius/api/structures/?id=${structureId}&t=${Date.now()}`);
       const data = await res.json();
       const obj = Array.isArray(data.data) ? data.data[0] : data.data;
       if (obj) {
@@ -110,7 +110,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
 
       // If no levels exist, create Level 1
       if (!currentLevelId) {
-        const lRes = await fetch('/appm-ems/api/levels/', {
+        const lRes = await fetch('/telxius/api/levels/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: "Level 1", structureId })
@@ -125,7 +125,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
       }
 
       for (const poly of polygons) {
-        const res = await fetch('/appm-ems/api/substructures/', {
+        const res = await fetch('/telxius/api/substructures/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -143,7 +143,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
       const refs = localElements.filter(el => el.type === 'REFERENCE');
       const existingMetadata = structure.spatialMetadata ? (typeof structure.spatialMetadata === 'string' ? JSON.parse(structure.spatialMetadata) : structure.spatialMetadata) : {};
 
-      await fetch(`/appm-ems/api/structures/?id=${structureId}`, {
+      await fetch(`/telxius/api/structures/?id=${structureId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -321,7 +321,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
                         });
 
                         if (result.isConfirmed) {
-                          const res = await fetch(`/appm-ems/api/levels/?id=${level.id}`, { method: 'DELETE' });
+                          const res = await fetch(`/telxius/api/levels/?id=${level.id}`, { method: 'DELETE' });
                           const data = await res.json();
                           if (data.ok) {
                             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Nivel eliminado', showConfirmButton: false, timer: 2000, background: '#020617', color: '#fff' });
@@ -357,7 +357,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
                     });
 
                     if (levelName) {
-                      const res = await fetch('/appm-ems/api/levels/', {
+                      const res = await fetch('/telxius/api/levels/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ name: levelName, structureId })
@@ -417,7 +417,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
                           });
 
                           if (result.isConfirmed) {
-                            const res = await fetch(`/appm-ems/api/substructures/?id=${r.id}`, { method: 'DELETE' });
+                            const res = await fetch(`/telxius/api/substructures/?id=${r.id}`, { method: 'DELETE' });
                             const data = await res.json();
                             if (data.ok) {
                               Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Sala eliminada', showConfirmButton: false, timer: 2000, background: '#020617', color: '#fff' });
