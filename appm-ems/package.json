@@ -1,0 +1,45 @@
+{
+  "name": "appm-ems",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@influxdata/influxdb-client": "^1.35.0",
+    "@prisma/client": "^6.6.0",
+    "@types/three": "^0.183.1",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.3.1",
+    "framer-motion": "^11.15.0",
+    "jose": "^6.2.2",
+    "lucide-react": "^0.577.0",
+    "mqtt": "^5.15.0",
+    "next": "15.1.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "recharts": "^3.8.1",
+    "sweetalert2": "^11.26.24",
+    "sweetalert2-react-content": "^5.1.2",
+    "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "15.1.0",
+    "prisma": "^6.6.0",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

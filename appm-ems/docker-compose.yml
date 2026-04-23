@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # Base de Datos NoSQL para la Estructura de Activos
+  myems-mongodb:
+    image: mongo:latest
+    container_name: myems-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - appm-network
+
+  # Base de Datos de Series Temporales (Telemetría)
+  myems-influxdb:
+    image: influxdb:latest
+    container_name: myems-influxdb
+    restart: always
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=appmadminpass
+      - DOCKER_INFLUXDB_INIT_ORG=appm-ems
+      - DOCKER_INFLUXDB_INIT_BUCKET=telemetry
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=appmtokenxyz123
+    volumes:
+      - influx-data:/var/lib/influxdb2
+    networks:
+      - appm-network
+
+  # Broker MQTT para Tiempo Real
+  myems-mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: myems-mosquitto
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - appm-network
+
+  # AppM EMS OS Application
+  appm-app:
+    build: .
+    container_name: appm-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=mongodb://myems-mongodb:27017/appm_ems?directConnection=true
+      - INFLUX_URL=http://myems-influxdb:8086
+      - INFLUX_TOKEN=appmtokenxyz123
+      - INFLUX_ORG=appm-ems
+      - INFLUX_BUCKET=telemetry
+      - MQTT_BROKER=myems-mosquitto
+      - NEXT_PUBLIC_MQTT_URL=ws://localhost:9001
+    depends_on:
+      - myems-mongodb
+      - myems-influxdb
+      - myems-mosquitto
+    networks:
+      - appm-network
+
+networks:
+  appm-network:
+    driver: bridge
+
+volumes:
+  mongo-data:
+  influx-data:
