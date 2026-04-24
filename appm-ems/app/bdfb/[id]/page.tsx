@@ -76,10 +76,21 @@ const BDFBDetailPage: React.FC = () => {
         }
     }, [bdfbData, selectedPanelId]);
 
+    // Derived data for the selected segment/slot
+    const selectedPanel = bdfbData?.panels.find(p => p.id === selectedPanelId);
+
     // REAL HISTORY FETCHING
     const [realHistory, setRealHistory] = useState<any[]>([]);
+    
+    const targetChannelKey = useMemo(() => {
+        if (!bdfbData || !selectedPanel) return "0_1_1";
+        if (!selectedBreaker) return "0_1_1";
+        return (selectedBreaker.data as any).sensorKey || `0_${bdfbData.panels.findIndex(p => p.id === selectedPanel.id) + 1}_${selectedBreaker.data.position}`;
+    }, [bdfbData, selectedPanel, selectedBreaker]);
+
     useEffect(() => {
         if (focusedView === 'history' && bdfbData?.sn) {
+            setHistoryLoading(true);
             const fetchHistory = async () => {
                 try {
                     // Fetch Voltage (U1) and Current (I1) history
@@ -92,15 +103,23 @@ const BDFBDetailPage: React.FC = () => {
                         const vData = await vRes.json();
                         const iData = await iRes.json();
                         
-                        // Robust Time-Matching Merge
+                        // Robust Time-Matching Merge & Filter by Target Port
                         const timeMap: Record<string, any> = {};
                         
+                        // Only use data matching our target port! (e.g. "0_1_1_U1")
+                        const targetVField = `${targetChannelKey}_U1`;
+                        const targetIField = `${targetChannelKey}_I1`;
+                        
                         vData.forEach((v: any) => {
-                            timeMap[v.time] = { ...timeMap[v.time], time: v.time, voltage: v.value };
+                            if (v.field === targetVField) {
+                                timeMap[v.time] = { ...timeMap[v.time], time: v.time, voltage: v.value };
+                            }
                         });
                         
                         iData.forEach((i: any) => {
-                            timeMap[i.time] = { ...timeMap[i.time], time: i.time, current: i.value };
+                            if (i.field === targetIField) {
+                                timeMap[i.time] = { ...timeMap[i.time], time: i.time, current: i.value };
+                            }
                         });
                         
                         const combined = Object.values(timeMap).sort((a, b) => 
@@ -117,10 +136,7 @@ const BDFBDetailPage: React.FC = () => {
             };
             fetchHistory();
         }
-    }, [focusedView, bdfbData?.sn, historyRange]);
-
-    // Derived data for the selected segment/slot
-    const selectedPanel = bdfbData?.panels.find(p => p.id === selectedPanelId);
+    }, [focusedView, bdfbData?.sn, historyRange, targetChannelKey]);
 
     // Breakers for the middle rack detail column
     const activePanelBreakers = useMemo(() => {

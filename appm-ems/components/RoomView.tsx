@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/AuthContext';
 interface RoomViewProps {
   substructureId: string;
   onSelectBDFB?: (id: string | null) => void;
-  siteDimensions: { width?: number; length?: number };
+  siteDimensions?: { width?: number; length?: number };
 }
 
 const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteDimensions }) => {
