@@ -42,16 +42,16 @@ export async function GET(request: Request): Promise<NextResponse> {
     if (range === '7d') window = '6h';
     if (range === '30d') window = '24h';
 
-    // Flux Query: 
-    // - Measurement: mqtt_consumer (written by Telegraf)
-    // - Fields: Look for fields ending in _P, _U1, or _A1 (flattened by Telegraf json_v2)
-    // - Filter by SN tag if it exists in the data
+    // Flux Query adaptado al nuevo formato limpio de Starlark:
+    // - Measurement: energy
+    // - Tags: port, sn, state
+    // - Fields: U1, I1, P1, etc.
     const fluxQuery = `
         from(bucket: "${bucket}")
             |> range(start: -${range})
-            |> filter(fn: (r) => r._measurement == "mqtt_consumer")
+            |> filter(fn: (r) => r._measurement == "energy")
             ${sn ? `|> filter(fn: (r) => r.sn == "${sn}")` : ''}
-            |> filter(fn: (r) => r._field =~ /.+_${fieldType}$/)
+            |> filter(fn: (r) => r._field == "${fieldType}")
             |> aggregateWindow(every: ${window}, fn: mean, createEmpty: false)
             |> yield(name: "mean")
     `;
@@ -64,7 +64,8 @@ export async function GET(request: Request): Promise<NextResponse> {
                     const obj = tableMeta.toObject(row);
                     data.push({
                         time: obj._time,
-                        field: obj._field,
+                        // Reconstruimos el nombre del campo como lo espera el frontend (ej. "0_1_1_U1")
+                        field: obj.port ? `${obj.port}_${obj._field}` : obj._field,
                         value: obj._value,
                         sn: obj.sn
                     });

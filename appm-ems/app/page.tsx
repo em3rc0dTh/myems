@@ -166,15 +166,15 @@ export default function Home() {
                                     </div>
                                 </Link>
 
-                                <div className="p-1 bg-white/[0.02] border border-white/5 rounded-[2rem] flex-1 min-h-0 flex flex-col overflow-hidden">
-                                    <div className="p-4 pb-2 border-b border-white/5 flex items-center gap-3">
-                                        <div className="p-1.5 bg-fuchsia-500/10 rounded-lg"><FolderTree className="w-3.5 h-3.5 text-fuchsia-400" /></div>
-                                        <span className="text-[9px] font-black text-white uppercase tracking-widest">Auditoría Estructural</span>
-                                    </div>
-                                    <div className="flex-1 overflow-auto custom-scrollbar p-2">
-                                        <InfrastructureExplorer equipment={[]} />
-                                    </div>
-                                </div>
+                                {/* <div className="p-1 bg-white/[0.02] border border-white/5 rounded-[2rem] flex-1 min-h-0 flex flex-col overflow-hidden"> */}
+                                {/* <div className="p-4 pb-2 border-b border-white/5 flex items-center gap-3"> */}
+                                {/* <div className="p-1.5 bg-fuchsia-500/10 rounded-lg"><FolderTree className="w-3.5 h-3.5 text-fuchsia-400" /></div> */}
+                                {/* <span className="text-[9px] font-black text-white uppercase tracking-widest">Auditoría Estructural</span> */}
+                                {/* </div> */}
+                                {/* <div className="flex-1 overflow-auto custom-scrollbar p-2"> */}
+                                {/* <InfrastructureExplorer equipment={[]} /> */}
+                                {/* </div> */}
+                                {/* </div> */}
                             </div>
 
                             <div className="mt-auto space-y-3 shrink-0">
@@ -200,56 +200,58 @@ export default function Home() {
                 </aside>
 
                 {/* BOTTOM FLOATING DOCK (When Sidebar is Closed) */}
-                {!isSidebarOpen && (
-                    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 p-2 bg-[#0a0c12]/80 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-10 duration-500 px-6 h-16">
-                        <button
-                            onClick={() => setIsSidebarOpen(true)}
-                            className="p-3 bg-sky-500 hover:bg-sky-400 text-white rounded-2xl shadow-xl transition-all group relative"
-                            title="Expandir EMS Sidebar"
-                        >
-                            <LayoutGrid className="w-5 h-5" />
-                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#0a0c12] rounded-full" />
-                        </button>
+                {
+                    !isSidebarOpen && (
+                        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2 p-2 bg-[#0a0c12]/80 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-2xl animate-in slide-in-from-bottom-10 duration-500 px-6 h-16">
+                            <button
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="p-3 bg-sky-500 hover:bg-sky-400 text-white rounded-2xl shadow-xl transition-all group relative"
+                                title="Expandir EMS Sidebar"
+                            >
+                                <LayoutGrid className="w-5 h-5" />
+                                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#0a0c12] rounded-full" />
+                            </button>
 
-                        <div className="h-6 w-px bg-white/10 mx-2" />
+                            <div className="h-6 w-px bg-white/10 mx-2" />
 
-                        {/* Quick Metrics in Dock */}
-                        <div className="flex gap-6 px-2">
-                            {(() => {
-                                const totalCap = activeBDFBs.reduce((sum, b) => sum + (b.panels?.reduce((ps, p) => ps + p.installedCapacity, 0) || 0), 0);
-                                const totalCons = activeBDFBs.reduce((sum, b) => sum + (b.panels?.reduce((ps, p) => ps + p.consumedCapacity, 0) || 0), 0);
-                                const load = totalCap > 0 ? Math.round((totalCons / totalCap) * 100) : 0;
-                                return (
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex flex-col text-right">
-                                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Avg Load</span>
-                                            <span className="text-xs font-mono font-black text-white">{load}%</span>
+                            {/* Quick Metrics in Dock */}
+                            <div className="flex gap-6 px-2">
+                                {(() => {
+                                    const totalCap = activeBDFBs.reduce((sum, b) => sum + (b.panels?.reduce((ps, p) => ps + p.installedCapacity, 0) || 0), 0);
+                                    const totalCons = activeBDFBs.reduce((sum, b) => sum + (b.panels?.reduce((ps, p) => ps + p.consumedCapacity, 0) || 0), 0);
+                                    const load = totalCap > 0 ? Math.round((totalCons / totalCap) * 100) : 0;
+                                    return (
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex flex-col text-right">
+                                                <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Avg Load</span>
+                                                <span className="text-xs font-mono font-black text-white">{load}%</span>
+                                            </div>
+                                            <div className="w-16 h-1 bg-white/5 rounded-full overflow-hidden">
+                                                <div className="h-full bg-sky-500" style={{ width: `${load}%` }} />
+                                            </div>
                                         </div>
-                                        <div className="w-16 h-1 bg-white/5 rounded-full overflow-hidden">
-                                            <div className="h-full bg-sky-500" style={{ width: `${load}%` }} />
-                                        </div>
+                                    );
+                                })()}
+
+                                {isAdmin && (
+                                    <div className="flex items-center gap-3 border-l border-white/5 pl-6">
+                                        <button onClick={() => setShowConfig(true)} className="flex items-center gap-2 hover:bg-white/5 p-2 rounded-xl transition-all group">
+                                            <Settings className="w-4 h-4 text-slate-500 group-hover:text-white" />
+                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest group-hover:text-white">Settings</span>
+                                        </button>
                                     </div>
-                                );
-                            })()}
+                                )}
+                            </div>
 
-                            {isAdmin && (
-                                <div className="flex items-center gap-3 border-l border-white/5 pl-6">
-                                    <button onClick={() => setShowConfig(true)} className="flex items-center gap-2 hover:bg-white/5 p-2 rounded-xl transition-all group">
-                                        <Settings className="w-4 h-4 text-slate-500 group-hover:text-white" />
-                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest group-hover:text-white">Settings</span>
-                                    </button>
+                            {!isSystemEmpty && (
+                                <div className="ml-4 flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Sync Alive</span>
                                 </div>
                             )}
                         </div>
-
-                        {!isSystemEmpty && (
-                            <div className="ml-4 flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Sync Alive</span>
-                            </div>
-                        )}
-                    </div>
-                )}
+                    )
+                }
 
                 {/* Main Content (Now expansive) */}
                 <div className="flex-1 flex flex-col gap-4 min-h-0 min-w-0 transition-all duration-500">
@@ -325,138 +327,142 @@ export default function Home() {
                         </div>
                     </section>
                 </div>
-            </div>
+            </div >
 
             {/* Configuration Modal */}
-            {showConfig && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-                    <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setShowConfig(false)} />
-                    <div className="relative w-full max-w-5xl h-[85vh] glass-panel rounded-3xl border-white/10 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+            {
+                showConfig && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+                        <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setShowConfig(false)} />
+                        <div className="relative w-full max-w-5xl h-[85vh] glass-panel rounded-3xl border-white/10 shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
 
-                        {/* Modal Header */}
-                        <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
-                            <div>
-                                <h2 className="text-2xl font-black text-white flex items-center gap-3">
-                                    <Settings className="w-7 h-7 text-accent-primary" />
-                                    Ajustes Globales del Sistema
-                                </h2>
-                                <p className="text-slate-500 text-[10px] uppercase font-bold tracking-[0.2em] mt-1">
-                                    Central de Configuración AppM EMS EMS {isProd && <span className="text-success ml-2 px-1 bg-success/10 border border-success/20 rounded">MODO PROD ACTIVO</span>}
-                                </p>
+                            {/* Modal Header */}
+                            <div className="p-6 border-b border-white/5 flex items-center justify-between shrink-0">
+                                <div>
+                                    <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                                        <Settings className="w-7 h-7 text-accent-primary" />
+                                        Ajustes Globales del Sistema
+                                    </h2>
+                                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-[0.2em] mt-1">
+                                        Central de Configuración AppM EMS EMS {isProd && <span className="text-success ml-2 px-1 bg-success/10 border border-success/20 rounded">MODO PROD ACTIVO</span>}
+                                    </p>
+                                </div>
+                                <button onClick={() => setShowConfig(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
+                                    <Plus className="w-8 h-8 rotate-45 text-slate-500" />
+                                </button>
                             </div>
-                            <button onClick={() => setShowConfig(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
-                                <Plus className="w-8 h-8 rotate-45 text-slate-500" />
-                            </button>
-                        </div>
 
-                        {/* Modal Body */}
-                        <div className="flex-1 overflow-auto p-8 custom-scrollbar">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
+                            {/* Modal Body */}
+                            <div className="flex-1 overflow-auto p-8 custom-scrollbar">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
 
-                                {/* LADO IZQUIERDO: Ingesta Masiva (Recomendado) */}
-                                <div className="flex flex-col h-full bg-accent-primary/5 rounded-3xl border-2 border-accent-primary/20 p-6 relative overflow-hidden group">
-                                    <div className="absolute -top-10 -right-10 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
-                                        <FolderTree className="w-64 h-64" />
+                                    {/* LADO IZQUIERDO: Ingesta Masiva (Recomendado) */}
+                                    <div className="flex flex-col h-full bg-accent-primary/5 rounded-3xl border-2 border-accent-primary/20 p-6 relative overflow-hidden group">
+                                        <div className="absolute -top-10 -right-10 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+                                            <FolderTree className="w-64 h-64" />
+                                        </div>
+                                        <div className="relative z-10 flex flex-col h-full">
+                                            <div className="mb-auto">
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <div className="w-10 h-10 rounded-xl bg-accent-primary/20 flex items-center justify-center border border-accent-primary/30">
+                                                        <FileDown className="w-5 h-5 text-accent-primary" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-xl font-black text-white uppercase italic tracking-widest">Ingesta de Topología</h3>
+                                                        <span className="text-[9px] px-2 py-0.5 bg-success/20 text-success rounded uppercase font-bold tracking-widest border border-success/20">Modo Recomendado</span>
+                                                    </div>
+                                                </div>
+
+                                                <p className="text-sm text-slate-300 leading-relaxed mb-6 font-medium">
+                                                    No agregues racks ni conexiones manualmente. Utiliza módulos de plantillas (CSV/JSON) para poblar y renderizar ramas enteras de la infraestructura (Ej: Edificio -{'>'} Salas -{'>'} Filas -{'>'} Racks -{'>'} Puertos -{'>'} Conexión MQTT).
+                                                </p>
+
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center gap-3 text-xs text-slate-400 font-bold p-3 bg-black/20 rounded-xl border border-white/5">
+                                                        <CheckCircle2 className="w-4 h-4 text-success" /> Infraestructura As Code
+                                                    </div>
+                                                    <div className="flex items-center gap-3 text-xs text-slate-400 font-bold p-3 bg-black/20 rounded-xl border border-white/5">
+                                                        <CheckCircle2 className="w-4 h-4 text-success" /> Pre-validación local de colisiones
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <Link
+                                                href="/topology"
+                                                className="w-full mt-8 py-5 bg-accent-primary hover:bg-sky-400 text-white font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(14,165,233,0.3)] transition-all transform hover:-translate-y-1"
+                                            >
+                                                <FolderTree className="w-6 h-6" />
+                                                Abrir Asistente de Ingesta
+                                            </Link>
+                                        </div>
                                     </div>
-                                    <div className="relative z-10 flex flex-col h-full">
-                                        <div className="mb-auto">
-                                            <div className="flex items-center gap-3 mb-4">
-                                                <div className="w-10 h-10 rounded-xl bg-accent-primary/20 flex items-center justify-center border border-accent-primary/30">
-                                                    <FileDown className="w-5 h-5 text-accent-primary" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-xl font-black text-white uppercase italic tracking-widest">Ingesta de Topología</h3>
-                                                    <span className="text-[9px] px-2 py-0.5 bg-success/20 text-success rounded uppercase font-bold tracking-widest border border-success/20">Modo Recomendado</span>
-                                                </div>
-                                            </div>
 
-                                            <p className="text-sm text-slate-300 leading-relaxed mb-6 font-medium">
-                                                No agregues racks ni conexiones manualmente. Utiliza módulos de plantillas (CSV/JSON) para poblar y renderizar ramas enteras de la infraestructura (Ej: Edificio -{'>'} Salas -{'>'} Filas -{'>'} Racks -{'>'} Puertos -{'>'} Conexión MQTT).
-                                            </p>
-
-                                            <div className="space-y-3">
-                                                <div className="flex items-center gap-3 text-xs text-slate-400 font-bold p-3 bg-black/20 rounded-xl border border-white/5">
-                                                    <CheckCircle2 className="w-4 h-4 text-success" /> Infraestructura As Code
-                                                </div>
-                                                <div className="flex items-center gap-3 text-xs text-slate-400 font-bold p-3 bg-black/20 rounded-xl border border-white/5">
-                                                    <CheckCircle2 className="w-4 h-4 text-success" /> Pre-validación local de colisiones
-                                                </div>
-                                            </div>
+                                    {/* LADO DERECHO: Ajustes Manuales Arcaicos */}
+                                    <div className="flex flex-col h-full border border-white/5 rounded-3xl p-6 bg-black/20">
+                                        <div className="mb-6">
+                                            <h3 className="text-lg font-black text-white uppercase tracking-widest flex items-center gap-2">
+                                                <Server className="w-5 h-5 text-slate-400" /> Explorador de Nodos (Manual)
+                                            </h3>
+                                            <p className="text-xs text-slate-500 mt-2 font-medium">Edición granular de los activos existentes en la base de datos local.</p>
                                         </div>
 
-                                        <Link
-                                            href="/topology"
-                                            className="w-full mt-8 py-5 bg-accent-primary hover:bg-sky-400 text-white font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(14,165,233,0.3)] transition-all transform hover:-translate-y-1"
-                                        >
-                                            <FolderTree className="w-6 h-6" />
-                                            Abrir Asistente de Ingesta
-                                        </Link>
+                                        <div className="flex-1 overflow-auto space-y-3 custom-scrollbar pr-2 pb-4">
+                                            {isSystemEmpty ? (
+                                                <div className="h-full flex flex-col items-center justify-center opacity-40 py-10 text-center">
+                                                    <Inbox className="w-10 h-10 text-slate-500 mb-2" />
+                                                    <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Sin nodos creados</p>
+                                                </div>
+                                            ) : (
+                                                activeBDFBs.map((bdfb) => (
+                                                    <ConfigBDFBItem
+                                                        key={bdfb.id}
+                                                        bdfb={bdfb}
+                                                        isSelected={selectedIds.includes(bdfb.id)}
+                                                        onToggleSelect={() => toggleSelection(bdfb.id)}
+                                                        onEdit={() => setEditingDevice({
+                                                            id: bdfb.id,
+                                                            name: bdfb.name,
+                                                            equipments: bdfb.panels ? bdfb.panels.map(p => ({
+                                                                id: p.id,
+                                                                name: p.name,
+                                                                category: 'SUBRACK'
+                                                            })) : []
+                                                        })}
+                                                    />
+                                                ))
+                                            )}
+
+                                            <button className="w-full mt-4 py-4 border-2 border-dashed border-white/5 rounded-2xl text-slate-600 hover:border-slate-400 hover:text-white transition-all font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2" disabled={isProd}>
+                                                <Plus className="w-4 h-4" />
+                                                {isProd ? 'CREACIÓN MANUAL BLOQUEADA EN PROD' : 'Añadir BDFB Suelto'}
+                                            </button>
+                                        </div>
                                     </div>
+
                                 </div>
-
-                                {/* LADO DERECHO: Ajustes Manuales Arcaicos */}
-                                <div className="flex flex-col h-full border border-white/5 rounded-3xl p-6 bg-black/20">
-                                    <div className="mb-6">
-                                        <h3 className="text-lg font-black text-white uppercase tracking-widest flex items-center gap-2">
-                                            <Server className="w-5 h-5 text-slate-400" /> Explorador de Nodos (Manual)
-                                        </h3>
-                                        <p className="text-xs text-slate-500 mt-2 font-medium">Edición granular de los activos existentes en la base de datos local.</p>
-                                    </div>
-
-                                    <div className="flex-1 overflow-auto space-y-3 custom-scrollbar pr-2 pb-4">
-                                        {isSystemEmpty ? (
-                                            <div className="h-full flex flex-col items-center justify-center opacity-40 py-10 text-center">
-                                                <Inbox className="w-10 h-10 text-slate-500 mb-2" />
-                                                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Sin nodos creados</p>
-                                            </div>
-                                        ) : (
-                                            activeBDFBs.map((bdfb) => (
-                                                <ConfigBDFBItem
-                                                    key={bdfb.id}
-                                                    bdfb={bdfb}
-                                                    isSelected={selectedIds.includes(bdfb.id)}
-                                                    onToggleSelect={() => toggleSelection(bdfb.id)}
-                                                    onEdit={() => setEditingDevice({
-                                                        id: bdfb.id,
-                                                        name: bdfb.name,
-                                                        equipments: bdfb.panels ? bdfb.panels.map(p => ({
-                                                            id: p.id,
-                                                            name: p.name,
-                                                            category: 'SUBRACK'
-                                                        })) : []
-                                                    })}
-                                                />
-                                            ))
-                                        )}
-
-                                        <button className="w-full mt-4 py-4 border-2 border-dashed border-white/5 rounded-2xl text-slate-600 hover:border-slate-400 hover:text-white transition-all font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2" disabled={isProd}>
-                                            <Plus className="w-4 h-4" />
-                                            {isProd ? 'CREACIÓN MANUAL BLOQUEADA EN PROD' : 'Añadir BDFB Suelto'}
-                                        </button>
-                                    </div>
-                                </div>
-
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
             {/* Equipment Editor Modal */}
-            {editingDevice && (
-                <EquipmentEditorModal
-                    device={editingDevice}
-                    onClose={() => setEditingDevice(null)}
-                    onUpdate={() => {
-                        // Refresh data
-                        if (isProd) {
-                            fetch('/appm-ems/api/bdfb-dashboard/')
-                                .then(res => res.json())
-                                .then(data => setActiveBDFBs(data));
-                        }
-                    }}
-                />
-            )}
-        </main>
+            {
+                editingDevice && (
+                    <EquipmentEditorModal
+                        device={editingDevice}
+                        onClose={() => setEditingDevice(null)}
+                        onUpdate={() => {
+                            // Refresh data
+                            if (isProd) {
+                                fetch('/appm-ems/api/bdfb-dashboard/')
+                                    .then(res => res.json())
+                                    .then(data => setActiveBDFBs(data));
+                            }
+                        }}
+                    />
+                )
+            }
+        </main >
     );
 }
 
