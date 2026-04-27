@@ -104,8 +104,11 @@ const BDFBDetailPage: React.FC = () => {
     // Initialize selected panel on load
     useEffect(() => {
         if (bdfbData && bdfbData.panels.length > 0 && !selectedPanelId) {
-            const panelA2 = bdfbData.panels.find(p => p.name === 'A2');
-            setSelectedPanelId(panelA2?.id || bdfbData.panels[0].id);
+            // Prefer A1, then A2, then the first one with breakers, then just the first one
+            const panelA1 = bdfbData.panels.find(p => p.name === 'A1');
+            const panelWithBreakers = bdfbData.panels.find(p => p.breakers && p.breakers.length > 0);
+            
+            setSelectedPanelId(panelA1?.id || panelWithBreakers?.id || bdfbData.panels[0].id);
         }
     }, [bdfbData, selectedPanelId]);
 
@@ -232,6 +235,19 @@ const BDFBDetailPage: React.FC = () => {
                 isLive: true
             };
         }
+        
+        // Fallback para cuando el BDFB está cargado pero no hay datos MQTT aún
+        if (bdfbData && isProd) {
+            return {
+                voltage: "SYNC", voltageHistory: { avg: 0, max: 0, min: 0, trend: 'stable' } as HistoryPoint,
+                current: "SYNC", currentHistory: { avg: 0, max: 0, min: 0, trend: 'stable' } as HistoryPoint,
+                power: "SYNC", powerHistory: { avg: 0, max: 0, min: 0, trend: 'stable' } as HistoryPoint,
+                energy: "SYNC", energyHistory: { avg: 0, max: 0, min: 0, trend: 'stable' } as HistoryPoint,
+                label: `Esperando Telemetría: ${bdfbData.sn}`,
+                isLive: false
+            };
+        }
+
         if (!bdfbData) return { voltage: "0", current: "0", power: "0", energy: "0", label: "Cargando...", isLive: false };
         if (selectedBreaker?.data.voltage) {
             const v = parseFloat(selectedBreaker.data.voltage || "0");
@@ -399,6 +415,20 @@ const BDFBDetailPage: React.FC = () => {
                         <div className="w-full h-full flex flex-col items-center justify-center animate-pulse">
                             <div className="w-12 h-12 border-4 border-accent-primary/30 border-t-accent-primary rounded-full animate-spin mb-4" />
                             <h3 className="text-white font-black uppercase tracking-widest text-sm italic">Synchronizing Node Assets...</h3>
+                        </div>
+                    ) : !bdfbData ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-12 text-center animate-in fade-in duration-700">
+                            <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mb-6 border border-rose-500/20">
+                                <Activity className="w-10 h-10 text-rose-500" />
+                            </div>
+                            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-4">Error de Sincronización</h2>
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] max-w-md mb-8 leading-relaxed">
+                                No se han podido recuperar los activos para el nodo seleccionado ({id}). 
+                                Verifique que el dispositivo esté correctamente aprovisionado.
+                            </p>
+                            <Link href="/topology/dashboard" className="px-10 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10 font-black uppercase tracking-widest text-[11px] transition-all shadow-2xl">
+                                Volver al Dashboard
+                            </Link>
                         </div>
                     ) : (
                         <>

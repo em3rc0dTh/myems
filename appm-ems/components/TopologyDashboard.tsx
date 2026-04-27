@@ -6,9 +6,10 @@ import SiteDashboardView from './SiteDashboardView';
 import WarehouseInventoryView from './WarehouseInventoryView';
 import StructureDashboardView from './StructureDashboardView';
 import RoomView from './RoomView';
-import MasterInventoryTree from './MasterInventoryTree';
+import InfrastructureExplorer from './InfrastructureExplorer';
 import { useMqtt } from '@/lib/MqttContext';
 import { useAuth } from '@/lib/AuthContext';
+import { GripVertical } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 type ViewMode = 'SITE' | 'STRUCTURE' | 'ROOM';
@@ -44,6 +45,66 @@ export default function TopologyDashboard() {
   const [isSaving, setIsSaving] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const { isAdmin, isTechnician } = useAuth();
+  const [sidebarWidth, setSidebarWidth] = useState(300);
+  const [isResizing, setIsResizing] = useState(false);
+  const [infrastructureData, setInfrastructureData] = useState<any>(null);
+
+  // Load sidebar width from storage
+  useEffect(() => {
+    const saved = localStorage.getItem('topology-sidebar-width');
+    if (saved) setSidebarWidth(parseInt(saved));
+  }, []);
+
+  // Handle resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const newWidth = Math.max(200, Math.min(600, e.clientX));
+      setSidebarWidth(newWidth);
+    };
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      localStorage.setItem('topology-sidebar-width', sidebarWidth.toString());
+    };
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, sidebarWidth]);
+
+  // Fetch infrastructure when Room is selected
+  useEffect(() => {
+    const fetchTree = async () => {
+      if (!selectedRoomId) {
+        setInfrastructureData(null);
+        return;
+      }
+      try {
+        console.log("FETCHING TREE FOR:", selectedRoomId);
+        const res = await fetch(`/appm-ems/api/substructures/${selectedRoomId}/tree`);
+        if (!res.ok) {
+           console.error("API Error Response:", res.status);
+           setInfrastructureData(null);
+           return;
+        }
+        const data = await res.json();
+        if (data.ok) {
+          setInfrastructureData(data.data);
+        } else {
+          console.error("Tree data failed:", data.error);
+          setInfrastructureData(null);
+        }
+      } catch (e) { 
+        console.error("Fetch tree error:", e); 
+        setInfrastructureData(null);
+      }
+    };
+    fetchTree();
+  }, [selectedRoomId]);
 
   const fetchSites = async () => {
     setLoading(true);
@@ -443,33 +504,85 @@ export default function TopologyDashboard() {
             </div>
           </div>
         ) : (
-          <>
-            {viewMode === 'SITE' && (
-              isAlmacen ? (
-                <WarehouseInventoryView siteId={selectedSiteId} />
-              ) : (
-                <SiteDashboardView
-                  siteId={selectedSiteId}
-                  onStructureSelect={navigateToStructure}
-                />
-              )
-            )}
-
-            {viewMode === 'STRUCTURE' && selectedStructureId && (
-              <StructureDashboardView
-                structureId={selectedStructureId}
-                onRoomSelect={navigateToRoom}
-                siteDimensions={{ width: selectedSite?.width, length: selectedSite?.length }}
-              />
-            )}
-
+          <div className="flex-1 min-h-0 relative flex">
+            {/* LEFT SIDEBAR: NAVEGACIÓN JERÁRQUICA (Solo en vista de sala) */}
             {viewMode === 'ROOM' && selectedRoomId && (
-              <RoomView
-                substructureId={selectedRoomId}
-                siteDimensions={{ width: selectedSite?.width, length: selectedSite?.length }}
-              />
+              <div style={{ width: sidebarWidth }} className="h-full shrink-0 relative bg-[#0a0a0f] border-r border-white/5 flex flex-col pt-4 animate-in slide-in-from-left duration-300">
+                <div className="px-4 mb-4 flex items-center justify-between">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 italic flex items-center gap-2">
+                    <Layers className="w-3 h-3 text-accent-primary" /> Estructura
+                  </h3>
+                  <button onClick={() => setViewMode('ROOM')} className="text-[8px] font-black text-accent-primary uppercase tracking-widest hover:text-white transition-colors">
+                    Refresh Tree
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-2 pb-4 custom-scrollbar">
+                  {infrastructureData ? (
+                    <InfrastructureExplorer
+                      equipment={[]}
+                      siteName={infrastructureData.siteName}
+                      roomName={infrastructureData.roomName}
+                      bays={infrastructureData.bays}
+                      onSelect={(item) => {
+                      // Solo navegamos si NO es un Rack (SUBSHELF/SHELF)
+                      // Los Racks ahora solo se expanden/contraen en el árbol
+                      if (item.category !== 'SUBSHELF' && item.category !== 'SHELF' && item.category !== 'BAY' && item.category !== 'ROOM') {
+                          // Si es un componente interno (como un Panel o el Dispositivo mismo), navegamos
+                          // Usamos el ID del item que suele ser el ID del equipo o dispositivo
+                          window.location.href = `/appm-ems/bdfb/${item.id}`;
+                      }
+                    }}
+                  />
+                  ) : (
+                    <div className="p-8 text-center animate-pulse">
+                      <Database className="w-8 h-8 text-slate-800 mx-auto mb-2" />
+                      <span className="text-[8px] uppercase font-black text-slate-600 tracking-widest">Loading Room Tree...</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Resizer Handle */}
+                <div
+                  className="absolute top-0 -right-2 bottom-0 w-4 cursor-col-resize flex items-center justify-center group z-50"
+                  onMouseDown={() => setIsResizing(true)}
+                >
+                  <div className={`w-1 h-12 rounded-full transition-all ${isResizing ? 'bg-accent-primary shadow-[0_0_10px_#0ea5e9]' : 'bg-white/10 group-hover:bg-accent-primary/50'}`}>
+                    <GripVertical className="w-3 h-3 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-white transition-opacity pointer-events-none" />
+                  </div>
+                </div>
+              </div>
             )}
-          </>
+
+            {/* MAIN CONTENT AREA */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+              {viewMode === 'SITE' && (
+                isAlmacen ? (
+                  <WarehouseInventoryView siteId={selectedSiteId} />
+                ) : (
+                  <SiteDashboardView
+                    siteId={selectedSiteId}
+                    onStructureSelect={navigateToStructure}
+                  />
+                )
+              )}
+
+              {viewMode === 'STRUCTURE' && selectedStructureId && (
+                <StructureDashboardView
+                  structureId={selectedStructureId}
+                  onRoomSelect={navigateToRoom}
+                  siteDimensions={{ width: selectedSite?.width, length: selectedSite?.length }}
+                />
+              )}
+
+              {viewMode === 'ROOM' && selectedRoomId && (
+                <RoomView
+                  substructureId={selectedRoomId}
+                  siteDimensions={{ width: selectedSite?.width, length: selectedSite?.length }}
+                />
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>

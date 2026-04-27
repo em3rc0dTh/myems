@@ -35,7 +35,7 @@ const BDFBRackDetail: React.FC<BDFBRackDetailProps> = ({ panelName, breakers, ma
     <div className="bg-[#0f111a] p-4 rounded-[32px] border border-white/5 h-full flex flex-col shadow-2xl relative overflow-hidden text-left">
       {/* Texture/Industrial Background Overlay */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
-      
+
       {/* Panel Header */}
       <div className="flex items-center justify-between mb-4 px-2 shrink-0 relative z-10">
         <div className="flex flex-col">
@@ -61,8 +61,8 @@ const BDFBRackDetail: React.FC<BDFBRackDetailProps> = ({ panelName, breakers, ma
               onClick={() => onPositionClick && onPositionClick(panelName, b)}
               className={`
                 relative h-10 rounded-lg border flex items-center px-3 transition-all cursor-pointer group
-                ${isOccupied 
-                  ? 'bg-gradient-to-r from-slate-900 to-slate-800/50 border-slate-700/50 hover:border-accent-primary' 
+                ${isOccupied
+                  ? 'bg-gradient-to-r from-slate-900 to-slate-800/50 border-slate-700/50 hover:border-accent-primary'
                   : 'bg-black/20 border-white/5 border-dashed hover:border-white/10'}
               `}
             >
@@ -72,20 +72,20 @@ const BDFBRackDetail: React.FC<BDFBRackDetailProps> = ({ panelName, breakers, ma
               </div>
 
               {/* Info Area */}
-              <div className="flex-1 flex flex-col min-w-0 justify-center">
+              <div className="flex-1 flex flex-row min-w-0 justify-between">
                 {isOccupied ? (
                   <>
-                    <span className="text-[9px] font-black text-white truncate uppercase tracking-tight leading-tight group-hover:text-accent-primary transition-colors">
+                    <span className="text-[14px] font-black text-white truncate uppercase tracking-tight leading-tight group-hover:text-accent-primary transition-colors">
                       {b.label || 'LOAD_PORT'}
                     </span>
                     <div className="flex items-center gap-1.5 opacity-60 text-left">
-                       <span className="text-[8px] font-mono font-bold text-slate-400">{b.voltage || '48.0'}V</span>
-                       <div className="w-[1px] h-1.5 bg-slate-700" />
-                       <span className="text-[8px] font-mono font-bold text-slate-400">{b.current || '0.0'}A</span>
+                      <span className="text-[12px] font-mono font-bold text-slate-400">{b.voltage || '48.0'}V</span>
+                      <div className="w-[1px] h-1.5 bg-slate-700" />
+                      <span className="text-[12px] font-mono font-bold text-slate-400">{b.current || '0.0'}A</span>
                     </div>
                   </>
                 ) : (
-                  <span className="text-[9px] font-black text-slate-700 italic uppercase tracking-widest">Empty</span>
+                  <span className="text-[12px] font-black text-slate-700 italic uppercase tracking-widest">Empty</span>
                 )}
               </div>
 

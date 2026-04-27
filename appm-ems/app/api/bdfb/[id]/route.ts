@@ -7,6 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    console.log('--- BDFB DETAIL API: Fetching ID:', id);
 
     const device = await prisma.device.findUnique({
       where: { id },
