@@ -7,7 +7,8 @@ import BDFBFrontView from '../../../components/BDFBFrontView';
 import BDFBRackDetail from '../../../components/BDFBRackDetail';
 import MeteringDiagram from '../../../components/MeteringDiagram';
 import EnergyHistoryView from '../../../components/EnergyHistoryView';
-import { Plus, LayoutGrid, Cpu, CheckCircle2, AlertTriangle, Activity, Inbox, MapPin } from 'lucide-react';
+import RackElevationManager from '../../../components/RackElevationManager';
+import { Plus, LayoutGrid, Cpu, CheckCircle2, AlertTriangle, Activity, Inbox, MapPin, ChevronRight, GripVertical, Flame } from 'lucide-react';
 import { BDFB_MOCK_DATA } from '@/lib/mockData';
 import { BDFBData, BreakerData, HistoryPoint } from '@/lib/types';
 import { useMqtt } from '@/lib/MqttContext';
@@ -16,6 +17,37 @@ import InfrastructureExplorer from '@/components/InfrastructureExplorer';
 const BDFBDetailPage: React.FC = () => {
     const { id } = useParams();
     const router = useRouter();
+
+    const [sidebarWidth, setSidebarWidth] = useState(320);
+    const [rightPanelWidth, setRightPanelWidth] = useState(450);
+    const [isResizing, setIsResizing] = useState(false);
+    const [isResizingRight, setIsResizingRight] = useState(false);
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (isResizing) {
+                const newWidth = e.clientX;
+                if (newWidth >= 240 && newWidth <= 600) setSidebarWidth(newWidth);
+            }
+            if (isResizingRight) {
+                const newWidth = window.innerWidth - e.clientX;
+                if (newWidth >= 300 && newWidth <= 800) setRightPanelWidth(newWidth);
+            }
+        };
+        const handleMouseUp = () => {
+            setIsResizing(false);
+            setIsResizingRight(false);
+        };
+
+        if (isResizing || isResizingRight) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isResizing, isResizingRight]);
 
     // Environment Context
     const isProd = process.env.NEXT_PUBLIC_APP_MODE === 'prod';
@@ -63,7 +95,8 @@ const BDFBDetailPage: React.FC = () => {
     const [selectedBreaker, setSelectedBreaker] = useState<{ panelId: string, data: BreakerData } | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    
+    const [selectedContainer, setSelectedContainer] = useState<any | null>(null);
+
     const [focusedView, setFocusedView] = useState<'none' | 'history' | 'diagram'>('none');
     const [historyRange, setHistoryRange] = useState<'24h' | '7d' | '30d'>('24h');
     const [historyLoading, setHistoryLoading] = useState(false);
@@ -81,7 +114,7 @@ const BDFBDetailPage: React.FC = () => {
 
     // REAL HISTORY FETCHING
     const [realHistory, setRealHistory] = useState<any[]>([]);
-    
+
     const targetChannelKey = useMemo(() => {
         if (!bdfbData || !selectedPanel) return "0_1_1";
         if (!selectedBreaker) return "0_1_1";
@@ -102,27 +135,27 @@ const BDFBDetailPage: React.FC = () => {
                     if (vRes.ok && iRes.ok) {
                         const vData = await vRes.json();
                         const iData = await iRes.json();
-                        
+
                         // Robust Time-Matching Merge & Filter by Target Port
                         const timeMap: Record<string, any> = {};
-                        
+
                         // Only use data matching our target port! (e.g. "0_1_1_U1")
                         const targetVField = `${targetChannelKey}_U1`;
                         const targetIField = `${targetChannelKey}_I1`;
-                        
+
                         vData.forEach((v: any) => {
                             if (v.field === targetVField) {
                                 timeMap[v.time] = { ...timeMap[v.time], time: v.time, voltage: v.value };
                             }
                         });
-                        
+
                         iData.forEach((i: any) => {
                             if (i.field === targetIField) {
                                 timeMap[i.time] = { ...timeMap[i.time], time: i.time, current: i.value };
                             }
                         });
-                        
-                        const combined = Object.values(timeMap).sort((a, b) => 
+
+                        const combined = Object.values(timeMap).sort((a, b) =>
                             new Date(a.time).getTime() - new Date(b.time).getTime()
                         );
 
@@ -160,15 +193,15 @@ const BDFBDetailPage: React.FC = () => {
             const livePayload = latestData[bdfbData.sn].reported as any;
             if (selectedBreaker && selectedPanel) {
                 // Prioridad a sensorKey si la API la provee, sino fallback a heurística 0_idx_pos
-                const channelKey = (selectedBreaker.data as any).sensorKey || 
-                                   `0_${bdfbData.panels.findIndex(p => p.id === selectedPanel.id) + 1}_${selectedBreaker.data.position}`;
+                const channelKey = (selectedBreaker.data as any).sensorKey ||
+                    `0_${bdfbData.panels.findIndex(p => p.id === selectedPanel.id) + 1}_${selectedBreaker.data.position}`;
                 const channelData = livePayload[channelKey];
-                
+
                 if (channelData) {
                     const current = parseFloat(channelData.I1 || "0");
                     const capacity = (selectedBreaker.data as any).maxAmperage || 63;
                     const loadFactor = (current / capacity) * 100;
-                    
+
                     let statusColor = "text-success";
                     if (loadFactor >= 80 && loadFactor < 95) statusColor = "text-warning";
                     if (loadFactor >= 95) statusColor = "text-danger";
@@ -271,269 +304,319 @@ const BDFBDetailPage: React.FC = () => {
 
     return (
         <>
-        {isEditModalOpen && selectedBreaker && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 text-left">
-                <div className="w-full max-w-md glass-panel rounded-[32px] border border-white/10 p-8 shadow-2xl relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-accent-primary" />
-                    <h2 className="text-xl font-black text-white uppercase italic tracking-[0.15em] mb-2 flex items-center gap-3">
-                        <Cpu className="w-6 h-6 text-accent-primary" /> Mapeo de Ingeniería
-                    </h2>
-                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-8 text-left">Panel: {selectedPanel?.name} | Posición: {selectedBreaker.data.position}</p>
-                    
-                    <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const fd = new FormData(e.currentTarget);
-                        handleSaveEngineering({
-                            maxAmperage: parseFloat(fd.get('maxAmperage') as string),
-                            cableGauge: fd.get('cableGauge'),
-                            clientName: fd.get('clientName'),
-                            sensorKey: fd.get('sensorKey')
-                        });
-                    }} className="space-y-6 text-left">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Equipo Final (NE)</label>
-                            <input name="clientName" defaultValue={(selectedBreaker.data as any).clientName || ''} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-sm focus:border-accent-primary outline-none transition-all placeholder:text-slate-600 uppercase" placeholder="Ej: GRTLuren3 PSU0 A0" />
-                        </div>
+            {isEditModalOpen && selectedBreaker && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300 text-left">
+                    <div className="w-full max-w-md glass-panel rounded-[32px] border border-white/10 p-8 shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-accent-primary" />
+                        <h2 className="text-xl font-black text-white uppercase italic tracking-[0.15em] mb-2 flex items-center gap-3">
+                            <Cpu className="w-6 h-6 text-accent-primary" /> Mapeo de Ingeniería
+                        </h2>
+                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-8 text-left">Panel: {selectedPanel?.name} | Posición: {selectedBreaker.data.position}</p>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            const fd = new FormData(e.currentTarget);
+                            handleSaveEngineering({
+                                maxAmperage: parseFloat(fd.get('maxAmperage') as string),
+                                cableGauge: fd.get('cableGauge'),
+                                clientName: fd.get('clientName'),
+                                sensorKey: fd.get('sensorKey')
+                            });
+                        }} className="space-y-6 text-left">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 text-left">Capacidad (Amp)</label>
-                                <input name="maxAmperage" defaultValue={(selectedBreaker.data as any).maxAmperage || 63} type="number" className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-sm focus:border-accent-primary outline-none transition-all" />
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Equipo Final (NE)</label>
+                                <input name="clientName" defaultValue={(selectedBreaker.data as any).clientName || ''} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-sm focus:border-accent-primary outline-none transition-all placeholder:text-slate-600 uppercase" placeholder="Ej: GRTLuren3 PSU0 A0" />
                             </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 text-left">Capacidad (Amp)</label>
+                                    <input name="maxAmperage" defaultValue={(selectedBreaker.data as any).maxAmperage || 63} type="number" className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-sm focus:border-accent-primary outline-none transition-all" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Calibre Cable</label>
+                                    <select name="cableGauge" defaultValue={(selectedBreaker.data as any).cableGauge || '4AWG'} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-sm focus:border-accent-primary outline-none transition-all appearance-none cursor-pointer">
+                                        <option value="2AWG">2 AWG</option>
+                                        <option value="4AWG">4 AWG</option>
+                                        <option value="8AWG">8 AWG</option>
+                                        <option value="16mm2">16 mm²</option>
+                                        <option value="35mm2">35 mm²</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Calibre Cable</label>
-                                <select name="cableGauge" defaultValue={(selectedBreaker.data as any).cableGauge || '4AWG'} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-sm focus:border-accent-primary outline-none transition-all appearance-none cursor-pointer">
-                                    <option value="2AWG">2 AWG</option>
-                                    <option value="4AWG">4 AWG</option>
-                                    <option value="8AWG">8 AWG</option>
-                                    <option value="16mm2">16 mm²</option>
-                                    <option value="35mm2">35 mm²</option>
-                                </select>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">ID Sensor (MQTT)</label>
+                                <input name="sensorKey" defaultValue={(selectedBreaker.data as any).sensorKey || ''} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-xs focus:border-accent-primary outline-none transition-all uppercase" placeholder="0_1_X" />
                             </div>
-                        </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">ID Sensor (MQTT)</label>
-                            <input name="sensorKey" defaultValue={(selectedBreaker.data as any).sensorKey || ''} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white font-mono text-xs focus:border-accent-primary outline-none transition-all uppercase" placeholder="0_1_X" />
-                        </div>
-
-                        <div className="flex gap-4 pt-6">
-                            <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl border border-white/10 transition-all">Cancelar</button>
-                            <button type="submit" disabled={isSaving} className="flex-[2] py-4 bg-accent-primary hover:bg-accent-primary/80 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-accent-primary/20">
-                                {isSaving ? 'Guardando...' : 'Guardar Ingeniería'}
-                            </button>
-                        </div>
-                    </form>
+                            <div className="flex gap-4 pt-6">
+                                <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl border border-white/10 transition-all">Cancelar</button>
+                                <button type="submit" disabled={isSaving} className="flex-[2] py-4 bg-accent-primary hover:bg-accent-primary/80 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-accent-primary/20">
+                                    {isSaving ? 'Guardando...' : 'Guardar Ingeniería'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-            </div>
-        )}
-        <main className="h-screen w-screen overflow-hidden p-4 lg:p-6 pt-8 lg:pt-10 flex flex-col gap-4 bg-[#050508] relative">
-            <div className={`absolute top-0 left-0 w-full py-1 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-center z-[100] flex items-center justify-center gap-2 ${isProd ? isConnected ? 'bg-success/20 text-[#a7f3d0] border-b border-success/30' : 'bg-warning/20 text-[#fde68a] border-b border-warning/30' : 'bg-[#1e293b] text-[#94a3b8] border-b border-white/5'}`}>
-                {isProd ? isConnected ? <><CheckCircle2 className="w-3 h-3" /> ENTORNO DE PRODUCCIÓN - CONECTADO</> : <><Activity className="w-3 h-3 animate-pulse" /> ENTORNO DE PRODUCCIÓN - ESPERANDO MQTT...</> : <><AlertTriangle className="w-3 h-3" /> MODO DE DESARROLLO (MOCK)</>}
-            </div>
+            )}
 
-            <div className="flex items-center justify-between shrink-0 relative z-50">
-                <div className="flex items-center gap-6">
-                    <Link href="/topology/dashboard" className="p-3 bg-white/5 hover:bg-accent-primary/20 rounded-2xl border border-white/10 transition-all text-slate-400 hover:text-accent-primary transform hover:-translate-x-1">
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                    </Link>
-                    <div>
-                        <h1 className="text-2xl font-black flex items-center gap-3">
-                            <span className="text-gradient leading-tight">{bdfbData?.name || 'BDFB Node'}</span>
-                            <span className="text-slate-600 font-medium tracking-normal text-xs uppercase px-3 py-1 bg-white/5 rounded-lg">{viewMode === 'room' ? 'Digital Twin' : 'Physical Detail'}</span>
-                        </h1>
-                        <div className="flex items-center gap-3 mt-1">
-                            <span className="px-2 py-0.5 bg-white/5 border border-white/5 rounded text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none flex items-center gap-1.5">
-                                <MapPin className="w-2.5 h-2.5" />
-                                {bdfbData?.location || 'Site Emplacement'}
-                            </span>
-                            <span className="text-sky-400 text-[9px] font-black uppercase tracking-[0.2em]">
-                                {isProd && bdfbData?.sn ? `SN: ${bdfbData.sn}` : 'ID-SYSTEM'}
-                            </span>
+            {focusedView === 'history' && (
+                <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="w-[90vw] h-[90vh] max-w-7xl glass-panel rounded-[32px] border border-white/10 shadow-2xl relative overflow-hidden flex flex-col">
+                        <EnergyHistoryView
+                            history={realHistory}
+                            onClose={() => setFocusedView('none')}
+                            title="Análisis Histórico de Carga"
+                            range={historyRange}
+                            onRangeChange={setHistoryRange}
+                            loading={historyLoading}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {focusedView === 'diagram' && (
+                <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="w-[90vw] h-[90vh] max-w-7xl glass-panel rounded-[32px] border border-white/10 shadow-2xl relative overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-black/20 shrink-0">
+                            <h2 className="text-xl font-black text-white uppercase italic tracking-widest">Wiring Diagram</h2>
+                            <button onClick={() => setFocusedView('none')} className="px-8 py-3 bg-accent-primary text-white font-black uppercase tracking-widest rounded-xl text-xs hover:bg-accent-primary/80 transition-all shadow-lg shadow-accent-primary/20">Cerrar</button>
+                        </div>
+                        <div className="flex-1 p-6 flex items-center justify-center overflow-auto custom-scrollbar">
+                            {selectedConnection ? <MeteringDiagram connection={selectedConnection} bdfbName={bdfbData?.name || ''} /> : <div className="text-center opacity-30"><Plus className="w-16 h-16 mx-auto mb-4" /><p className="text-sm font-black uppercase">Select mapped breaker</p></div>}
                         </div>
                     </div>
                 </div>
-
-                <div className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
-                    <button onClick={() => setViewMode('room')} className={`flex items-center gap-2 px-6 py-2 rounded-xl transition-all font-black text-[10px] tracking-widest uppercase ${viewMode === 'room' ? 'bg-accent-primary text-white' : 'text-slate-500 hover:text-slate-300'}`}>
-                        <LayoutGrid className="w-4 h-4" /> Sala
-                    </button>
-                    <button onClick={() => setViewMode('device')} className={`flex items-center gap-2 px-6 py-2 rounded-xl transition-all font-black text-[10px] tracking-widest uppercase ${viewMode === 'device' ? 'bg-accent-primary text-white' : 'text-slate-500 hover:text-slate-300'}`}>
-                        <Cpu className="w-4 h-4" /> Dispositivo
-                    </button>
+            )}
+            <main className="h-screen w-screen overflow-hidden flex flex-col bg-[#050508] relative text-white">
+                <div className={`shrink-0 w-full py-1 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-center z-[100] flex items-center justify-center gap-2 ${isProd ? isConnected ? 'bg-success/20 text-[#a7f3d0] border-b border-success/30' : 'bg-warning/20 text-[#fde68a] border-b border-warning/30' : 'bg-[#1e293b] text-[#94a3b8] border-b border-white/5'}`}>
+                    {isProd ? isConnected ? <><CheckCircle2 className="w-3 h-3" /> ENTORNO DE PRODUCCIÓN - CONECTADO</> : <><Activity className="w-3 h-3 animate-pulse" /> ENTORNO DE PRODUCCIÓN - ESPERANDO MQTT...</> : <><AlertTriangle className="w-3 h-3" /> MODO DE DESARROLLO (MOCK)</>}
                 </div>
-            </div>
 
-            <div className="flex-1 min-h-0 relative">
-                <div className="absolute inset-0 transition-all duration-500 overflow-hidden">
+                <div className="flex-1 min-h-0 relative flex">
                     {isLoading ? (
-                        <div className="w-full h-full glass-panel rounded-3xl flex flex-col items-center justify-center animate-pulse border border-white/5">
+                        <div className="w-full h-full flex flex-col items-center justify-center animate-pulse">
                             <div className="w-12 h-12 border-4 border-accent-primary/30 border-t-accent-primary rounded-full animate-spin mb-4" />
                             <h3 className="text-white font-black uppercase tracking-widest text-sm italic">Synchronizing Node Assets...</h3>
                         </div>
-                    ) : viewMode === 'room' && bdfbData?.substructureId ? (
-                        <div className="w-full h-full glass-panel rounded-3xl overflow-hidden border border-white/5 animate-in fade-in duration-500">
-                            <RoomView
-                                substructureId={bdfbData.substructureId}
-                                onSelectBDFB={(id) => {
-                                    if (id) {
-                                        router.push(`/bdfb/${id}`);
-                                        setViewMode('device');
-                                    }
-                                }}
-                            />
-                        </div>
                     ) : (
-                        <div className="flex gap-6 h-full animate-in slide-in-from-right-4 duration-500 relative">
-                            {focusedView === 'none' && (
-                                <div className="w-[280px] flex flex-col h-full shrink-0 gap-4">
-                                    <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 shrink-0">
-                                        <button onClick={() => setLeftSidebarMode('visual')} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${leftSidebarMode === 'visual' ? 'bg-accent-primary text-white' : 'text-slate-500'}`}>Frontal</button>
-                                        <button onClick={() => setLeftSidebarMode('tree')} className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${leftSidebarMode === 'tree' ? 'bg-accent-primary text-white' : 'text-slate-500'}`}>Estructura</button>
-                                    </div>
-                                    
-                                    <div className="flex-1 overflow-hidden glass-panel rounded-3xl border border-white/5 flex flex-col">
-                                        <div className="p-4 border-b border-white/5 bg-white/[0.02]">
-                                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Navegación Física</h3>
-                                        </div>
-                                        <div className="flex-1 overflow-y-auto">
-                                            {leftSidebarMode === 'visual' ? (
-                                                <BDFBFrontView panels={bdfbData?.panels || []} selectedPanelId={selectedPanelId} onPanelClick={(pid) => { setSelectedPanelId(pid); setSelectedBreaker(null); }} />
-                                            ) : (
-                                                <InfrastructureExplorer equipment={bdfbData?.equipments || []} onSelect={(item) => {
-                                                    if (item.category === 'SUBSHELF') setSelectedPanelId(item.id);
-                                                    if (item.category === 'BREAKER') {
-                                                        // Encontrar el panel padre para seleccionarlo
-                                                        const panel = bdfbData?.panels.find(p => p.breakers?.some(b => b.id === item.id));
-                                                        if (panel) {
-                                                            setSelectedPanelId(panel.id);
-                                                            const breakerData = panel.breakers?.find(b => b.id === item.id);
-                                                            if (breakerData) setSelectedBreaker({ panelId: panel.id, data: breakerData });
-                                                        }
-                                                    }
-                                                }} />
-                                            )}
-                                        </div>
+                        <>
+                            {/* LEFT SIDEBAR: NAVEGACIÓN */}
+                            <div style={{ width: sidebarWidth }} className="h-full shrink-0 relative bg-[#0a0a0f] border-r border-white/5 flex flex-col pt-4">
+                                <div className="px-4 mb-4 flex gap-2">
+                                    <Link href="/topology/dashboard" className="p-3 bg-white/5 hover:bg-accent-primary/20 rounded-xl border border-white/10 transition-all text-slate-400 hover:text-accent-primary">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                        </svg>
+                                    </Link>
+                                    <div className="flex-1 flex bg-white/5 p-1 rounded-xl border border-white/10 shrink-0">
+                                        <button onClick={() => setLeftSidebarMode('visual')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${leftSidebarMode === 'visual' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-slate-500 hover:bg-white/5'}`}>Frontal</button>
+                                        <button onClick={() => setLeftSidebarMode('tree')} className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${leftSidebarMode === 'tree' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20' : 'text-slate-500 hover:bg-white/5'}`}>Estructura</button>
                                     </div>
                                 </div>
-                            )}
 
-                            {focusedView !== 'none' ? (
-                                <div className="flex-1 min-h-0 h-full">
-                                    {focusedView === 'history' ? (
-                                        <EnergyHistoryView 
-                                            history={realHistory} 
-                                            onClose={() => setFocusedView('none')} 
-                                            title="Análisis Histórico de Carga" 
-                                            range={historyRange}
-                                            onRangeChange={setHistoryRange}
-                                            loading={historyLoading}
-                                        />
+                                <div className="flex-1 overflow-y-auto px-2 pb-4">
+                                    {leftSidebarMode === 'visual' ? (
+                                        <BDFBFrontView panels={bdfbData?.panels || []} selectedPanelId={selectedPanelId} onPanelClick={(pid) => { setSelectedPanelId(pid); setSelectedBreaker(null); }} />
                                     ) : (
-                                        <div className="w-full h-full glass-panel rounded-3xl border border-white/5 flex flex-col animate-in zoom-in-95">
-                                            <div className="p-8 border-b border-white/5 flex justify-between items-center bg-black/20">
-                                                <h2 className="text-xl font-black text-white uppercase italic tracking-widest">Wiring Diagram</h2>
-                                                <button onClick={() => setFocusedView('none')} className="px-6 py-2.5 bg-accent-primary text-white font-black uppercase tracking-widest rounded-xl text-[10px]">Close Diagram</button>
-                                            </div>
-                                            <div className="flex-1 p-8 flex items-center justify-center">
-                                                {selectedConnection ? <MeteringDiagram connection={selectedConnection} bdfbName={bdfbData?.name || ''} /> : <div className="text-center opacity-30"><Plus className="w-16 h-16 mx-auto mb-4" /><p className="text-xs font-black uppercase">Select mapped breaker</p></div>}
-                                            </div>
+                                        <InfrastructureExplorer
+                                            equipment={bdfbData?.equipments || []}
+                                            siteName={bdfbData?.location || "Site"}
+                                            roomName={bdfbData?.roomName || bdfbData?.name || "Sala"}
+                                            bays={bdfbData?.bays || []}
+                                            onSelect={(item) => {
+                                                if (item.category === 'SUBSHELF') setSelectedPanelId(item.id);
+                                                if (item.category === 'BREAKER') {
+                                                    const panel = bdfbData?.panels.find(p => p.breakers?.some(b => b.id === item.id));
+                                                    if (panel) {
+                                                        setSelectedPanelId(panel.id);
+                                                        const breakerData = panel.breakers?.find(b => b.id === item.id);
+                                                        if (breakerData) setSelectedBreaker({ panelId: panel.id, data: breakerData });
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </div>
+
+                                {/* Resizer Handle Left */}
+                                <div
+                                    className="absolute top-0 -right-2 bottom-0 w-4 cursor-col-resize flex items-center justify-center group z-50"
+                                    onMouseDown={() => setIsResizing(true)}
+                                >
+                                    <div className={`w-1 h-12 rounded-full transition-all ${isResizing ? 'bg-accent-primary shadow-[0_0_10px_#0ea5e9]' : 'bg-white/10 group-hover:bg-accent-primary/50'}`}>
+                                        <GripVertical className="w-3 h-3 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-white transition-opacity pointer-events-none" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* CENTER CANVAS: VISUALIZACIÓN */}
+                            <div className="flex-1 h-full relative overflow-hidden bg-[#01040a]">
+
+
+
+                                {/* CONTROLES DE VISTA */}
+                                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[100] flex gap-2 p-1.5 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl pointer-events-auto">
+                                    <button onClick={() => setViewMode('room')} className={`flex items-center gap-2 px-8 py-2.5 rounded-xl transition-all font-black text-[11px] tracking-widest uppercase ${viewMode === 'room' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20 scale-105' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>
+                                        <LayoutGrid className="w-4 h-4" /> Sala
+                                    </button>
+                                    <button onClick={() => setViewMode('device')} className={`flex items-center gap-2 px-8 py-2.5 rounded-xl transition-all font-black text-[11px] tracking-widest uppercase ${viewMode === 'device' ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20 scale-105' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}>
+                                        <Cpu className="w-4 h-4" /> Dispositivo
+                                    </button>
+                                </div>
+
+                                {/* CONTROLES GLOBALES (Top Right Empty For Future Extensions) */}
+                                <div className="absolute top-6 right-6 z-[100] pointer-events-auto">
+                                    {/* The previous duplicate Thermal View was removed. Thermal View functionality lives inside RoomView. */}
+                                </div>
+
+                                {/* CANVAS CONTENT */}
+                                <div className="w-full h-full pt-20 pb-4 px-4">
+                                    {viewMode === 'room' && bdfbData?.substructureId ? (
+                                        <div className="w-full h-full glass-panel rounded-3xl overflow-hidden border border-white/5 animate-in fade-in duration-500">
+                                            <RoomView
+                                                substructureId={bdfbData.substructureId}
+                                                onContainerSelect={(c) => { setSelectedContainer(c); }}
+                                                onSelectBDFB={(id) => {
+                                                    if (id) {
+                                                        router.push(`/bdfb/${id}`);
+                                                        setViewMode('device');
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="w-full h-full glass-panel rounded-3xl overflow-hidden border border-white/5 flex flex-col relative animate-in fade-in duration-500">
+                                            <BDFBRackDetail panelName={selectedPanel?.name || ''} breakers={activePanelBreakers} mappedPositions={activeConnections.map(c => c.position)} onPositionClick={(pname, b) => setSelectedBreaker({ panelId: selectedPanelId!, data: b })} />
                                         </div>
                                     )}
                                 </div>
-                            ) : (
-                                <div className="flex-1 flex gap-6 min-w-0 h-full">
-                                    <div className="flex-1 flex flex-col h-full overflow-hidden">
-                                        <BDFBRackDetail panelName={selectedPanel?.name || ''} breakers={activePanelBreakers} mappedPositions={activeConnections.map(c => c.position)} onPositionClick={(pname, b) => setSelectedBreaker({ panelId: selectedPanelId!, data: b })} />
-                                    </div>
-                                    <div className="w-[380px] flex flex-col gap-4 h-full overflow-y-auto custom-scrollbar pr-1">
-                                        <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 shrink-0">
-                                            <button onClick={() => setFocusedView('history')} className="flex-1 py-3 text-[9px] font-black tracking-widest uppercase text-slate-500 hover:text-white transition-all">History</button>
-                                            <button onClick={() => setFocusedView('diagram')} className="flex-1 py-3 text-[9px] font-black tracking-widest uppercase text-slate-500 hover:text-white transition-all">Diagram</button>
-                                            <Link href="/topology/dashboard" className="flex-1 py-3 text-[9px] font-black tracking-widest uppercase bg-accent-primary/10 text-accent-primary hover:bg-accent-primary hover:text-white transition-all text-center rounded-lg border border-accent-primary/20">Dashboard</Link>
-                                        </div>
+                            </div>
 
-                                        <div className={`glass-panel p-6 rounded-3xl border transition-all shrink-0 ${displayTelemetry.isLive ? 'border-accent-primary/40 bg-accent-primary/5' : 'border-white/5'}`}>
-                                            <div className="flex items-center justify-between mb-6">
-                                                <h2 className="text-[10px] font-black tracking-widest uppercase text-slate-400 italic flex items-center gap-2">
-                                                    <div className={`w-2 h-2 rounded-full ${displayTelemetry.isLive ? 'bg-accent-primary animate-pulse' : 'bg-slate-700'}`} />
-                                                    {displayTelemetry.label}
-                                                </h2>
-                                                <div className="flex gap-2">
-                                                    {selectedBreaker && (
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }}
-                                                            className="text-[8px] font-black text-accent-primary hover:text-white uppercase tracking-widest transition-all px-2 py-1 bg-accent-primary/10 rounded border border-accent-primary/20"
-                                                        >
-                                                            Ingeniería
-                                                        </button>
-                                                    )}
-                                                    {selectedBreaker && <button onClick={() => setSelectedBreaker(null)} className="text-[8px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Reset Selection</button>}
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <MetricCard label="Voltage" value={displayTelemetry.voltage} unit="V" color="text-accent-primary" stats={displayTelemetry.voltageHistory} isLive={displayTelemetry.isLive} />
-                                                <MetricCard label="Current" value={displayTelemetry.current} unit="A" color={(displayTelemetry as any).statusColor || "text-accent-secondary"} stats={displayTelemetry.currentHistory} isLive={displayTelemetry.isLive} />
-                                                <MetricCard label="Power" value={displayTelemetry.power} unit={parseFloat(displayTelemetry.power) > 100 ? "W" : "kW"} color="text-success" stats={displayTelemetry.powerHistory} isLive={displayTelemetry.isLive} />
-                                                <MetricCard label="Energy" value={displayTelemetry.energy} unit="kWh" color="text-warning" stats={displayTelemetry.energyHistory} isLive={displayTelemetry.isLive} />
-                                            </div>
-
-                                            {(displayTelemetry as any).loadFactor !== undefined && (
-                                                <div className="mt-8 pt-6 border-t border-white/5">
-                                                    <div className="flex justify-between items-center mb-3">
-                                                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Utilización de Capacidad</span>
-                                                        <span className={`text-[10px] font-black ${(displayTelemetry as any).statusColor}`}>{(displayTelemetry as any).loadFactor.toFixed(1)}%</span>
-                                                    </div>
-                                                    <div className="h-4 bg-white/5 rounded-full overflow-hidden p-1 border border-white/10">
-                                                        <div 
-                                                            className={`h-full rounded-full transition-all duration-1000 ${(displayTelemetry as any).statusColor?.replace('text-', 'bg-')}`}
-                                                            style={{ width: `${Math.min((displayTelemetry as any).loadFactor, 100)}%` }}
-                                                        />
-                                                    </div>
-                                                    <div className="mt-4 flex justify-between items-center">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Cable Adjunto:</span>
-                                                            <span className="text-[10px] font-mono font-black text-white">{(displayTelemetry as any).cableGauge}</span>
-                                                        </div>
-                                                        {(displayTelemetry as any).loadFactor >= 80 && (
-                                                            <div className="flex items-center gap-1.5 animate-pulse">
-                                                                <AlertTriangle className="w-3 h-3 text-warning" />
-                                                                <span className="text-[8px] font-black text-warning uppercase">Carga Elevada</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex-1 flex flex-col min-h-0 bg-black/40 rounded-3xl border border-white/5 overflow-hidden">
-                                            <div className="p-5 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
-                                                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] italic">Port Mapping</h3>
-                                                <span className="text-[9px] font-black text-accent-primary bg-accent-primary/10 px-3 py-1 rounded-lg">Panel {selectedPanel?.name || 'A2'}</span>
-                                            </div>
-                                            <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                                                {activeConnections.map((c) => (
-                                                    <div key={c.id} onClick={() => { const b = activePanelBreakers.find(pb => pb.position === c.position); if (b) setSelectedBreaker({ panelId: selectedPanelId!, data: b }); }} className={`grid grid-cols-[40px_1fr_60px] items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${selectedConnection?.id === c.id ? 'bg-accent-primary/10 border-accent-primary/40' : 'bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]'}`}>
-                                                        <span className="font-mono text-[10px] text-slate-500">{c.position}</span>
-                                                        <div className="flex flex-col min-w-0">
-                                                            <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">{c.clientName || 'Standalone BDFB'}</span>
-                                                            <span className="text-[8px] font-mono text-slate-500 mt-0.5">Physical Port: {c.port}</span>
-                                                        </div>
-                                                        <span className={`text-[8px] font-black uppercase text-center px-2 py-1 rounded-full ${c.status === 'Activo' ? 'text-success bg-success/10 border border-success/20' : 'text-slate-500 bg-white/5 border border-white/10'}`}>{c.status}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                            {/* RIGHT PANEL: DETALLE */}
+                            <div style={{ width: rightPanelWidth }} className="h-full shrink-0 relative bg-[#0a0a0f] border-l border-white/5 flex flex-col p-4">
+                                {/* Resizer Handle Right */}
+                                <div
+                                    className="absolute top-0 -left-2 bottom-0 w-4 cursor-col-resize flex items-center justify-center group z-50"
+                                    onMouseDown={() => setIsResizingRight(true)}
+                                >
+                                    <div className={`w-1 h-12 rounded-full transition-all ${isResizingRight ? 'bg-accent-primary shadow-[0_0_10px_#0ea5e9]' : 'bg-white/10 group-hover:bg-accent-primary/50'}`}>
+                                        <GripVertical className="w-3 h-3 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-white transition-opacity pointer-events-none" />
                                     </div>
                                 </div>
-                            )}
-                        </div>
+
+                                <div className="flex-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-1">
+                                    {selectedContainer ? (
+                                        <RackElevationManager
+                                            container={selectedContainer}
+                                            siteId={bdfbData?.substructureId}
+                                            onClose={() => setSelectedContainer(null)}
+                                            onUpdate={() => { }}
+                                        />
+                                    ) : (
+                                        <>
+                                            <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 shrink-0">
+                                                <button onClick={() => setFocusedView('history')} className="flex-1 py-3 text-[10px] font-black tracking-widest uppercase text-slate-500 hover:text-white transition-all rounded-lg hover:bg-white/5">History</button>
+                                                <button onClick={() => setFocusedView('diagram')} className="flex-1 py-3 text-[10px] font-black tracking-widest uppercase text-slate-500 hover:text-white transition-all rounded-lg hover:bg-white/5">Diagram</button>
+                                            </div>
+
+                                            {/* Serial Number and Device Meta Details */}
+                                            <div className="glass-panel p-5 rounded-2xl border border-white/5 flex flex-col gap-2">
+                                                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                                    <Activity className="w-3 h-3 text-accent-primary" /> Detalles Técnicos
+                                                </h3>
+                                                <div className="grid grid-cols-2 gap-4 mt-2">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] text-slate-500 uppercase tracking-widest font-black">Serial Number (S/N)</span>
+                                                        <span className="text-xs font-mono text-white mt-0.5">{bdfbData?.sn || 'UNKNOWN_SN'}</span>
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] text-slate-500 uppercase tracking-widest font-black">Identificador (ID)</span>
+                                                        <span className="text-xs font-mono text-white mt-0.5">{bdfbData?.id?.substring(0, 8) || 'N/A'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className={`glass-panel p-6 rounded-3xl border transition-all shrink-0 ${displayTelemetry.isLive ? 'border-accent-primary/40 bg-accent-primary/5' : 'border-white/5'}`}>
+                                                <div className="flex items-center justify-between mb-6">
+                                                    <h2 className="text-[10px] font-black tracking-widest uppercase text-slate-400 italic flex items-center gap-2">
+                                                        <div className={`w-2 h-2 rounded-full ${displayTelemetry.isLive ? 'bg-accent-primary animate-pulse' : 'bg-slate-700'}`} />
+                                                        {displayTelemetry.label}
+                                                    </h2>
+                                                    <div className="flex gap-2">
+                                                        {selectedBreaker && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); setIsEditModalOpen(true); }}
+                                                                className="text-[8px] font-black text-accent-primary hover:text-white uppercase tracking-widest transition-all px-2 py-1 bg-accent-primary/10 rounded border border-accent-primary/20"
+                                                            >
+                                                                Ingeniería
+                                                            </button>
+                                                        )}
+                                                        {selectedBreaker && <button onClick={() => setSelectedBreaker(null)} className="text-[8px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Reset Selection</button>}
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <MetricCard label="Voltage" value={displayTelemetry.voltage} unit="V" color="text-accent-primary" stats={displayTelemetry.voltageHistory} isLive={displayTelemetry.isLive} />
+                                                    <MetricCard label="Current" value={displayTelemetry.current} unit="A" color={(displayTelemetry as any).statusColor || "text-accent-secondary"} stats={displayTelemetry.currentHistory} isLive={displayTelemetry.isLive} />
+                                                    <MetricCard label="Power" value={displayTelemetry.power} unit={parseFloat(displayTelemetry.power) > 100 ? "W" : "kW"} color="text-success" stats={displayTelemetry.powerHistory} isLive={displayTelemetry.isLive} />
+                                                    <MetricCard label="Energy" value={displayTelemetry.energy} unit="kWh" color="text-warning" stats={displayTelemetry.energyHistory} isLive={displayTelemetry.isLive} />
+                                                </div>
+
+                                                {(displayTelemetry as any).loadFactor !== undefined && (
+                                                    <div className="mt-8 pt-6 border-t border-white/5">
+                                                        <div className="flex justify-between items-center mb-3">
+                                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Utilización de Capacidad</span>
+                                                            <span className={`text-[10px] font-black ${(displayTelemetry as any).statusColor}`}>{(displayTelemetry as any).loadFactor.toFixed(1)}%</span>
+                                                        </div>
+                                                        <div className="h-4 bg-white/5 rounded-full overflow-hidden p-1 border border-white/10">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-1000 ${(displayTelemetry as any).statusColor?.replace('text-', 'bg-')}`}
+                                                                style={{ width: `${Math.min((displayTelemetry as any).loadFactor, 100)}%` }}
+                                                            />
+                                                        </div>
+                                                        <div className="mt-4 flex justify-between items-center">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Cable Adjunto:</span>
+                                                                <span className="text-[10px] font-mono font-black text-white">{(displayTelemetry as any).cableGauge}</span>
+                                                            </div>
+                                                            {(displayTelemetry as any).loadFactor >= 80 && (
+                                                                <div className="flex items-center gap-1.5 animate-pulse">
+                                                                    <AlertTriangle className="w-3 h-3 text-warning" />
+                                                                    <span className="text-[8px] font-black text-warning uppercase">Carga Elevada</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="flex-1 flex flex-col min-h-0 bg-black/40 rounded-3xl border border-white/5 overflow-hidden">
+                                                <div className="p-5 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
+                                                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] italic">Port Mapping</h3>
+                                                    <span className="text-[9px] font-black text-accent-primary bg-accent-primary/10 px-3 py-1 rounded-lg">Panel {selectedPanel?.name || 'A2'}</span>
+                                                </div>
+                                                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                                                    {activeConnections.map((c) => (
+                                                        <div key={c.id} onClick={() => { const b = activePanelBreakers.find(pb => pb.position === c.position); if (b) setSelectedBreaker({ panelId: selectedPanelId!, data: b }); }} className={`grid grid-cols-[40px_1fr_60px] items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${selectedConnection?.id === c.id ? 'bg-accent-primary/10 border-accent-primary/40' : 'bg-white/[0.02] border-white/5 hover:border-white/10 hover:bg-white/[0.04]'}`}>
+                                                            <span className="font-mono text-[10px] text-slate-500">{c.position}</span>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-[10px] font-black text-white truncate uppercase tracking-tight">{c.clientName || 'Standalone BDFB'}</span>
+                                                                <span className="text-[8px] font-mono text-slate-500 mt-0.5">Physical Port: {c.port}</span>
+                                                            </div>
+                                                            <span className={`text-[8px] font-black uppercase text-center px-2 py-1 rounded-full ${c.status === 'Activo' ? 'text-success bg-success/10 border border-success/20' : 'text-slate-500 bg-white/5 border border-white/10'}`}>{c.status}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
-            </div>
-        </main>
+            </main>
         </>
     );
 };

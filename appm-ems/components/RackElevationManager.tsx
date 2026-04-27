@@ -22,6 +22,32 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
   const [showAddModal, setShowAddModal] = useState(false);
   const [siteName, setSiteName] = useState("");
   const [selectedDeviceForEdit, setSelectedDeviceForEdit] = useState<any | null>(null);
+  const [leftWidth, setLeftWidth] = useState(320);
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+        if (!isResizing) return;
+        const managerElement = document.getElementById('rack-elevation-manager');
+        if (managerElement) {
+            const rect = managerElement.getBoundingClientRect();
+            const newWidth = e.clientX - rect.left - 24; // 24 is padding
+            if (newWidth > 200 && newWidth < 600) {
+                setLeftWidth(newWidth);
+            }
+        }
+    };
+    const handleMouseUp = () => setIsResizing(false);
+    if (isResizing) {
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
 
   // Derive capacity from container metadata
   const totalU = container.uCapacity || (container.spatialMetadata ? (typeof container.spatialMetadata === 'string' ? JSON.parse(container.spatialMetadata).uCapacity : container.spatialMetadata.uCapacity) : 42);
@@ -149,7 +175,7 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-[500px] md:w-[650px] bg-[#020617]/95 backdrop-blur-3xl border-l border-white/10 shadow-2xl z-[100] flex flex-col animate-in slide-in-from-right duration-300">
+    <div id="rack-elevation-manager" className="fixed inset-y-0 right-0 w-full sm:w-[500px] md:w-[750px] lg:w-[850px] bg-[#020617]/95 backdrop-blur-3xl border-l border-white/10 shadow-2xl z-[100] flex flex-col animate-in slide-in-from-right duration-300">
       <div className="h-20 px-6 border-b border-white/5 flex items-center justify-between bg-black/40">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">
@@ -161,9 +187,12 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
         <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-xl transition-all text-slate-400"><X /></button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col sm:flex-row gap-6 custom-scrollbar">
+      <div className="flex-1 overflow-hidden p-6 flex flex-col sm:flex-row gap-0 custom-scrollbar">
         {/* RACK VISUALIZATION (LEFT/TOP) */}
-        <div className="w-full sm:w-[130px] shrink-0 bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex flex-col h-[600px] sm:h-[calc(100vh-180px)]">
+        <div 
+            style={{ width: leftWidth }}
+            className="shrink-0 bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex flex-col h-[600px] sm:h-[calc(100vh-180px)] transition-[width] duration-75"
+        >
             <div className="p-3 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Elevación Frontal</span>
                 <span className="text-[9px] font-black text-blue-400">{totalU}U</span>
@@ -180,8 +209,16 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
             </div>
         </div>
 
+        {/* RESIZER HANDLE */}
+        <div 
+            className="hidden sm:flex w-6 h-full items-center justify-center cursor-col-resize group active:scale-x-125 transition-transform"
+            onMouseDown={() => setIsResizing(true)}
+        >
+            <div className={`w-1 h-12 rounded-full transition-all ${isResizing ? 'bg-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-white/10 group-hover:bg-blue-400/50'}`} />
+        </div>
+
         {/* DEVICE LIST & CONTROLS (RIGHT) */}
-        <div className="flex-1 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar pl-2">
            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                <Cpu className="w-3 h-3" /> Info del Contenedor

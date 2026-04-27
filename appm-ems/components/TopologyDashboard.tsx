@@ -218,7 +218,7 @@ export default function TopologyDashboard() {
             <div className="p-2.5 bg-sky-500/10 rounded-xl border border-sky-500/20">
               <Layers className="w-5 h-5 text-sky-400" />
             </div>
-            <h1 className="font-black text-xl tracking-tighter text-white uppercase italic">APPM <span className="text-sky-400 not-italic">TWIN</span></h1>
+            <h1 className="font-black text-xl tracking-tighter text-white uppercase italic">APPM <span className="text-sky-400 not-italic">EMS</span></h1>
           </div>
 
           {/* DYNAMIC BREADCRUMBS */}

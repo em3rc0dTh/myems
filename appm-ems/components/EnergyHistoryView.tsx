@@ -40,6 +40,13 @@ const EnergyHistoryView: React.FC<EnergyHistoryViewProps> = ({
     const vPaths = generatePath(voltageData, 180, 800);
     const iPaths = generatePath(currentData, 180, 800);
 
+    const xLabels = useMemo(() => {
+        if (range === '24h') return ['-24 HRS', '-16 HRS', '-8 HRS', 'AHORA'];
+        if (range === '7d') return ['-7 DÍAS', '-5 DÍAS', '-2 DÍAS', 'HOY'];
+        if (range === '30d') return ['-30 DÍAS', '-20 DÍAS', '-10 DÍAS', 'HOY'];
+        return ['00:00', '08:00', '16:00', '23:59'];
+    }, [range]);
+
     // --- CÁLCULOS SEGUROS (Evitar Infinity/NaN) ---
     const hasData = history.length > 0;
     
@@ -167,7 +174,7 @@ const EnergyHistoryView: React.FC<EnergyHistoryViewProps> = ({
                         <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-emerald-500/20" />
 
                         <div className="absolute bottom-2 left-4 right-4 flex justify-between opacity-40">
-                             {['00:00', '08:00', '16:00', '23:59'].map(t => <span key={t} className="text-[7px] font-mono font-black text-emerald-500">{t}</span>)}
+                             {xLabels.map(t => <span key={t} className="text-[7px] font-mono font-black text-emerald-500">{t}</span>)}
                         </div>
                     </div>
                 </div>
@@ -204,7 +211,7 @@ const EnergyHistoryView: React.FC<EnergyHistoryViewProps> = ({
                         </svg>
 
                         <div className="absolute bottom-2 left-4 right-4 flex justify-between opacity-40">
-                             {['00:00', '08:00', '16:00', '23:59'].map(t => <span key={t} className="text-[7px] font-mono font-black text-cyan-500">{t}</span>)}
+                             {xLabels.map(t => <span key={t} className="text-[7px] font-mono font-black text-cyan-500">{t}</span>)}
                         </div>
                     </div>
                 </div>

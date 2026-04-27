@@ -6,9 +6,12 @@ interface Equipment {
   id: string;
   name: string;
   category: string;
-  unitPosition: number | null;
-  unitHeight: number | null;
+  uPosition?: number;
+  uHeight?: number;
+  unitPosition?: number | null;
+  unitHeight?: number | null;
   status?: string;
+  equipments?: any[];
 }
 
 interface Props {
@@ -20,8 +23,8 @@ interface Props {
 
 const CATEGORY_COLORS: Record<string, string> = {
   RACK: "#475569",
-  SUBRACK: "#6366f1",
-  CIRCUIT_PACK: "#34d399",
+  SUBRACK: "#3b82f6", // Blue for Device as per drawing
+  CIRCUIT_PACK: "#22c55e", // Green for sub-components as per drawing
   CIRCUIT_BREAKER: "#f59e0b",
   POWER: "#f59e0b",
   NETWORKING: "#3b82f6",
@@ -29,161 +32,204 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function RackElevation({ equipments, selectedId, onSelect, maxUnits = 42 }: Props) {
   const units = Array.from({ length: maxUnits }, (_, i) => maxUnits - i);
-  const rowHeight = 25; // Altura fija por cada U para alineación mecánica
+  const rowHeight = 32; // Un poco más alto para que quepan las etiquetas internas
 
-  // Filtrar equipos que tienen posición vertical definida
-  const placedItems = equipments.filter(e => ((e as any).uPosition || e.unitPosition) !== null && ((e as any).uPosition || e.unitPosition) > 0);
+  const placedItems = equipments.filter(e => (e.uPosition || e.unitPosition) !== null && (e.uPosition || e.unitPosition || 0) > 0);
 
   return (
     <div className="rack-viewport">
       <style>{`
         .rack-viewport {
-          background: #0a0a0f;
-          border-radius: 1rem;
-          padding: 1rem;
+          background: #020617;
+          border-radius: 2rem;
+          padding: 1.5rem;
           display: flex;
           justify-content: center;
           height: 100%;
           overflow-y: auto;
           scrollbar-width: thin;
-          scrollbar-color: #334155 transparent;
+          scrollbar-color: #1e293b transparent;
         }
         .rack-grid-container {
           display: grid;
-          grid-template-columns: 30px 1fr;
+          grid-template-columns: 35px 1fr;
           gap: 0;
           position: relative;
           width: 100%;
+          max-width: 400px;
         }
-        /* Etiquetas laterales */
         .u-label {
           height: ${rowHeight}px;
           display: flex;
           align-items: center;
           justify-content: flex-end;
-          padding-right: 10px;
+          padding-right: 12px;
           font-family: 'JetBrains Mono', monospace;
           font-size: 0.65rem;
-          color: #475569;
-          font-weight: 700;
-          border-right: 2px solid rgba(255,255,255,0.05);
+          color: #334155;
+          font-weight: 800;
+          border-right: 2px solid rgba(255,255,255,0.03);
         }
-        /* Marco del Rack */
         .rack-frame-grid {
           display: grid;
           grid-template-rows: repeat(${maxUnits}, ${rowHeight}px);
-          background: #05050a;
-          border: 3px solid #1e1b4b;
-          border-top: 6px solid #1e1b4b;
-          border-bottom: 6px solid #1e1b4b;
+          background: #050508;
+          border-left: 4px solid #1e293b;
+          border-right: 4px solid #1e293b;
+          border-top: 8px solid #0f172a;
+          border-bottom: 8px solid #0f172a;
           position: relative;
-          box-shadow: 0 0 40px rgba(0,0,0,0.5);
+          box-shadow: inset 0 0 100px rgba(0,0,0,0.8), 0 20px 50px rgba(0,0,0,0.5);
         }
         .slot-row {
-          border-bottom: 1px solid rgba(255,255,255,0.03);
+          border-bottom: 1px solid rgba(255,255,255,0.02);
           width: 100%;
           height: ${rowHeight}px;
           box-sizing: border-box;
         }
-        .slot-row:last-child { border-bottom: none; }
         
-        /* Equipos montados */
-        .placed-gear {
+        /* THE DEVICE (Blue container in sketch) */
+        .device-container {
           position: absolute;
-          left: 4px;
-          right: 4px;
-          border-radius: 2px;
+          left: 6px;
+          right: 6px;
+          border: 2px solid #3b82f6;
+          background: rgba(59, 130, 246, 0.05);
+          border-radius: 8px;
+          padding: 8px;
+          z-index: 10;
           display: flex;
           flex-direction: column;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
+        }
+        .device-container:hover {
+          background: rgba(59, 130, 246, 0.1);
+          border-color: #60a5fa;
+          box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+        }
+        .device-container.active-device {
+          border-color: #fff;
+          box-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+        }
+
+        /* METADATA LABEL (Pink/Red in sketch) */
+        .meta-label {
+          position: absolute;
+          top: -15px;
+          left: -40px;
+          color: #f43f5e;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 8px;
+          font-weight: 800;
+          text-transform: uppercase;
+          line-height: 1.2;
+          pointer-events: none;
+          white-space: nowrap;
+        }
+
+        /* EQUIPMENT (Green sub-blocks in sketch) */
+        .sub-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 6px;
+          height: 100%;
+          flex: 1;
+        }
+        .equipment-block {
+          border: 1.5px solid #22c55e;
+          background: rgba(34, 197, 94, 0.1);
+          border-radius: 4px;
+          display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 0.6rem;
-          font-weight: 800;
-          cursor: pointer;
-          transition: all 0.2s;
-          border: 1px solid rgba(255,255,255,0.2);
-          box-shadow: 0 4px 10px rgba(0,0,0,0.4), inset 0 0 10px rgba(255,255,255,0.05);
-          overflow: hidden;
-          z-index: 5;
-          text-align: center;
-          padding: 0 5px;
+          position: relative;
+          min-height: 40px;
         }
-        .placed-gear:hover {
-          filter: brightness(1.2);
-          z-index: 10;
-          box-shadow: 0 0 20px rgba(99,102,241,0.3);
+        .equipment-id {
+          font-size: 11px;
+          font-weight: 900;
+          color: #22c55e;
+          text-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
         }
-        .placed-gear.active-gear {
-          border: 2px solid #fff;
-          z-index: 11;
-          box-shadow: 0 0 25px currentColor;
-        }
-        .gear-title {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          width: 100%;
+        .device-title {
+          font-size: 9px;
+          font-weight: 900;
+          color: #3b82f6;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-        .gear-coords {
-          font-size: 0.5rem;
+          letter-spacing: 1px;
+          margin-bottom: 6px;
           opacity: 0.8;
-          margin-top: 2px;
-          font-family: monospace;
-        }
-        .indicator-bar {
-          position: absolute;
-          left: 0;
-          top: 0;
-          bottom: 0;
-          width: 4px;
         }
       `}</style>
 
       <div className="rack-grid-container">
-        {/* Columna de etiquetas U */}
         <div className="labels-col">
           {units.map(u => (
             <div key={u} className="u-label">{u}</div>
           ))}
         </div>
 
-        {/* Columna del Rack con Slots */}
         <div className="rack-frame-grid">
-          {/* Fondo de rejilla técnica */}
           {units.map(u => (
             <div key={u} className="slot-row" />
           ))}
 
-          {/* Equipos posicionados con Absolute pero alineados al Grid */}
           {placedItems.map(item => {
-            const startU = (item as any).uPosition || item.unitPosition || 1;
-            const hU = (item as any).uHeight || item.unitHeight || 1;
-            const color = CATEGORY_COLORS[item.category] || "#6366f1";
-            
-            // Cálculo: En el renderizado, la U42 es la de arriba (index 0).
-            // La posición superior (top) es (Total - (Posición + Altura - 1)) * rowHeight
+            const startU = item.uPosition || item.unitPosition || 1;
+            const hU = item.uHeight || item.unitHeight || 1;
+
             const top = (maxUnits - (startU + hU - 1)) * rowHeight;
-            const height = (hU * rowHeight) - 2; // -2 para compensar bordes y spacing
+            const height = (hU * rowHeight) - 4;
+
+            // Group nested equipments into a grid
+            // If they are panels, they might have names like "Panel A1", "Panel B2"
+            // We'll extract the ID (e.g. "A1") for the visualization
+            const children = item.equipments || [];
 
             return (
               <div
                 key={item.id}
-                className={`placed-gear ${selectedId === item.id ? "active-gear" : ""}`}
+                className={`device-container ${selectedId === item.id ? "active-device" : ""}`}
                 style={{
-                  top: `${top + 1}px`, // +1 para centrar en el slot
+                  top: `${top + 2}px`,
                   height: `${height}px`,
-                  backgroundColor: `${color}DD`, // DD es ~85% opacidad para el "sombreado" solicitado
-                  borderColor: color,
-                  color: "#fff", // Texto blanco sobre fondo pesado
-                  textShadow: "0 1px 2px rgba(0,0,0,0.8)"
                 }}
                 onClick={() => onSelect && onSelect(item.id)}
               >
-                <div className="indicator-bar" style={{ backgroundColor: color }} />
-                <span className="gear-title">{item.name}</span>
-                <span className="gear-coords">{hU}U (U{startU})</span>
+                {/* Visual Label from sketch */}
+                {/* <div className="meta-label">
+                  Bay: ROW:{startU} / COL:1<br/>
+                  Label: {item.name}
+                </div> */}
+
+                {/* <div className="device-title">{item.name} ({hU}U)</div> */}
+
+                <div className="sub-grid">
+                  {children.length > 0 ? children.map((sub, idx) => {
+                    const match = sub.name.match(/[A-Z][0-9]/);
+                    const label = match ? match[0] : `P${idx + 1}`;
+
+                    // Logic for spanning: if odd number and it's the last item, span 2 columns
+                    const isLast = idx === children.length - 1;
+                    const isOddTotal = children.length % 2 !== 0;
+                    const spanTwo = (isOddTotal && isLast) || children.length === 1;
+
+                    return (
+                      <div
+                        key={sub.id}
+                        className="equipment-block"
+                        style={{ gridColumn: spanTwo ? "span 2" : "span 1" }}
+                      >
+                        <span className="equipment-id">{label}</span>
+                      </div>
+                    );
+                  }) : (
+                    <div className="equipment-block col-span-2 opacity-30">
+                      <span className="equipment-id text-[8px]">ACTIVE DEVICE</span>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}

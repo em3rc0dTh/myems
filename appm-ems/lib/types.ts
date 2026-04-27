@@ -113,7 +113,9 @@ export interface BDFBData {
   id: string;
   sn?: string; 
   name: string;
-  location: string;
+  location: string; // Site name
+  roomName?: string; // Room name
+  bays?: { id: string; name: string; equipment?: TAPIEquipment[] }[];
   panels: PanelData[];
   telemetry?: TelemetryData;
   connections?: ConnectionMapData[];

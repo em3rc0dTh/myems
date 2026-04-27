@@ -10,16 +10,21 @@ import { useAuth } from '@/lib/AuthContext';
 interface RoomViewProps {
   substructureId: string;
   onSelectBDFB?: (id: string | null) => void;
+  onContainerSelect?: (container: any | null) => void;
   siteDimensions?: { width?: number; length?: number };
 }
 
-const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteDimensions }) => {
+const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onContainerSelect, siteDimensions }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [substructure, setSubstructure] = useState<any | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoveredZone, setHoveredZone] = useState<string | null>(null);
-  const [selectedContainer, setSelectedContainer] = useState<any | null>(null);
+  const [selectedContainer, _setSelectedContainer] = useState<any | null>(null);
+  const setSelectedContainer = (c: any | null) => {
+    _setSelectedContainer(c);
+    if (onContainerSelect) onContainerSelect(c);
+  };
 
   // DRAWING ENGINE STATE
   const [isDrafting, setIsDrafting] = useState(false);
@@ -40,6 +45,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
   const { isAdmin } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [ghostPoint, setGhostPoint] = useState<any | null>(null);
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const TILE_SIZE = 60;
@@ -445,20 +451,20 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
         // Find which bay (row) contains this rack
         let assignedRowId = null;
         for (const sr of savedRows) {
-           try {
-             const sm = typeof sr.spatialMetadata === 'string' ? JSON.parse(sr.spatialMetadata) : sr.spatialMetadata;
-             const rPoints = sm.points || [];
-             // Simple bounding box check for assignment
-             const rMinX = Math.min(...rPoints.map((p: any) => p.x));
-             const rMaxX = Math.max(...rPoints.map((p: any) => p.x));
-             const rMinY = Math.min(...rPoints.map((p: any) => p.y));
-             const rMaxY = Math.max(...rPoints.map((p: any) => p.y));
-             
-             if (centerX >= rMinX && centerX <= rMaxX && centerY >= rMinY && centerY <= rMaxY) {
-               assignedRowId = sr.id;
-               break;
-             }
-           } catch(e) {}
+          try {
+            const sm = typeof sr.spatialMetadata === 'string' ? JSON.parse(sr.spatialMetadata) : sr.spatialMetadata;
+            const rPoints = sm.points || [];
+            // Simple bounding box check for assignment
+            const rMinX = Math.min(...rPoints.map((p: any) => p.x));
+            const rMaxX = Math.max(...rPoints.map((p: any) => p.x));
+            const rMinY = Math.min(...rPoints.map((p: any) => p.y));
+            const rMaxY = Math.max(...rPoints.map((p: any) => p.y));
+
+            if (centerX >= rMinX && centerX <= rMaxX && centerY >= rMinY && centerY <= rMaxY) {
+              assignedRowId = sr.id;
+              break;
+            }
+          } catch (e) { }
         }
 
         const res = await fetch('/appm-ems/api/containers/', {
@@ -467,7 +473,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
           body: JSON.stringify({
             name: rack.label,
             substructureId: roomId,
-            row: "A", 
+            row: "A",
             rowId: assignedRowId,
             position: 0,
             type: rack.cType || 'RACK',
@@ -643,68 +649,11 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
 
   return (
     <div className="w-full h-full flex flex-col bg-[#050508] font-sans selection:bg-blue-500/30">
-      {/* HEADER */}
-      <div className="h-20 px-8 border-b border-white/5 flex justify-between items-center bg-black/40 backdrop-blur-2xl shrink-0 z-[100]">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 py-1 px-3 bg-white/5 rounded-full border border-white/5 select-none">
-            <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest leading-none">ROOT</span>
-            <ChevronRight className="w-2.5 h-2.5 text-slate-800" />
-            <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest leading-none">SITE</span>
-            <ChevronRight className="w-2.5 h-2.5 text-slate-800" />
-            <span className="text-[7px] font-black text-sky-500/60 uppercase tracking-widest leading-none mt-0.5">{resolveValue(substructure.name)}</span>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-              <Globe className="w-2.5 h-2.5" />
-              <span>{isAdmin ? 'Infrastructure Digital Twin' : 'Infrastructure Monitoring'}</span>
-            </div>
-            <h2 className="text-xl font-black text-white italic tracking-tighter uppercase leading-none">{resolveValue(substructure.name)}</h2>
-          </div>
-        </div>
+      {/* HEADER REMOVED - NOW FLOATING IN CANVAS */}
 
-        <div className="flex items-center gap-4">
-          <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/10 gap-1 mr-4">
-            <button onClick={() => setZoom(prev => Math.min(5, prev * 1.2))} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"><Plus className="w-4 h-4" /></button>
-            <button onClick={() => setZoom(prev => Math.max(0.5, prev / 1.2))} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"><Maximize2 className="w-4 h-4 scale-75" /></button>
-          </div>
 
-          <button
-            onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border ${showHeatmap ? 'bg-orange-500 text-black border-orange-400 shadow-lg shadow-orange-500/30' : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'}`}
-          >
-            <Flame className={`w-3.5 h-3.5 ${showHeatmap ? 'animate-pulse' : ''}`} />
-            {showHeatmap ? 'HEATMAP ACTIVE' : 'THERMAL VIEW'}
-          </button>
+      {/* METADATA BAR REMOVED - NOW IN FLOATING MEMBRETE */}
 
-          {isAdmin && (
-            <>
-              <button onClick={handleSaveEngineering} disabled={isSaving || localElements.length === 0} className="px-6 py-2 bg-emerald-500 text-black text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-xl disabled:opacity-20 flex items-center gap-2">
-                <Save className="w-3.5 h-3.5" /> {isSaving ? 'Syncing' : 'Save'}
-              </button>
-              <button onClick={() => setIsDrafting(!isDrafting)} className={`px-6 py-2 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all border ${isDrafting ? 'bg-amber-500 text-black border-amber-400 shadow-xl' : 'bg-white/5 text-slate-500 border-white/5'}`}>
-                {isDrafting ? 'Drafting ON' : 'Drafting'}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* METADATA BAR */}
-      <div className="h-10 px-8 border-b border-white/5 bg-black/60 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Dimensiones:</span>
-            <span className="text-[9px] font-bold text-slate-300">{(substructure.width || 0).toFixed(2)}m x {(substructure.length || 0).toFixed(2)}m</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Área:</span>
-            <span className="text-[9px] font-bold text-sky-400">{(substructure.area || (substructure.width * substructure.length) || 0).toFixed(2)} m²</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-slate-500">
-          <span className="text-[8px] font-black uppercase tracking-widest italic">Grid: {TILE_SIZE}cm Tiles</span>
-        </div>
-      </div>
 
       {/* MAIN VIEWPORT */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
@@ -761,14 +710,14 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 gap-2 p-1">
-                           <div className="bg-black/40 border border-white/10 rounded-xl p-2 group hover:border-blue-500/50 transition-all">
-                              <label className="text-[7px] font-black text-slate-600 uppercase mb-1 block">Width (cm)</label>
-                              <input type="number" value={stampSize.w} onChange={e => setStampSize(prev => ({ ...prev, w: Number(e.target.value) }))} className="w-full bg-transparent text-white text-[10px] font-black outline-none" />
-                           </div>
-                           <div className="bg-black/40 border border-white/10 rounded-xl p-2 group hover:border-blue-500/50 transition-all">
-                              <label className="text-[7px] font-black text-slate-600 uppercase mb-1 block">Depth (cm)</label>
-                              <input type="number" value={stampSize.h} onChange={e => setStampSize(prev => ({ ...prev, h: Number(e.target.value) }))} className="w-full bg-transparent text-white text-[10px] font-black outline-none" />
-                           </div>
+                          <div className="bg-black/40 border border-white/10 rounded-xl p-2 group hover:border-blue-500/50 transition-all">
+                            <label className="text-[7px] font-black text-slate-600 uppercase mb-1 block">Width (cm)</label>
+                            <input type="number" value={stampSize.w} onChange={e => setStampSize(prev => ({ ...prev, w: Number(e.target.value) }))} className="w-full bg-transparent text-white text-[10px] font-black outline-none" />
+                          </div>
+                          <div className="bg-black/40 border border-white/10 rounded-xl p-2 group hover:border-blue-500/50 transition-all">
+                            <label className="text-[7px] font-black text-slate-600 uppercase mb-1 block">Depth (cm)</label>
+                            <input type="number" value={stampSize.h} onChange={e => setStampSize(prev => ({ ...prev, h: Number(e.target.value) }))} className="w-full bg-transparent text-white text-[10px] font-black outline-none" />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -796,7 +745,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
         )}
 
         {/* SIDEBAR */}
-        <div className="w-80 border-r border-white/5 p-6 flex flex-col gap-8 bg-black/40 backdrop-blur-xl shrink-0 overflow-y-auto custom-scrollbar">
+        {/* <div className="w-80 border-r border-white/5 p-6 flex flex-col gap-8 bg-black/40 backdrop-blur-xl shrink-0 overflow-y-auto custom-scrollbar">
           {!selectedContainer && siteDimensions?.width && siteDimensions?.length && (
             <div className="p-6 bg-gradient-to-br from-white/[0.03] to-transparent rounded-[32px] border border-white/10 shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 left-0 w-full h-1 bg-sky-500" />
@@ -894,10 +843,70 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
             </div>
           </div>
 
-        </div>
+        </div> */}
 
         {/* MAIN CANVAS */}
-        <div className="flex-1 bg-[#01040a] relative overflow-hidden flex items-center justify-center p-12 min-w-0" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel}>
+        <div className="flex-1 bg-[#01040a] relative overflow-hidden flex items-center justify-center min-w-0" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel}>
+
+          {/* FLOATING MEMBRETE (DENTRO DEL CANVAS) */}
+          <div className="absolute top-8 left-8 z-[100] pointer-events-none">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="h-[1px] w-8 bg-sky-500" />
+                <span className="text-[9px] font-black text-sky-500 uppercase tracking-[0.4em] drop-shadow-md">
+                  Infrastructure Digital Twin
+                </span>
+              </div>
+              <h1 className="text-4xl font-black text-white leading-tight uppercase italic tracking-tighter drop-shadow-2xl">
+                {resolveValue(substructure.name)}
+              </h1>
+              <div className="mt-2 flex flex-row justify-between w-full gap-6 border-l border-white/10 pl-4 py-0">
+                <div className="flex flex-row items-baseline gap-2">
+                  <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mt-1">Dimensiones</span>
+                  <span className="text-[11px] font-black text-white">{(bounds.w / 100).toFixed(2)}m x {(bounds.h / 100).toFixed(2)}m</span>
+                </div>
+                <div className="flex flex-row items-baseline gap-2">
+                  <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mt-1">Área Total</span>
+                  <span className="text-[11px] font-black text-sky-400 italic font-mono tracking-tighter">{((bounds.w * bounds.h) / 10000).toFixed(2)} m²</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 mt-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Live System Active</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* FLOATING CONTROLS (TOP RIGHT) */}
+          <div className="absolute top-8 right-8 z-[100] flex items-center gap-4">
+            <div className="flex bg-black/60 p-1.5 rounded-2xl border border-white/10 gap-1 backdrop-blur-md">
+              <button onClick={() => setZoom(prev => Math.min(5, prev * 1.2))} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"><Plus className="w-4 h-4" /></button>
+              <button onClick={() => setZoom(prev => Math.max(0.5, prev / 1.2))} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all"><Maximize2 className="w-4 h-4 scale-75" /></button>
+            </div>
+
+            <button
+              onClick={() => setShowHeatmap(!showHeatmap)}
+              className={`flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border backdrop-blur-md ${showHeatmap ? 'bg-orange-500 text-black border-orange-400 shadow-lg shadow-orange-500/30' : 'bg-black/60 text-slate-400 border-white/10 hover:bg-white/10'}`}
+            >
+              <Flame className={`w-3.5 h-3.5 ${showHeatmap ? 'animate-pulse' : ''}`} />
+              {showHeatmap ? 'HEATMAP' : 'THERMAL'}
+            </button>
+
+            {isAdmin && (
+              <div className="flex gap-2 bg-black/60 p-1.5 rounded-2xl border border-white/10 backdrop-blur-md">
+                <button onClick={() => setIsDrafting(!isDrafting)} className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${isDrafting ? 'bg-amber-500 text-black shadow-xl' : 'text-slate-500 hover:text-white'}`}>
+                  {isDrafting ? 'Drafting' : 'Edit Mode'}
+                </button>
+                {isDrafting && (
+                  <button onClick={handleSaveEngineering} disabled={isSaving || localElements.length === 0} className="px-4 py-1.5 bg-emerald-500 text-black text-[9px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-20 flex items-center gap-2">
+                    <Save className="w-3 h-3" /> {isSaving ? '...' : 'Save'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <svg
             ref={svgRef}
             viewBox={viewBox}
@@ -995,16 +1004,16 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
 
                   return (
                     <g key={rack.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); if (!isDrafting) setSelectedContainer(rack); }}>
-                      <polygon 
-                        points={pts} 
-                        fill={fillColor} 
-                        stroke={strokeColor} 
-                        strokeWidth={(showHeatmap ? 6 : 3) / zoom} 
-                        className="transition-all duration-700 group-hover:stroke-white" 
+                      <polygon
+                        points={pts}
+                        fill={fillColor}
+                        stroke={strokeColor}
+                        strokeWidth={(showHeatmap ? 6 : 3) / zoom}
+                        className="transition-all duration-700 group-hover:stroke-white"
                         style={{ fillOpacity: showHeatmap ? 0.6 : 0.8 }}
                       />
                       {showHeatmap && (
-                         <polygon points={pts} fill={heat.color} className="animate-pulse" style={{ opacity: 0.2 }} />
+                        <polygon points={pts} fill={heat.color} className="animate-pulse" style={{ opacity: 0.2 }} />
                       )}
                       <text x={lx} y={ly} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter" style={{ fontSize: 18 / zoom, paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.5)', strokeWidth: 2 / zoom }}>{rack.name}</text>
                     </g>
@@ -1054,24 +1063,33 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, siteD
             </g>
           </svg>
 
-          {/* FLOATING LEGEND */}
-          <div className="absolute bottom-8 right-8 z-[160] pointer-events-none animate-in fade-in slide-in-from-right-4 duration-700">
-            <div className="glass-panel p-6 rounded-[32px] border border-white/10 pointer-events-auto bg-[#0a0a0f]/60 backdrop-blur-xl shadow-2xl space-y-4">
-              <h3 className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] px-1 italic">REFERENCIA TÉCNICA</h3>
-              <div className="space-y-3">
-                <LegendItem icon={<div className="w-3 h-3 bg-blue-500 rounded-sm" />} label="Equipos Activos" />
-                <LegendItem icon={<div className="w-3 h-3 bg-fuchsia-500/20 border border-fuchsia-500/50 rounded-sm" />} label="Bahías De Pasillo" />
-                <LegendItem icon={<div className="w-3 h-3 bg-emerald-500/30 border border-emerald-500 rounded-sm" />} label="Racks Estándar" />
-                <LegendItem icon={<div className="w-3 h-3 bg-slate-500/30 border border-slate-400 rounded-sm" />} label="Gabinete/Cabinet" />
-                <LegendItem icon={<div className="text-[10px] font-black text-white/20">A1</div>} label="Mosaico 60x60 (A1...)" />
-                <LegendItem icon={<div className="w-3 h-[2px] bg-blue-500 shadow-[0_0_5px_#3b82f6]" />} label="Perímetro De Sala" />
+          {/* FLOATING LEGEND - Bottom Left */}
+          <div className="absolute bottom-8 left-8 z-[160] flex flex-col-reverse items-start gap-4">
+            <button
+              onClick={() => setIsLegendOpen(!isLegendOpen)}
+              className={`p-3 rounded-2xl border transition-all shadow-2xl backdrop-blur-md ${isLegendOpen ? 'bg-accent-primary text-white border-accent-primary' : 'bg-[#0a0a0f]/80 text-slate-400 border-white/10 hover:text-white hover:bg-white/5'}`}
+            >
+              <Layers className="w-5 h-5" />
+            </button>
+
+            {isLegendOpen && (
+              <div className="glass-panel p-6 rounded-[32px] border border-white/10 pointer-events-auto bg-[#0a0a0f]/90 backdrop-blur-xl shadow-2xl space-y-4 animate-in slide-in-from-bottom-4 fade-in duration-300">
+                <h3 className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em] px-1 italic">REFERENCIA TÉCNICA</h3>
+                <div className="space-y-3">
+                  <LegendItem icon={<div className="w-3 h-3 bg-blue-500 rounded-sm" />} label="Equipos Activos" />
+                  <LegendItem icon={<div className="w-3 h-3 bg-fuchsia-500/20 border border-fuchsia-500/50 rounded-sm" />} label="Bahías De Pasillo" />
+                  <LegendItem icon={<div className="w-3 h-3 bg-emerald-500/30 border border-emerald-500 rounded-sm" />} label="Racks Estándar" />
+                  <LegendItem icon={<div className="w-3 h-3 bg-slate-500/30 border border-slate-400 rounded-sm" />} label="Gabinete/Cabinet" />
+                  <LegendItem icon={<div className="text-[10px] font-black text-white/20 leading-none">A1</div>} label="Mosaico 60x60 (A1...)" />
+                  <LegendItem icon={<div className="w-3 h-[2px] bg-blue-500 shadow-[0_0_5px_#3b82f6]" />} label="Perímetro De Sala" />
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
 
-      {selectedContainer && (
+      {selectedContainer && !onContainerSelect && (
         <RackElevationManager
           container={selectedContainer}
           siteId={substructure?.level?.structure?.siteId}

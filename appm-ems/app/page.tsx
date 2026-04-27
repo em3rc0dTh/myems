@@ -344,7 +344,7 @@ export default function Home() {
                                         Ajustes Globales del Sistema
                                     </h2>
                                     <p className="text-slate-500 text-[10px] uppercase font-bold tracking-[0.2em] mt-1">
-                                        Central de Configuración AppM EMS EMS {isProd && <span className="text-success ml-2 px-1 bg-success/10 border border-success/20 rounded">MODO PROD ACTIVO</span>}
+                                        Central de Configuración AppM EMS {isProd && <span className="text-success ml-2 px-1 bg-success/10 border border-success/20 rounded">MODO PROD ACTIVO</span>}
                                     </p>
                                 </div>
                                 <button onClick={() => setShowConfig(false)} className="p-2 hover:bg-white/5 rounded-full transition-colors">
