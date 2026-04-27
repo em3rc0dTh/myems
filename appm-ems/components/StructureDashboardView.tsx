@@ -199,8 +199,8 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
         <div className="flex items-center gap-4">
           <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20"><Layout className="w-4 h-4 text-blue-400" /></div>
           <div>
-            <h2 className="text-[10px] font-black uppercase text-white leading-none tracking-widest">{structure.name}</h2>
-            <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest italic">Substructure Engineering</p>
+            <h2 className="text-[13px] font-black uppercase text-white leading-none tracking-widest">{structure.name}</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Ingeniería de Subestructura • Planos de Planta</p>
           </div>
         </div>
 
@@ -258,7 +258,7 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
             </h4>
             <div className="space-y-4">
               <div className="flex justify-between items-end border-b border-white/5 pb-2">
-                <span className="text-[10px] font-black text-slate-500 uppercase">Master Surface</span>
+                <span className="text-[12px] font-black text-slate-400 uppercase">Superficie Maestra</span>
                 <span className="text-lg font-black text-white italic tracking-tighter">
                   {((siteDimensions?.width || 0) * (siteDimensions?.length || 0)).toLocaleString()} <span className="text-[10px] text-sky-500 not-italic ml-1">M²</span>
                 </span>
@@ -274,9 +274,9 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
 
           {/* LEVEL MANAGEMENT (Building Stack) */}
           <div className="flex flex-col gap-4">
-            <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] px-2 italic flex items-center gap-2">
-              Building Vertical Stack
-              <span className="text-[8px] bg-blue-500/10 text-blue-500 px-1.5 rounded border border-blue-500/20 ml-auto">{(structure.levels || []).length} Floors</span>
+            <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] px-2 italic flex items-center gap-2">
+              Niveles del Edificio
+              <span className="text-[10px] bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded border border-blue-500/20 ml-auto">{(structure.levels || []).length} Pisos</span>
             </h3>
 
             <div className="flex flex-col gap-2">
@@ -301,8 +301,8 @@ export default function StructureDashboardView({ structureId, onRoomSelect, site
                     <Layers className="w-3.5 h-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-[10px] font-black uppercase tracking-wider ${activeLevelId === level.id ? 'text-white' : 'text-slate-400'}`}>{level.name}</p>
-                    <p className="text-[7px] text-slate-600 font-bold uppercase tracking-widest">{level.rooms?.length || 0} Units Mapped</p>
+                    <p className={`text-[12px] font-black uppercase tracking-wider ${activeLevelId === level.id ? 'text-white' : 'text-slate-400'}`}>{level.name}</p>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{level.rooms?.length || 0} Salas Mapeadas</p>
                   </div>
 
                   {isAdmin && (

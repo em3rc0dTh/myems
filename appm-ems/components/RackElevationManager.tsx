@@ -18,6 +18,15 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
   const { isAdmin } = useAuth();
   const [devices, setDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const getSafeId = (obj: any) => {
+    if (!obj) return null;
+    const v = obj.id || obj._id;
+    if (v && typeof v === 'object' && '$oid' in v) return v.$oid;
+    return v;
+  };
+
+  const containerId = getSafeId(container);
   const [availableDevices, setAvailableDevices] = useState<any[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [siteName, setSiteName] = useState("");
@@ -54,13 +63,18 @@ const RackElevationManager: React.FC<RackElevationManagerProps> = ({ container, 
 
   useEffect(() => {
     fetchData();
-  }, [container.id]);
+  }, [containerId]);
 
   const fetchData = async () => {
-    setLoading(true);
+    if (!containerId || containerId === 'undefined') {
+      setDevices([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       // Get devices already in this container
-      const res = await fetch(`/appm-ems/api/devices/?containerId=${container.id}`);
+      const res = await fetch(`/appm-ems/api/devices/?containerId=${containerId}`);
       const data = await res.json();
       setDevices(data.data || []);
 

@@ -1,6 +1,6 @@
 
 "use client"
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Layers,
@@ -73,8 +73,27 @@ const getCategoryLabel = (category: EquipmentCategory) => {
   }
 };
 
-const TreeItem = ({ item, depth = 0, onSelect }: { item: TAPIEquipment, depth?: number, onSelect?: (item: TAPIEquipment) => void }) => {
+const containsId = (item: TAPIEquipment, id: string): boolean => {
+  if (item.id === id) return true;
+  if (item.children?.some(c => containsId(c, id))) return true;
+  if (item.holders?.some(h => h.occupiedBy && containsId(h.occupiedBy, id))) return true;
+  return false;
+};
+
+const TreeItem = ({ item, depth = 0, onSelect, selectedId }: { item: TAPIEquipment, depth?: number, onSelect?: (item: TAPIEquipment) => void, selectedId?: string | null }) => {
+  const isSelected = item.id === selectedId;
+  const shouldBeOpen = useMemo(() => {
+    if (selectedId && containsId(item, selectedId)) return true;
+    return false;
+  }, [item, selectedId]);
+
   const [isOpen, setIsOpen] = useState(depth < 2);
+
+  // Auto-expand if child is selected
+  useEffect(() => {
+    if (shouldBeOpen) setIsOpen(true);
+  }, [shouldBeOpen]);
+
   const hasChildren = (item.children && item.children.length > 0) || (item.holders && item.holders.length > 0);
 
   return (
@@ -86,7 +105,7 @@ const TreeItem = ({ item, depth = 0, onSelect }: { item: TAPIEquipment, depth?: 
         }}
         className={`
           flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer transition-all
-          ${depth === 0 ? 'bg-white/5 mb-1' : 'hover:bg-white/5'}
+          ${isSelected ? 'bg-accent-primary/20 border-l-2 border-accent-primary' : 'hover:bg-white/5'}
           group
         `}
       >
@@ -98,19 +117,19 @@ const TreeItem = ({ item, depth = 0, onSelect }: { item: TAPIEquipment, depth?: 
           <div className="w-3" />
         )}
 
-        <CategoryIcon category={item.category} className={`w-4 h-4 ${isOpen ? 'text-accent-primary' : 'text-slate-500'} group-hover:text-accent-primary transition-colors`} />
+        <CategoryIcon category={item.category} className={`w-4 h-4 ${isOpen || isSelected ? 'text-accent-primary' : 'text-slate-500'} group-hover:text-accent-primary transition-colors`} />
 
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] font-black uppercase tracking-tight text-white group-hover:text-accent-primary">
+            <span className={`text-[15px] font-black uppercase tracking-tight group-hover:text-accent-primary ${isSelected ? 'text-accent-primary' : 'text-white'}`}>
               {item.name}
             </span>
-            <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-white/5 text-slate-500 uppercase tracking-widest">
-              {getCategoryLabel(item.category)}
+            <span className="text-[11px] font-black px-1.5 py-0.5 rounded bg-white/10 text-slate-400 uppercase tracking-widest">
+              {getCategoryLabel(item.category as any)}
             </span>
           </div>
           {item.sn && (
-            <span className="text-[10px] font-mono text-slate-500 -mt-0.5">SN: {item.sn}</span>
+            <span className="text-[12px] font-mono text-slate-400 -mt-0.5">SN: {item.sn}</span>
           )}
         </div>
 
@@ -120,21 +139,21 @@ const TreeItem = ({ item, depth = 0, onSelect }: { item: TAPIEquipment, depth?: 
       </div>
 
       {isOpen && (
-        <div className="flex flex-col">
+        <div className="flex flex-col animate-in slide-in-from-top-1 duration-200">
           {item.children?.map(child => (
-            <TreeItem key={child.id} item={child} depth={depth + 1} onSelect={onSelect} />
+            <TreeItem key={child.id} item={child} depth={depth + 1} onSelect={onSelect} selectedId={selectedId} />
           ))}
 
           {/* Renderización de Holders (Espacios Vacíos) */}
           {item.holders?.map(holder => (
             <div key={holder.id} className="flex flex-col">
               {holder.occupiedBy ? (
-                <TreeItem item={holder.occupiedBy} depth={depth + 1} onSelect={onSelect} />
+                <TreeItem item={holder.occupiedBy} depth={depth + 1} onSelect={onSelect} selectedId={selectedId} />
               ) : (
-                <div className="flex items-center gap-2 py-1.5 px-3 opacity-30">
+                <div className="flex items-center gap-2 py-1.5 px-3 opacity-50">
                   <div style={{ width: `${(depth + 1) * 12 + 12}px` }} />
-                  <Square className="w-4 h-4 text-slate-600 border-dashed" />
-                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-600 italic">
+                  <Square className="w-4 h-4 text-slate-500 border-dashed" />
+                  <span className="text-[13px] font-black uppercase tracking-widest text-slate-500 italic">
                     {holder.name} [VACÍO]
                   </span>
                 </div>
@@ -147,8 +166,19 @@ const TreeItem = ({ item, depth = 0, onSelect }: { item: TAPIEquipment, depth?: 
   );
 };
 
-const WrapperNode = ({ name, category, depth, children }: { name: string, category: string, depth: number, children: React.ReactNode }) => {
+const WrapperNode = ({ name, category, depth, children, selectedId, equipmentList }: { name: string, category: string, depth: number, children: React.ReactNode, selectedId?: string | null, equipmentList?: TAPIEquipment[] }) => {
+  const shouldBeOpen = useMemo(() => {
+    if (!selectedId) return true;
+    if (equipmentList?.some(item => containsId(item, selectedId))) return true;
+    return false;
+  }, [selectedId, equipmentList]);
+
   const [isOpen, setIsOpen] = useState(true);
+
+  useEffect(() => {
+    if (shouldBeOpen) setIsOpen(true);
+  }, [shouldBeOpen]);
+
   return (
     <div className="flex flex-col">
       <div
@@ -160,10 +190,10 @@ const WrapperNode = ({ name, category, depth, children }: { name: string, catego
         <CategoryIcon category={category} className={`w-4 h-4 ${isOpen ? 'text-accent-primary' : 'text-slate-500'} group-hover:text-accent-primary transition-colors`} />
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-black uppercase tracking-tight text-white group-hover:text-accent-primary">
+            <span className="text-[13px] font-black uppercase tracking-tight text-white group-hover:text-accent-primary">
               {name}
             </span>
-            <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-white/5 text-slate-500 uppercase tracking-widest">
+            <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-white/10 text-slate-400 uppercase tracking-widest">
               {category}
             </span>
           </div>
@@ -190,6 +220,7 @@ interface InfrastructureExplorerProps {
   roomName?: string;
   bays?: BayData[];
   onSelect?: (item: TAPIEquipment) => void;
+  selectedId?: string | null;
 }
 
 const InfrastructureExplorer: React.FC<InfrastructureExplorerProps> = ({
@@ -197,19 +228,27 @@ const InfrastructureExplorer: React.FC<InfrastructureExplorerProps> = ({
   siteName = "Site Principal",
   roomName = "Sala de Transmisiones",
   bays = [],
-  onSelect
+  onSelect,
+  selectedId
 }) => {
   return (
     <div className="flex flex-col gap-1 p-2 overflow-y-auto max-h-full scrollbar-thin scrollbar-thumb-white/10">
-      <WrapperNode name={siteName} category="SITE" depth={0}>
-        <WrapperNode name="Building 1" category="STRUCTURE" depth={1}>
-          <WrapperNode name={roomName} category="ROOM" depth={2}>
+      <WrapperNode name={siteName} category="SITE" depth={0} selectedId={selectedId}>
+        <WrapperNode name="Building 1" category="STRUCTURE" depth={1} selectedId={selectedId}>
+          <WrapperNode name={roomName} category="ROOM" depth={2} selectedId={selectedId}>
             {bays.length > 0 ? (
               bays.map(bay => (
-                <WrapperNode key={bay.id} name={bay.name} category="BAY" depth={3}>
+                <WrapperNode
+                  key={bay.id}
+                  name={bay.name}
+                  category="BAY"
+                  depth={3}
+                  selectedId={selectedId}
+                  equipmentList={bay.equipment}
+                >
                   {(bay.equipment || []).length > 0 ? (
                     bay.equipment?.map(item => (
-                      <TreeItem key={item.id} item={item} depth={4} onSelect={onSelect} />
+                      <TreeItem key={item.id} item={item} depth={4} onSelect={onSelect} selectedId={selectedId} />
                     ))
                   ) : ''}
                 </WrapperNode>

@@ -15,9 +15,19 @@ export async function GET(req: NextRequest) {
   const orphaned = req.nextUrl.searchParams.get("orphaned");
 
   const where: any = {};
-  if (containerId) where.containerId = containerId;
+  if (containerId) {
+    if (containerId === "undefined" || containerId.length !== 24) {
+      return err("Invalid containerId format");
+    }
+    where.containerId = containerId;
+  }
   else if (orphaned === "true") where.containerId = null;
-  else if (siteId) where.siteId = siteId;
+  else if (siteId) {
+    if (siteId === "undefined" || siteId.length !== 24) {
+      return err("Invalid siteId format");
+    }
+    where.siteId = siteId;
+  }
   else return err("siteId, containerId or orphaned=true is required");
 
   const devices = await prisma.device.findMany({

@@ -11,6 +11,7 @@ import { useMqtt } from '@/lib/MqttContext';
 import { useAuth } from '@/lib/AuthContext';
 import { GripVertical } from 'lucide-react';
 import Swal from 'sweetalert2';
+import MasterInventoryTree from './MasterInventoryTree';
 
 type ViewMode = 'SITE' | 'STRUCTURE' | 'ROOM';
 
@@ -22,8 +23,8 @@ function MqttIndicator() {
     <div className="flex items-center gap-2.5 px-4 py-1.5 bg-black/20 rounded-full border border-white/5 ring-1 ring-white/5">
       <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500'}`} />
       <div className="flex items-center gap-1.5">
-        <Activity className={`w-3 h-3 ${isConnected ? 'text-sky-400' : 'text-slate-600'}`} />
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+        <Activity className={`w-3.5 h-3.5 ${isConnected ? 'text-sky-400' : 'text-slate-400'}`} />
+        <span className="text-[11px] font-black uppercase tracking-widest text-slate-300">
           {isConnected ? `Live: ${dataCount} Nodes` : 'MQTT Offline'}
         </span>
       </div>
@@ -48,6 +49,7 @@ export default function TopologyDashboard() {
   const [sidebarWidth, setSidebarWidth] = useState(300);
   const [isResizing, setIsResizing] = useState(false);
   const [infrastructureData, setInfrastructureData] = useState<any>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   // Load sidebar width from storage
   useEffect(() => {
@@ -87,9 +89,9 @@ export default function TopologyDashboard() {
         console.log("FETCHING TREE FOR:", selectedRoomId);
         const res = await fetch(`/appm-ems/api/substructures/${selectedRoomId}/tree`);
         if (!res.ok) {
-           console.error("API Error Response:", res.status);
-           setInfrastructureData(null);
-           return;
+          console.error("API Error Response:", res.status);
+          setInfrastructureData(null);
+          return;
         }
         const data = await res.json();
         if (data.ok) {
@@ -98,8 +100,8 @@ export default function TopologyDashboard() {
           console.error("Tree data failed:", data.error);
           setInfrastructureData(null);
         }
-      } catch (e) { 
-        console.error("Fetch tree error:", e); 
+      } catch (e) {
+        console.error("Fetch tree error:", e);
         setInfrastructureData(null);
       }
     };
@@ -406,17 +408,48 @@ export default function TopologyDashboard() {
             <div className="max-w-5xl mx-auto w-full">
               <div className="flex items-center justify-between mb-12">
                 <div>
-                  <h2 className="text-4xl font-black uppercase italic tracking-tighter text-white">Select Your <span className="text-sky-400">Emplacement</span></h2>
-                  <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px] mt-2">Active Nodes Portfolio </p>
+                  <h2 className="text-4xl font-black uppercase italic tracking-tighter text-white">Selecciona tu <span className="text-sky-400">Emplazamiento</span></h2>
+                  <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-[12px] mt-2">Portafolio de Nodos Activos • Haz clic en un sitio para explorar</p>
                 </div>
                 {!isTechnician && (
                   <button
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="px-6 py-3 bg-sky-500 hover:bg-sky-400 text-black text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(14,165,233,0.2)]"
+                    className="px-6 py-3 bg-sky-500 hover:bg-sky-400 text-black text-[12px] font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(14,165,233,0.2)]"
                   >
                     + Add New Emplacement
                   </button>
                 )}
+              </div>
+
+              {/* GUÍA DE INTERACCIÓN PARA NUEVOS USUARIOS */}
+              <div className="mb-12 grid grid-cols-1 md:grid-cols-3 gap-6 animate-in slide-in-from-bottom duration-700">
+                <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-white/[0.01]">
+                  <div className="flex items-center gap-3 mb-3">
+                    <MapPin className="w-5 h-5 text-sky-400" />
+                    <h4 className="text-[12px] font-black text-white uppercase tracking-widest">1. Nivel de Sitio</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-bold uppercase tracking-tight leading-relaxed">
+                    Visualiza tus locaciones geográficas. Haz clic para entrar al edificio.
+                  </p>
+                </div>
+                <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-white/[0.01]">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Building2 className="w-5 h-5 text-purple-400" />
+                    <h4 className="text-[12px] font-black text-white uppercase tracking-widest">2. Estructura Física</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-bold uppercase tracking-tight leading-relaxed">
+                    Explora pisos y salas. La navegación es descendente hacia el plano.
+                  </p>
+                </div>
+                <div className="glass-panel p-6 rounded-2xl border border-white/5 bg-white/[0.01]">
+                  <div className="flex items-center gap-3 mb-3">
+                    <DoorOpen className="w-5 h-5 text-emerald-400" />
+                    <h4 className="text-[12px] font-black text-white uppercase tracking-widest">3. Plano de Infraestructura</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-bold uppercase tracking-tight leading-relaxed">
+                    Interactúa con racks y equipos en tiempo real sobre el plano 2D.
+                  </p>
+                </div>
               </div>
 
               {allSites.length > 0 ? (
@@ -440,13 +473,13 @@ export default function TopologyDashboard() {
 
                         {isSiteAlmacen && (
                           <div className="mb-4">
-                            <span className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-md text-[7px] font-black text-amber-500 uppercase tracking-[0.2em]">
+                            <span className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded-md text-[10px] font-black text-amber-500 uppercase tracking-[0.2em]">
                               ALMACÉN TÉCNICO • CATALOG
                             </span>
                           </div>
                         )}
-                        <h3 className="text-xl font-black uppercase italic tracking-tighter text-white mb-2">{site.name}</h3>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-6">{isSiteAlmacen ? 'Repositorio de Plantillas Maestras' : (site.address || 'Geo-Location Pending')}</p>
+                        <h3 className="text-2xl font-black uppercase italic tracking-tighter text-white mb-2">{site.name}</h3>
+                        <p className="text-[12px] text-slate-400 font-bold uppercase tracking-widest mb-6 leading-relaxed">{isSiteAlmacen ? 'Repositorio de Plantillas Maestras' : (site.address || 'Ubicación Geográfica Pendiente')}</p>
 
                         <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-6">
                           <span className={`text-[9px] font-black uppercase tracking-widest ${isSiteAlmacen ? 'text-amber-500' : 'text-sky-400'}`}>
@@ -508,12 +541,12 @@ export default function TopologyDashboard() {
             {/* LEFT SIDEBAR: NAVEGACIÓN JERÁRQUICA (Solo en vista de sala) */}
             {viewMode === 'ROOM' && selectedRoomId && (
               <div style={{ width: sidebarWidth }} className="h-full shrink-0 relative bg-[#0a0a0f] border-r border-white/5 flex flex-col pt-4 animate-in slide-in-from-left duration-300">
-                <div className="px-4 mb-4 flex items-center justify-between">
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 italic flex items-center gap-2">
-                    <Layers className="w-3 h-3 text-accent-primary" /> Estructura
+                <div className="px-6 mb-6 flex items-center justify-between">
+                  <h3 className="text-[12px] font-black uppercase tracking-[0.2em] text-slate-400 italic flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-accent-primary" /> Estructura
                   </h3>
-                  <button onClick={() => setViewMode('ROOM')} className="text-[8px] font-black text-accent-primary uppercase tracking-widest hover:text-white transition-colors">
-                    Refresh Tree
+                  <button onClick={() => setViewMode('ROOM')} className="text-[10px] font-black text-accent-primary uppercase tracking-widest hover:text-white transition-colors bg-accent-primary/5 px-2 py-1 rounded">
+                    Refrescar
                   </button>
                 </div>
 
@@ -524,16 +557,15 @@ export default function TopologyDashboard() {
                       siteName={infrastructureData.siteName}
                       roomName={infrastructureData.roomName}
                       bays={infrastructureData.bays}
+                      selectedId={selectedNodeId}
                       onSelect={(item) => {
-                      // Solo navegamos si NO es un Rack (SUBSHELF/SHELF)
-                      // Los Racks ahora solo se expanden/contraen en el árbol
-                      if (item.category !== 'SUBSHELF' && item.category !== 'SHELF' && item.category !== 'BAY' && item.category !== 'ROOM') {
-                          // Si es un componente interno (como un Panel o el Dispositivo mismo), navegamos
-                          // Usamos el ID del item que suele ser el ID del equipo o dispositivo
+                        setSelectedNodeId(item.id);
+                        const cat = item.category as string;
+                        if (cat !== 'SUBSHELF' && cat !== 'SHELF' && cat !== 'BAY' && cat !== 'ROOM') {
                           window.location.href = `/appm-ems/bdfb/${item.id}`;
-                      }
-                    }}
-                  />
+                        }
+                      }}
+                    />
                   ) : (
                     <div className="p-8 text-center animate-pulse">
                       <Database className="w-8 h-8 text-slate-800 mx-auto mb-2" />
@@ -579,6 +611,12 @@ export default function TopologyDashboard() {
                 <RoomView
                   substructureId={selectedRoomId}
                   siteDimensions={{ width: selectedSite?.width, length: selectedSite?.length }}
+                  onSelectBDFB={(id) => setSelectedNodeId(id)}
+                  onContainerSelect={(container) => {
+                    const id = container?.id || container?._id?.$oid || container?._id || null;
+                    setSelectedNodeId(id);
+                  }}
+                  selectedNodeId={selectedNodeId}
                 />
               )}
             </div>

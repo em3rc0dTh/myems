@@ -12,19 +12,17 @@ interface RoomViewProps {
   onSelectBDFB?: (id: string | null) => void;
   onContainerSelect?: (container: any | null) => void;
   siteDimensions?: { width?: number; length?: number };
+  selectedNodeId?: string | null;
+  suppressElevationManager?: boolean;
 }
 
-const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onContainerSelect, siteDimensions }) => {
+const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onContainerSelect, siteDimensions, selectedNodeId, suppressElevationManager = false }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [substructure, setSubstructure] = useState<any | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoveredZone, setHoveredZone] = useState<string | null>(null);
   const [selectedContainer, _setSelectedContainer] = useState<any | null>(null);
-  const setSelectedContainer = (c: any | null) => {
-    _setSelectedContainer(c);
-    if (onContainerSelect) onContainerSelect(c);
-  };
 
   // DRAWING ENGINE STATE
   const [isDrafting, setIsDrafting] = useState(false);
@@ -93,6 +91,16 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onCon
     };
     if (substructureId) fetchRoomData();
   }, [substructureId]);
+
+  // Sync selection from external tree — bypass setSelectedContainer to avoid echo
+  useEffect(() => {
+    if (!selectedNodeId) return;
+    const rack = localRacks.find(r => {
+      const id = r.id || (r._id?.$oid) || r._id;
+      return id === selectedNodeId;
+    });
+    if (rack) _setSelectedContainer(rack);
+  }, [selectedNodeId, localRacks]);
 
   const resolveValue = (v: any) => {
     if (v && typeof v === 'object') {
@@ -852,28 +860,28 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onCon
           <div className="absolute top-8 left-8 z-[100] pointer-events-none">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2 mb-1">
-                <div className="h-[1px] w-8 bg-sky-500" />
-                <span className="text-[9px] font-black text-sky-500 uppercase tracking-[0.4em] drop-shadow-md">
-                  Infrastructure Digital Twin
+                <div className="h-[1.5px] w-12 bg-sky-500" />
+                <span className="text-[12px] font-black text-sky-500 uppercase tracking-[0.4em] drop-shadow-md">
+                  Operational Blueprint
                 </span>
               </div>
               <h1 className="text-4xl font-black text-white leading-tight uppercase italic tracking-tighter drop-shadow-2xl">
                 {resolveValue(substructure.name)}
               </h1>
-              <div className="mt-2 flex flex-row justify-between w-full gap-6 border-l border-white/10 pl-4 py-0">
-                <div className="flex flex-row items-baseline gap-2">
-                  <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mt-1">Dimensiones</span>
-                  <span className="text-[11px] font-black text-white">{(bounds.w / 100).toFixed(2)}m x {(bounds.h / 100).toFixed(2)}m</span>
+              <div className="mt-3 flex flex-row justify-between w-full gap-8 border-l border-white/20 pl-6 py-0">
+                <div className="flex flex-row items-baseline gap-3">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Dimensiones</span>
+                  <span className="text-[14px] font-black text-white">{(bounds.w / 100).toFixed(2)}m x {(bounds.h / 100).toFixed(2)}m</span>
                 </div>
-                <div className="flex flex-row items-baseline gap-2">
-                  <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mt-1">Área Total</span>
-                  <span className="text-[11px] font-black text-sky-400 italic font-mono tracking-tighter">{((bounds.w * bounds.h) / 10000).toFixed(2)} m²</span>
+                <div className="flex flex-row items-baseline gap-3">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Área Total</span>
+                  <span className="text-[14px] font-black text-sky-400 italic font-mono tracking-tighter">{((bounds.w * bounds.h) / 10000).toFixed(2)} m²</span>
                 </div>
               </div>
               <div className="flex items-center gap-4 mt-3">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Live System Active</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]" />
+                  <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Live System Active</span>
                 </div>
               </div>
             </div>
@@ -896,7 +904,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onCon
 
             {isAdmin && (
               <div className="flex gap-2 bg-black/60 p-1.5 rounded-2xl border border-white/10 backdrop-blur-md">
-                <button onClick={() => setIsDrafting(!isDrafting)} className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${isDrafting ? 'bg-amber-500 text-black shadow-xl' : 'text-slate-500 hover:text-white'}`}>
+                <button onClick={() => setIsDrafting(!isDrafting)} className={`px-5 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${isDrafting ? 'bg-amber-500 text-black shadow-xl' : 'text-slate-400 hover:text-white'}`}>
                   {isDrafting ? 'Drafting' : 'Edit Mode'}
                 </button>
                 {isDrafting && (
@@ -951,8 +959,8 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onCon
                             x={c * 60 + 30}
                             y={r * 60 + 35}
                             textAnchor="middle"
-                            className="fill-white/20 font-black pointer-events-none uppercase tracking-tighter"
-                            style={{ fontSize: 14 / zoom }}
+                            className="fill-white/15 font-black pointer-events-none uppercase tracking-tighter"
+                            style={{ fontSize: 11 / zoom }}
                           >
                             {label}
                           </text>
@@ -963,7 +971,7 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onCon
                 )}
 
                 {/* BAYS */}
-                {persistedRows.map(row => {
+                {persistedRows.map((row, idx) => {
                   if (!row.spatialMetadata) return null;
                   const sm = JSON.parse(row.spatialMetadata);
                   const pts = sm.points ? sm.points.map((p: any) => `${p.x - bounds.minX},${p.y - bounds.minY}`).join(' ') : "";
@@ -976,11 +984,20 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onCon
                   const labelY = (sm.points ? sm.points.reduce((a: any, b: any) => a + b.y, 0) / sm.points.length : 0) - bounds.minY;
 
                   return (
-                    <g key={row.id}>
-                      <polygon points={pts} fill="rgba(217, 70, 239, 0.08)" stroke="#d946ef" strokeWidth={4 / zoom} strokeDasharray="10 5" />
+                    <g
+                      key={row.id}
+                      className="cursor-pointer group/bay"
+                      onClick={() => onSelectBDFB && onSelectBDFB(row.id)}
+                    >
+                      <polygon points={pts} fill="rgba(217, 70, 239, 0.05)" stroke="#d946ef" strokeWidth={4 / zoom} strokeDasharray="10 5" className="group-hover/bay:fill-fuchsia-500/10 transition-colors" />
                       <g transform={`translate(${labelX}, ${labelY})`}>
-                        <text textAnchor="middle" className="fill-white font-black uppercase tracking-[0.2em]" style={{ fontSize: 36 / zoom, paintOrder: 'stroke', stroke: 'black', strokeWidth: 4 / zoom }}>{row.name}</text>
-                        <text y={24 / zoom} textAnchor="middle" className="fill-fuchsia-400 font-bold italic" style={{ fontSize: 16 / zoom }}>{(bayW / 100).toFixed(2)}m Width</text>
+                        {/* Círculo de referencia numerada */}
+                        <circle r={24 / zoom} fill="rgba(0,0,0,0.6)" stroke="#d946ef" strokeWidth={2 / zoom} />
+                        <text textAnchor="middle" y={6 / zoom} className="fill-white font-black" style={{ fontSize: 24 / zoom }}>{idx + 1}</text>
+
+                        {/* Nombre de la Bahía (Pequeño / Tooltip-like) */}
+                        <text y={-40 / zoom} textAnchor="middle" className="fill-white font-black uppercase tracking-widest opacity-0 group-hover/bay:opacity-100 transition-opacity" style={{ fontSize: 14 / zoom }}>{row.name}</text>
+                        <text y={44 / zoom} textAnchor="middle" className="fill-fuchsia-400 font-bold italic" style={{ fontSize: 12 / zoom }}>{(bayW / 100).toFixed(2)}m</text>
                       </g>
                     </g>
                   );
@@ -1002,20 +1019,33 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onCon
                   const fillColor = showHeatmap ? heat.color : baseFill;
                   const strokeColor = showHeatmap ? heat.color : basePrimary;
 
+                  const rackId = getID(rack);
+                  const isSelected = selectedContainer && getID(selectedContainer) === rackId;
+
                   return (
-                    <g key={rack.id} className="cursor-pointer group" onClick={(e) => { e.stopPropagation(); if (!isDrafting) setSelectedContainer(rack); }}>
+                    <g
+                      key={rackId}
+                      className="cursor-pointer group/rack"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isDrafting) {
+                          _setSelectedContainer(rack);
+                          if (onContainerSelect) onContainerSelect(rack);
+                        }
+                      }}
+                    >
                       <polygon
                         points={pts}
                         fill={fillColor}
                         stroke={strokeColor}
                         strokeWidth={(showHeatmap ? 6 : 3) / zoom}
-                        className="transition-all duration-700 group-hover:stroke-white"
+                        className={`transition-all duration-700 group-hover/rack:stroke-white ${isSelected ? 'stroke-white fill-white/10' : ''}`}
                         style={{ fillOpacity: showHeatmap ? 0.6 : 0.8 }}
                       />
                       {showHeatmap && (
                         <polygon points={pts} fill={heat.color} className="animate-pulse" style={{ opacity: 0.2 }} />
                       )}
-                      <text x={lx} y={ly} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter" style={{ fontSize: 18 / zoom, paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.5)', strokeWidth: 2 / zoom }}>{rack.name}</text>
+                      <text x={lx} y={ly} textAnchor="middle" alignmentBaseline="middle" className="font-black fill-white uppercase tracking-tighter pointer-events-none" style={{ fontSize: 16 / zoom, paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.5)', strokeWidth: 2 / zoom }}>{rack.name}</text>
                     </g>
                   );
                 })}
@@ -1089,11 +1119,11 @@ const RoomView: React.FC<RoomViewProps> = ({ substructureId, onSelectBDFB, onCon
         </div>
       </div>
 
-      {selectedContainer && !onContainerSelect && (
+      {selectedContainer && !suppressElevationManager && (
         <RackElevationManager
           container={selectedContainer}
           siteId={substructure?.level?.structure?.siteId}
-          onClose={() => setSelectedContainer(null)}
+          onClose={() => { _setSelectedContainer(null); if (onContainerSelect) onContainerSelect(null); }}
           onUpdate={() => {
             const fetchRoomData = async () => {
               const res = await fetch(`/appm-ems/api/substructures/?id=${substructureId}&t=${Date.now()}`);

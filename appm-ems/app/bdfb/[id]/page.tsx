@@ -507,6 +507,7 @@ const BDFBDetailPage: React.FC = () => {
                                         <div className="w-full h-full glass-panel rounded-3xl overflow-hidden border border-white/5 animate-in fade-in duration-500">
                                             <RoomView
                                                 substructureId={bdfbData.substructureId}
+                                                suppressElevationManager={true}
                                                 onContainerSelect={(c) => { setSelectedContainer(c); }}
                                                 onSelectBDFB={(id) => {
                                                     if (id) {
